@@ -13,13 +13,13 @@ You need `https://mesonbuild.com/` to build.
 Initial setup after a clean checkout:
 
 ```
-# meson setup builddir
+# meson setup _build
 ```
 
 Then to build:
 
 ```
-# ninja -C builddir
+# ninja -C _build
 ```
 
-This produces a test executable at `builddir/src/main`.
+This produces a test executable at `_build/src/main`.
