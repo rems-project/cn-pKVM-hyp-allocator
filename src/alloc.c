@@ -594,7 +594,7 @@ void *hyp_alloc(size_t size)
 	if (missing_map) {
 		ret = chunk_inc_map(last_chunk, missing_map, allocator);
 		if (ret)
-			goto end;
+			goto end;<
 	}
 
 	WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
