@@ -515,6 +515,11 @@ unmap:
 }
 
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
+/*@ requires take a_in=Cn_hyp_allocator(allocator); 
+    a_in.hdrs==Chunk_nil{};
+    ensures take a_out=Cn_hyp_allocator(allocator);
+
+@*/ 
 {
 	int ret;
 
@@ -557,6 +562,7 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 }
 
 void *hyp_alloc(size_t size)
+/*@ if return!=NULL then ...Block<char array>(size) @*/
 {
 	struct hyp_allocator *allocator = &hyp_allocator;
 	struct chunk_hdr *chunk, *last_chunk;
@@ -566,7 +572,9 @@ void *hyp_alloc(size_t size)
 	size = ALIGN(size, MIN_ALLOC);
 
 	hyp_spin_lock(&allocator->lock);
-
+        //PS: ownership from lock invariant
+        //PS: hyp_spin_lock returns Cn_hyp_allocator(&allocator)
+        
 	if (list_empty(&hyp_allocator.chunks)) {
 		ret = setup_first_chunk(allocator, size);
 		if (ret)
