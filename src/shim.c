@@ -47,7 +47,7 @@ static u64 __hyp_vmemmap;
 // int create_hyp_mapping(phys_addr_t addr, size_t size)
 void shim_create_hyp_mapping(size_t size)
 {
-	__io_map_base = (u64)malloc(size);
+	__io_map_base = (u64)aligned_alloc(PAGE_SIZE, size);
 	__hyp_vmemmap = __io_map_base + size;
 }
 
