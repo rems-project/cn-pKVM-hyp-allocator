@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include <alloc.h>
 
@@ -42,33 +43,41 @@ struct kvm_hyp_memcache host_mc = { 0 };
 void test1(void)
 {
 	int *p = hyp_alloc(4*sizeof(int));
+	assert(p);
 	dump_chunks();
 	int *q = hyp_alloc(PAGE_SIZE + 128);
+	assert(q);
 	dump_chunks();
 	hyp_free(p);
 	dump_chunks();
 	hyp_free(q);
 	dump_chunks();
 	p = hyp_alloc(sizeof(int));
+	assert(p);
 	dump_chunks();
 }
 
 void test2(void)
 {
 	dump_chunks();
-	/*int *p = */hyp_alloc(4*sizeof(int));
+	int *p = hyp_alloc(4*sizeof(int));
+	assert(p);
 	dump_chunks();
 	int *q = hyp_alloc(PAGE_SIZE + 128);
+	assert(q);
 	dump_chunks();
 	int *r = hyp_alloc(sizeof(int));
+	assert(r);
 	dump_chunks();
 	hyp_free(r);
 	dump_chunks();
 	hyp_free(q);
 	dump_chunks();
 	r = hyp_alloc(PAGE_SIZE);
+	assert(r);
 	dump_chunks();
 	q = hyp_alloc(sizeof(int));
+	assert(q);
 	dump_chunks();
 	printf("==> %d\n", hyp_alloc_reclaimable());
 	hyp_free(r);
@@ -81,9 +90,10 @@ void test2(void)
 void test3(void)
 {
 	dump_chunks();
-	hyp_alloc(sizeof(int));
+	assert(hyp_alloc(sizeof(int)));
 	dump_chunks();
 	int *p = hyp_alloc(8 + PAGE_SIZE);
+	assert(p);
 	dump_chunks();
 	hyp_free(p);
 	dump_chunks();
