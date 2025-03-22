@@ -58,22 +58,6 @@ typedef u64		phys_addr_t;
 #define IS_ALIGNED(x, a)	(((x) & ((typeof(x))(a) - 1)) == 0)
 #define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
 
-#ifndef max
-#define max(x, y) ({				\
-	typeof(x) _max1 = (x);			\
-	typeof(y) _max2 = (y);			\
-	(void) (&_max1 == &_max2);		\
-	_max1 > _max2 ? _max1 : _max2; })
-#endif
-
-#ifndef min
-#define min(x, y) ({				\
-	typeof(x) _min1 = (x);			\
-	typeof(y) _min2 = (y);			\
-	(void) (&_min1 == &_min2);		\
-	_min1 < _min2 ? _min1 : _min2; })
-#endif
-
 
 #define READ_ONCE(x)	(*(const volatile typeof(x) *)&(x))
 
@@ -91,6 +75,7 @@ do {									\
 #define	EINVAL		22	/* Invalid argument */
 
 #include <linux/bitfield.h>
+#include <linux/minmax.h>
 #include <linux/list.h>
 
 // TODO: spinlock
