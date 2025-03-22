@@ -15,11 +15,11 @@
  * TODO: commenting-out type checking (signedness compatibility). We should
  * bring it back.
  */
-// #define __cmp_once(op, x, y, unique_x, unique_y) ({	\
-// 	typeof(x) unique_x = (x);			\
-// 	typeof(y) unique_y = (y);			\
-// 	static_assert(__types_ok(x, y),			\
-// 		#op "(" #x ", " #y ") signedness error, fix types or consider u" #op "() before " #op "_t()"); \
+// #define __cmp_once(op, x, y, unique_x, unique_y) ({
+// 	typeof(x) unique_x = (x);
+// 	typeof(y) unique_y = (y);
+// 	static_assert(__types_ok(x, y),
+// 		#op "(" #x ", " #y ") signedness error, fix types or consider u" #op "() before " #op "_t()");
 // 	__cmp(op, unique_x, unique_y); })
 #define __cmp_once(op, x, y, unique_x, unique_y) ({	\
 	typeof(x) unique_x = (x);			\
