@@ -162,7 +162,7 @@ u32 hash_64(u64 val, unsigned int bits)
 #include <assert.h>
 static void *admit_host_page(void *arg, unsigned long order)
 {
-	phys_addr_t p;
+	phys_addr_t p __attribute__((unused));
 	struct kvm_hyp_memcache *host_mc = arg;
 	unsigned long mc_order;
 
