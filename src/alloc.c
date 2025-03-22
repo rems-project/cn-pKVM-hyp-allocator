@@ -876,7 +876,7 @@ void dump_chunks(void)
 	u64 i = 0;
 	printf("\x1b[33mBEGIN\n");
 	list_for_each_entry(chunk, &allocator->chunks, node) {
-		printf("  [%llu] %p -- &data: %p { .alloc_size: %u, .mapped_size: %u }\n",
+		printf("  [%"PRIu64"] %p -- &data: %p { .alloc_size: %u, .mapped_size: %u }\n",
 			i++, chunk, chunk_data(chunk), chunk->alloc_size,
 			chunk->mapped_size);
 	}

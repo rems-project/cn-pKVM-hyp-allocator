@@ -105,13 +105,13 @@ void pkvm_remove_mappings(void *from, void *to)
 
 int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 {
-	log_function_args("<TODO>pfn: %llx, nr_pages: %llu", pfn, nr_pages);
+	log_function_args("<TODO>pfn: %"PRIx64", nr_pages: %"PRIu64, pfn, nr_pages);
 	return 0; // TODO
 }
 
 int __hyp_allocator_map(unsigned long start, phys_addr_t phys)
 {
-	// log_function_args("start: %lx, phys: %llx", start, phys);
+	// log_function_args("start: %lx, phys: %"PRIx64, start, phys);
 	// printf("\x1b[31mTODO\x1b[0m\n");
 	return 0; // TODO
 }
@@ -119,7 +119,7 @@ int __hyp_allocator_map(unsigned long start, phys_addr_t phys)
 
 void *hyp_phys_to_virt(phys_addr_t phys)
 {
-	// log_function_args("phys: %llx", phys);
+	// log_function_args("phys: %"PRIu64, phys);
 	return (void*)phys;
 }
 phys_addr_t hyp_virt_to_phys(void *addr)
