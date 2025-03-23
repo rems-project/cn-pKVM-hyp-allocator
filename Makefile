@@ -3,8 +3,16 @@
 # includes adapted from _build/compile_commands.json 
 INCLUDES= -Isrc  -Iinclude
 
-cn-verify-via-cpp: src/alloc.c
-	cpp -DSTANDALONE $(INCLUDES) src/alloc.c tmp-alloc.c
+# KM version
+INCLUDES= -I$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Isrc -Iinclude
+CPP=cc -std=c11 -E -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__
+
+tmp-alloc.c: src/alloc.c
+	$(CPP) -DSTANDALONE $(INCLUDES) src/alloc.c > tmp-alloc.c
+
+
+
+cn-verify-via-cpp: tmp-alloc.c
 	cn verify tmp-alloc.c
 
 

@@ -10,6 +10,10 @@
 
 #define __cmp(op, x, y)	((x) __cmp_op_##op (y) ? (x) : (y))
 
+// PS addition, following KM - hardcoding 0 rather than x to make it look like a constant for now
+#ifdef __cerb__
+#define __builtin_constant_p(x) 0
+#endif
 
 /*
  * TODO: commenting-out type checking (signedness compatibility). We should
