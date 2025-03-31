@@ -84,9 +84,13 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs( pointer p, pointer prev, point
        let chunk_end = cn_hdr.header_address + cn_hdr.mapped_size;
        assert(chunk_end <= end);
 
+
        // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-       take A = Cn_char_array((u64)header_address + sizeof<struct chunk_hdr> + hdr.alloc_size, (u64)header_address + hdr.mapped_size);
+       take A = Cn_char_array((u64)header_address + sizeof<struct chunk_hdr> + hdr.alloc_size, (u64)header_address + hdr.mapped_size); //is Cn_char_array taking a size or an end?
        // the tail of the list 
+
+       /* the tail of the list */
+>>>>>>> 868e2db (wib)
        take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
        // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
        return Chunk_cons { hd: cn_hdr, tl: tl };

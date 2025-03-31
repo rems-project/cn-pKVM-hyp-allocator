@@ -562,7 +562,7 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 }
 
 void *hyp_alloc(size_t size)
-/*@ if return!=NULL then ...Block<char array>(size) @*/
+/*@ ensures if return!=NULL then ...Block<char array>(size) @*/
 {
 	struct hyp_allocator *allocator = &hyp_allocator;
 	struct chunk_hdr *chunk, *last_chunk;
