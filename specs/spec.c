@@ -6,6 +6,9 @@ chunk:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  mapped_size
 **/
 
+
+/* TP: perhaps there's an invariant that the last chunk is the only one that can be _partially_ used */
+
 /*PS: `chunk_is_used` suggests that chunks can be unused, iff size=0.  But probably only transiently?  No, probably not - see the chunk_try_destroy comment.*/
 
 /*PS: what are the hashes used for?  AIUI, to fail fast if the chunk header got stomped on by bad user code.  They cover the next/prev pointers so have to be updated whenever the list structure changes.  So not stable, so presumably not exposed to clients. Could be removed if the clients were persistently verified to be memory safe */
@@ -50,6 +53,7 @@ type_synonym cn_chunk_hdr = {
   va header_address, // the VA of the start of the chunk_hdr
   u32 alloc_size, // exactly as in the C 
   u32 mapped_size  // exactly as in the C 
+  u32 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
   // no node, no hash, no data, no ownership here
 }
 
@@ -57,6 +61,12 @@ datatype cn_chunk_hdrs {
   Chunk_nil {},
   Chunk_cons { cn_chunk_hdr hd, datatype cn_chunk_hdrs tl }
 }
+
+datatype cn_chunk_hdr_option {
+  Chunk_none {},
+  Chunk_some { cn_chunk_hdr hdr }
+}
+
 @*/
 
 /*PS: if we're abstracting the chunks to a CN custom list as above, then we'll abstract a `struct chunk_hdr *chunk` to a natural-number index into that list and define an `nth`?  Or add the actual address to the abstraction and search for that to access?  Think we need that address in any case, though that doesn't decide this. */
@@ -89,8 +99,6 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs( pointer p, pointer prev, point
        take A = Cn_char_array((u64)header_address + sizeof<struct chunk_hdr> + hdr.alloc_size, (u64)header_address + hdr.mapped_size); //is Cn_char_array taking a size or an end?
        // the tail of the list 
 
-       /* the tail of the list */
->>>>>>> 868e2db (wib)
        take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
        // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
        return Chunk_cons { hd: cn_hdr, tl: tl };
@@ -104,4 +112,31 @@ predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_alloca
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
+
+
+
+function [rec] (Cn_chunk_hdr_option) lookup(pointer p, datatype Cn_chunk_hdrs hdrs)
+ { match (hdrs) {
+ Cn_chunk_nil {} => {Cn_chunk_none {} };
+ Cn_chunk_cons {hd:hdr; tl:tl} => {
+    if hdr.header_address == p then 
+      Cn_chunk_some { hdr:hdr}
+    else
+      lookup(p,tl)
+}
+}
+}
+
+function (bool) _is_free_chunk(datatype Cn_chunk_hdr hdr, u32 size)
+hdr.alloc_size == 0 /* i.e., unused */
+  && hdr.va_size /* the code's available_size */  >= chunk_size(size) /*TODO: where chunk_size is a CN copy of their macro */
+    // we ignore the hash check of the chunk_get macro - even though to prove safety of the actual code we would need to check the hash checks succeed.  
+
+function (bool) is_free_chunk(pointer p,u32 size, datatype Cn_chunk_hdrs hdrs)
+// it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
+  _is_free_chunk(lookup(p, hdrs),size)
+
+
+
+
 @*/

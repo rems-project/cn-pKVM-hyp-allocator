@@ -533,6 +533,18 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 
 static struct chunk_hdr *
 get_free_chunk(struct hyp_allocator *allocator, size_t size)
+// should the spec of this characterise "best", or just ensure that this returns a legit chunk?  We guess the latter is sufficient for functional correctness and we'll do that
+// should the spec of this pull out the ownership of that chunk, or just identify the chunk?  We guess the context will sometimes have to mess with neighbouring chunks, so we'll do the pulling out there, not here
+// what variable name to use for the result of Cn_hyp_allocator?
+// (should CN support enforced per-type naming conventions?)
+/*@
+  requires  take HA_in = Cn_hyp_allocator(p);
+ensures   take HA_out = Cn_hyp_allocator(p);
+HA_out=HA_in;
+is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
+@*/
+
+  
 {
 	struct chunk_hdr *chunk, *best_chunk = NULL;
 	size_t best_available_size = allocator->size;
