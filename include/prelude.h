@@ -8,7 +8,9 @@
 #include <stdbool.h>
 #include <stddef.h> // offsetof()
 #include <stdlib.h>
+#ifndef __cerb__
 #include <stdio.h>
+#endif
 #include <inttypes.h>
 #include <string.h> // memset()
 
@@ -33,16 +35,17 @@ typedef u64		phys_addr_t;
 #ifdef __cerb__
 // TODO
 #define BUILD_BUG_ON(cond)
+#define WARN_ON(condition)	(!!(condition))
 #else
 #define BUILD_BUG_ON(cond)	\
 	_Static_assert(!(cond), "BUILD_BUG_ON failed: " #cond)
-#endif
 #define WARN_ON(condition) ({							\
 	int __ret_warn_on = !!(condition);					\
 	if (__ret_warn_on)							\
 		fprintf(stderr, "WARN_ON: %s - %d\n", __FILE__, __LINE__);	\
 	__ret_warn_on;								\
 })
+#endif
 
 
 #define __ALIGN_KERNEL(x, a)	\

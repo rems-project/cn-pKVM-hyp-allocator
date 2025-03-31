@@ -46,7 +46,24 @@
 		__cmp(op, x, y),				\
 		__cmp_once(op, x, y, __UNIQUE_ID(__x), __UNIQUE_ID(__y)))
 
+#ifdef NO_STATEMENT_EXPRS
+static inline u32 min_u32(u32 x, u32 y)
+{
+	return __cmp(min, x , y);
+}
+
+static inline u64 min_u64(u64 x, u64 y)
+{
+	return __cmp(min, x , y);
+}
+
+static inline u64 max_u64(u64 x, u64 y)
+{
+	return __cmp(max, x , y);
+}
+#else /* NO_STATEMENT_EXPRS */
 #define min(x, y)	__careful_cmp(min, x, y)
 #define max(x, y)	__careful_cmp(max, x, y)
+#endif /* NO_STATEMENT_EXPRS */
 
 #endif	/* _LINUX_MINMAX_H */

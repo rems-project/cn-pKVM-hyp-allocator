@@ -81,12 +81,68 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 #define chunk_hdr_size() \
 	offsetof(struct chunk_hdr, data)
 
+#ifdef NO_STATEMENT_EXPRS
+#define chunk_size(size) \
+	(chunk_hdr_size() + max_u64((size_t)(size), MIN_ALLOC))
+#else /* NO_STATEMENT_EXPRS */
 #define chunk_size(size) \
 	(chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
+#endif /* NO_STATEMENT_EXPRS */
 
 #define chunk_data(chunk) \
 	((void *)(&(chunk)->data))
 
+#ifdef NO_STATEMENT_EXPRS
+static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
+			   struct hyp_allocator *allocator)
+{
+	return list_is_last(&(chunk)->node, &(allocator)->chunks) ?
+		NULL : list_next_entry(chunk, node);
+}
+
+static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
+			   struct hyp_allocator *allocator)
+{
+	return list_is_first(&(chunk)->node, &(allocator)->chunks) ?
+		NULL : list_prev_entry(chunk, node);
+}
+
+static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
+					       struct hyp_allocator *allocator)
+{
+	struct chunk_hdr *next = __chunk_next(chunk, allocator);
+	chunk_hash_validate(next);
+	return next;
+}
+
+static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
+					       struct hyp_allocator *allocator)
+{
+	struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
+	chunk_hash_validate(prev);
+	return prev;
+}
+
+static inline struct chunk_hdr* chunk_get(void *addr)
+{
+	struct chunk_hdr *chunk = (struct chunk_hdr *)addr;
+	chunk_hash_validate(chunk);
+	return chunk;
+}
+
+#define chunk_unmapped_region(chunk) \
+	((unsigned long)(chunk) + chunk->mapped_size)
+
+static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
+						struct hyp_allocator *allocator)
+{
+	struct chunk_hdr *next = chunk_get_next(chunk, allocator);
+	unsigned long allocator_end = (allocator)->start +
+				      (allocator)->size;
+	return next ? (unsigned long)next - chunk_unmapped_region(chunk) :
+		allocator_end - chunk_unmapped_region(chunk);
+}
+#else /* NO_STATEMENT_EXPRS */
 #define __chunk_next(chunk, allocator)				\
 ({								\
 	list_is_last(&(chunk)->node, &(allocator)->chunks) ?	\
@@ -131,6 +187,7 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 	next ? (unsigned long)next - chunk_unmapped_region(chunk) :	\
 		allocator_end - chunk_unmapped_region(chunk);		\
 })
+#endif /* NO_STATEMENT_EXPRS */
 
 static inline void chunk_list_insert(struct chunk_hdr *chunk,
 				     struct chunk_hdr *prev,
@@ -191,7 +248,11 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 		u8 *missing_donations = this_cpu_ptr(&hyp_allocator_missing_donations);
 		u32 delta = (size >> PAGE_SHIFT) - mc->nr_pages;
 
+#ifdef NO_STATEMENT_EXPRS
+		*missing_donations = min_u32(delta, U8_MAX);
+#else /* NO_STATEMENT_EXPRS*/
 		*missing_donations = min(delta, U8_MAX);
+#endif /* NO_STATEMENT_EXPRS */
 
 		return -ENOMEM;
 	}
@@ -382,7 +443,11 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 		return 0;
 
 	end = chunk_unmapped_region(chunk);
+#ifdef NO_STATEMENT_EXPRS
+	reclaimable = min_u64(end - start, reclaim_target);
+#else /* NO_STATEMENT_EXPRS */
 	reclaimable = min(end - start, reclaim_target);
+#endif /* NO_STATEMENT_EXPRS */
 	start = end - reclaimable;
 
 	hyp_allocator_unmap(allocator, start, reclaimable);
@@ -880,9 +945,10 @@ struct hyp_mgt_allocator_ops hyp_alloc_ops = {
 	.reclaimable = hyp_alloc_reclaimable,
 };
 #else
-int printf(const char *, ...);
 void dump_chunks(void)
 {
+#ifndef __cerb__
+	int printf(const char *, ...);
 	struct hyp_allocator *allocator = &hyp_allocator;
 	struct chunk_hdr *chunk;
 	u64 i = 0;
@@ -893,5 +959,6 @@ void dump_chunks(void)
 			chunk->mapped_size);
 	}
 	printf("END\x1b[0m\n");
+#endif /* __cerb__ */
 }
 #endif

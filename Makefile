@@ -8,7 +8,7 @@ INCLUDES= -I$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Isrc -
 CPP=cc -std=c11 -E -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__
 
 tmp-alloc.c: src/alloc.c
-	$(CPP) -DSTANDALONE $(INCLUDES) src/alloc.c > tmp-alloc.c
+	$(CPP) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c > tmp-alloc.c
 
 
 
@@ -17,7 +17,7 @@ cn-verify-via-cpp: tmp-alloc.c
 
 
 cn-verify: src/alloc.c
-	cn verify -DSTANDALONE $(INCLUDES) src/alloc.c
+	cn verify -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c
 
 clean:
 	rm -f tmp-alloc.c

@@ -18,11 +18,16 @@
  *
  * WARNING: any const qualifier of @ptr is lost.
  */
+#ifdef NO_STATEMENT_EXPRS
+#define container_of(ptr, type, member)					\
+	((type *)((void *)(ptr) - offsetof(type, member)))
+#else /* NO_STATEMENT_EXPRS */
 #define container_of(ptr, type, member) ({				\
 	void *__mptr = (void *)(ptr);					\
 	static_assert(__same_type(*(ptr), ((type *)0)->member) ||	\
 		__same_type(*(ptr), void),				\
 		"pointer type mismatch in container_of()");		\
 	((type *)(__mptr - offsetof(type, member))); })
+#endif /* NO_STATEMENT_EXPRS */
 
 #endif /* _LINUX_CONTAINER_OF_H */
