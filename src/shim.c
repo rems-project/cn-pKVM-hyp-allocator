@@ -5,7 +5,7 @@
 
 #ifdef __cerb__
 // TODO
-const char *__func__ = "__func__";
+#define __func__	"__func__"
 #endif
 
 unsigned long hyp_nr_cpus = 1;
