@@ -14,7 +14,7 @@ chunk:
 /*PS: what are the hashes used for?  AIUI, to fail fast if the chunk header got stomped on by bad user code.  They cover the next/prev pointers so have to be updated whenever the list structure changes.  So not stable, so presumably not exposed to clients. Could be removed if the clients were persistently verified to be memory safe */
 
 /*PS: in addition to our first sketch, the spec should constrain what is actually mapped - by making the underlying __hyp_allocator_map and pkvm_remove_mappings in shim.c have specs that record that as finite maps (and fail if something tries to map illegally).  And we need to spec the memcache operations. */
-
+#if 0
 #include <inttypes.h>
 
 typedef uint8_t		u8;
@@ -45,6 +45,7 @@ struct chunk_hdr {
 	u32			hash;
 	char			data /* __aligned(8) */;
 };
+#endif
 
 /*@
 type_synonym va = u64
@@ -52,7 +53,7 @@ type_synonym va = u64
 type_synonym cn_chunk_hdr = {
   va header_address, // the VA of the start of the chunk_hdr
   u32 alloc_size, // exactly as in the C 
-  u32 mapped_size  // exactly as in the C 
+  u32 mapped_size,  // exactly as in the C
   u32 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
   // no node, no hash, no data, no ownership here
 }
@@ -75,40 +76,41 @@ datatype cn_chunk_hdr_option {
 /* invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)*/
 /* start and end are the va space within which the chunks have to be */
 /*@
-predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs( pointer p, pointer prev, pointer last, va start, va end ) {
-  if (p==last) 
-    { assert(start <= end);
-      return Chunk_nil {}; }
-  else
-     { 
-       let header_address = container_of(p); // or some offsetof arithmetic 
-       take hdr = Owned<struct chunk_hdr>(header_address);
-       let cn_hdr = {
-         header_address : (u64) header_address,
-         alloc_size : hdr.alloc_size,
-         mapped_size : hdr.mapped_size
-       };
-       
-       // check non-overlappingness
-       assert(cn_hdr.header_address >= start);
-       let chunk_end = cn_hdr.header_address + cn_hdr.mapped_size;
-       assert(chunk_end <= end);
+predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointer last, va start, va end)
+{
+	if (ptr_eq(p,last)) {
+		assert(start <= end);
+		return Chunk_nil {};
+	} else {
+		let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node))); // or some offsetof arithmetic
+		take hdr = RW<struct chunk_hdr>(header_address);
+		let cn_hdr = {
+			header_address : (u64) header_address,
+			alloc_size : hdr.alloc_size,
+			mapped_size : hdr.mapped_size
+		};
 
+		// check non-overlappingness
+		assert(cn_hdr.header_address >= start);
+		let chunk_end = cn_hdr.header_address + cn_hdr.mapped_size;
+		assert(chunk_end <= end);
 
-       // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-       take A = Cn_char_array((u64)header_address + sizeof<struct chunk_hdr> + hdr.alloc_size, (u64)header_address + hdr.mapped_size); //is Cn_char_array taking a size or an end?
-       // the tail of the list 
+		// ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
+		take A = Cn_char_array((u64)header_address + sizeof<struct chunk_hdr> + hdr.alloc_size, (u64)header_address + hdr.mapped_size); //is Cn_char_array taking a size or an end?
+		// the tail of the list 
 
-       take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
-       // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
-       return Chunk_cons { hd: cn_hdr, tl: tl };
-     }
+		take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
+		// do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
+		return Chunk_cons { hd: cn_hdr, tl: tl };
+	}
 }
 
                             
 predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p  ) { // p points to a struct hyp_allocator
-  take ha = Owned<struct hyp_allocator>(p);
-  take hdrs = Cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev);
+  take ha = RW<struct hyp_allocator>(p);
+  let chunk_ptr = member_shift<struct hyp_allocator>(p, chunks);
+  let next_ptr = member_shift<struct list_head>(chunk_ptr, next);
+  take hdrs = Cn_chunk_hdrs(ha.chunks.next, next_ptr, ha.chunks.prev);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
@@ -116,27 +118,37 @@ predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_alloca
 
 
 function [rec] (Cn_chunk_hdr_option) lookup(pointer p, datatype Cn_chunk_hdrs hdrs)
- { match (hdrs) {
- Cn_chunk_nil {} => {Cn_chunk_none {} };
- Cn_chunk_cons {hd:hdr; tl:tl} => {
-    if hdr.header_address == p then 
-      Cn_chunk_some { hdr:hdr}
-    else
-      lookup(p,tl)
-}
-}
+{
+	match (hdrs) {
+	Cn_chunk_nil {} => {
+		Cn_chunk_none {}
+	}
+	Cn_chunk_cons {hd:hdr, tl:tl} => {
+		if (hdr.header_address == p){
+			Cn_chunk_some { hdr:hdr }
+		} else {
+			lookup(p,tl)
+		}
+	}
+	}
 }
 
 function (bool) _is_free_chunk(datatype Cn_chunk_hdr hdr, u32 size)
-hdr.alloc_size == 0 /* i.e., unused */
-  && hdr.va_size /* the code's available_size */  >= chunk_size(size) /*TODO: where chunk_size is a CN copy of their macro */
-    // we ignore the hash check of the chunk_get macro - even though to prove safety of the actual code we would need to check the hash checks succeed.  
+{
+	   hdr.alloc_size == 0 // i.e., unused
+	&& hdr.va_size // the code's available_size
+	>= chunk_size(size) // TODO: where chunk_size is a CN copy of their macro
+	// we ignore the hash check of the chunk_get macro - even though to
+	// prove safety of the actual code we would need to check the hash
+	// checks succeed.
+}
 
 function (bool) is_free_chunk(pointer p,u32 size, datatype Cn_chunk_hdrs hdrs)
-// it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
-  _is_free_chunk(lookup(p, hdrs),size)
-
-
-
+{
+	// it returns a chunk in the list (or NIL?) st the alloc_size is zero
+	// and total size (not just mapped size, and including header size) is
+	// at least what you asked for.
+	_is_free_chunk(lookup(p, hdrs),size)
+}
 
 @*/

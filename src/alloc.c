@@ -43,6 +43,10 @@ struct chunk_hdr {
 	char			data __aligned(8);
 };
 
+#ifdef __cerb__
+#include "../specs/spec.c"
+#endif
+
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 {
 	size_t len = offsetof(struct chunk_hdr, hash);
@@ -638,8 +642,28 @@ is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) 
 	return chunk_get(best_chunk);
 }
 
+/*@
+predicate void MyBlock(pointer p, u64 size)
+{
+	take U = each(u64 i; i < size){
+		W<char>(array_shift<char>(p, i))
+	};
+	return;
+}
+
+predicate void MaybeMyBlock(pointer p, u64 size)
+{
+	if (ptr_eq(p, NULL)) {
+		return;
+	} else {
+		take U = MyBlock(p, size);
+		return;
+	}
+}
+@*/
+
 void *hyp_alloc(size_t size)
-/*@ ensures if return!=NULL then ...Block<char array>(size) @*/
+/*@ ensures take U = MaybeMyBlock(return, size); @*/
 {
 	struct hyp_allocator *allocator = &hyp_allocator;
 	struct chunk_hdr *chunk, *last_chunk;
