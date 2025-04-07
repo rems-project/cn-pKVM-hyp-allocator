@@ -87,16 +87,17 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointe
 		let cn_hdr = {
 			header_address : (u64) header_address,
 			alloc_size : hdr.alloc_size,
-			mapped_size : hdr.mapped_size
+			mapped_size : hdr.mapped_size,
+      va_size: hdr.va_size
 		};
 
 		// check non-overlappingness
 		assert(cn_hdr.header_address >= start);
-		let chunk_end = cn_hdr.header_address + cn_hdr.mapped_size;
+		let chunk_end = cn_hdr.header_address + (u64) cn_hdr.mapped_size;
 		assert(chunk_end <= end);
 
 		// ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-		take A = Cn_char_array((u64)header_address + sizeof<struct chunk_hdr> + hdr.alloc_size, (u64)header_address + hdr.mapped_size); //is Cn_char_array taking a size or an end?
+		take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64)header_address + (u64) hdr.mapped_size); //is Cn_char_array taking a size or an end?
 		// the tail of the list 
 
 		take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
@@ -117,15 +118,15 @@ predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_alloca
 
 
 
-function [rec] (Cn_chunk_hdr_option) lookup(pointer p, datatype Cn_chunk_hdrs hdrs)
+function [rec] (datatype cn_chunk_hdr_option) lookup(pointer p, datatype cn_chunk_hdrs hdrs)
 {
 	match (hdrs) {
-	Cn_chunk_nil {} => {
-		Cn_chunk_none {}
+	Chunk_nil {} => {
+		Chunk_none {}
 	}
-	Cn_chunk_cons {hd:hdr, tl:tl} => {
-		if (hdr.header_address == p){
-			Cn_chunk_some { hdr:hdr }
+	Chunk_cons {hd:hdr, tl:tl} => {
+		if (hdr.header_address == (u64) p){
+			Chunk_some { hdr:hdr }
 		} else {
 			lookup(p,tl)
 		}
@@ -133,22 +134,23 @@ function [rec] (Cn_chunk_hdr_option) lookup(pointer p, datatype Cn_chunk_hdrs hd
 	}
 }
 
-function (bool) _is_free_chunk(datatype Cn_chunk_hdr hdr, u32 size)
+function (boolean) is_free_chunk(cn_chunk_hdr hdr, u32 size)
 {
-	   hdr.alloc_size == 0 // i.e., unused
-	&& hdr.va_size // the code's available_size
-	>= chunk_size(size) // TODO: where chunk_size is a CN copy of their macro
+	   hdr.alloc_size == 0u32 // i.e., unused
+	&& (u64) hdr.va_size // the code's available_size
+	>= cn_chunk_size((u64) size) // TODO: where chunk_size is a CN copy of their macro
 	// we ignore the hash check of the chunk_get macro - even though to
 	// prove safety of the actual code we would need to check the hash
 	// checks succeed.
 }
 
-function (bool) is_free_chunk(pointer p,u32 size, datatype Cn_chunk_hdrs hdrs)
-{
-	// it returns a chunk in the list (or NIL?) st the alloc_size is zero
-	// and total size (not just mapped size, and including header size) is
-	// at least what you asked for.
-	_is_free_chunk(lookup(p, hdrs),size)
-}
+// function (bool) is_free_chunk(pointer p,u32 size, datatype cn_chunk_hdrs hdrs)
+// {
+// 	// it returns a chunk in the list (or NIL?) st the alloc_size is zero
+// 	// and total size (not just mapped size, and including header size) is
+// 	// at least what you asked for.
+  
+// 	_is_free_chunk(lookup(p, hdrs),size)
+// }
 
 @*/

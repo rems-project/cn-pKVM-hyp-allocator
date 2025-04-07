@@ -43,9 +43,6 @@ struct chunk_hdr {
 	char			data __aligned(8);
 };
 
-#ifdef __cerb__
-#include "../specs/spec.c"
-#endif
 
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 {
@@ -92,6 +89,19 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 #define chunk_size(size) \
 	(chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
 #endif /* NO_STATEMENT_EXPRS */
+
+#ifdef __cerb__ 
+/*@ function (u64) cn_chunk_size (u64 size) @*/
+size_t c_chunk_size(size_t size) 
+/*@ cn_function cn_chunk_size; @*/
+{
+	return chunk_size(size);
+}
+#endif
+
+#ifdef __cerb__
+#include "../specs/spec.c"
+#endif
 
 #define chunk_data(chunk) \
 	((void *)(&(chunk)->data))
@@ -607,10 +617,19 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // what variable name to use for the result of Cn_hyp_allocator?
 // (should CN support enforced per-type naming conventions?)
 /*@
-  requires  take HA_in = Cn_hyp_allocator(p);
-ensures   take HA_out = Cn_hyp_allocator(p);
-HA_out=HA_in;
-is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
+requires  take HA_in = Cn_hyp_allocator(allocator);
+ensures   take HA_out = Cn_hyp_allocator(allocator);
+HA_out==HA_in;
+let hdr_maybe = lookup(return, HA_in.hdrs);
+if (ptr_eq(return, NULL)) {
+	hdr_maybe == Chunk_none {}
+} else {
+	match (hdr_maybe) {
+		Chunk_none {} => {false}
+		Chunk_some {hdr: hdr} => {is_free_chunk(hdr, size)}
+	}
+};
+// is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
 @*/
 
   
@@ -643,7 +662,7 @@ is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) 
 }
 
 /*@
-predicate void MyBlock(pointer p, u64 size)
+predicate void Cn_char_array(pointer p, u64 size)
 {
 	take U = each(u64 i; i < size){
 		W<char>(array_shift<char>(p, i))
@@ -651,19 +670,19 @@ predicate void MyBlock(pointer p, u64 size)
 	return;
 }
 
-predicate void MaybeMyBlock(pointer p, u64 size)
+predicate void MaybeCn_char_array(pointer p, u64 size)
 {
 	if (ptr_eq(p, NULL)) {
 		return;
 	} else {
-		take U = MyBlock(p, size);
+		take U = Cn_char_array(p, size);
 		return;
 	}
 }
 @*/
 
 void *hyp_alloc(size_t size)
-/*@ ensures take U = MaybeMyBlock(return, size); @*/
+/*@ ensures take U = MaybeCn_char_array(return, size); @*/
 {
 	struct hyp_allocator *allocator = &hyp_allocator;
 	struct chunk_hdr *chunk, *last_chunk;
