@@ -90,13 +90,15 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 	(chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
 #endif /* NO_STATEMENT_EXPRS */
 
-#ifdef __cerb__ 
-/*@ function (u64) cn_chunk_size (u64 size) @*/
-size_t c_chunk_size(size_t size) 
-/*@ cn_function cn_chunk_size; @*/
+#ifdef __cerb__
+/*@
+// HK: size_t cast is removed. Macro requires cast because it does not know what the
+// argument type is.
+function (u64) cn_chunk_size (u64 size)
 {
-	return chunk_size(size);
+	(u64) offsetof(chunk_hdr, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
 }
+@*/
 #endif
 
 #ifdef __cerb__

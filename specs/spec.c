@@ -88,7 +88,7 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointe
 			header_address : (u64) header_address,
 			alloc_size : hdr.alloc_size,
 			mapped_size : hdr.mapped_size,
-      va_size: hdr.va_size
+			va_size: 0u32 // TODO: should be va.va_size
 		};
 
 		// check non-overlappingness
@@ -106,12 +106,13 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointe
 	}
 }
 
-                            
+
 predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p  ) { // p points to a struct hyp_allocator
   take ha = RW<struct hyp_allocator>(p);
   let chunk_ptr = member_shift<struct hyp_allocator>(p, chunks);
   let next_ptr = member_shift<struct list_head>(chunk_ptr, next);
-  take hdrs = Cn_chunk_hdrs(ha.chunks.next, next_ptr, ha.chunks.prev);
+  // TODO: fill va_start and va_end
+  take hdrs = Cn_chunk_hdrs(ha.chunks.next, next_ptr, ha.chunks.prev, 0u64, 0u64);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
