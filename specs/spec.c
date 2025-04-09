@@ -1,6 +1,6 @@
 /** 
 chunk:
-| hdr | alloc'd | mapped-but-not-alloc'd | ..maybe unmapped VA part before the start of the next chunk (or the start+size)..?
+| hdr | alloc'd | mapped-but-not-alloc'd | ..maybe unmapped VA part before the start of the next chunk (or the start+size) |
 
       ^^^^^^^^^^ alloc_size
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  mapped_size
@@ -54,7 +54,7 @@ type_synonym cn_chunk_hdr = {
   va header_address, // the VA of the start of the chunk_hdr
   u32 alloc_size, // exactly as in the C 
   u32 mapped_size,  // exactly as in the C
-  u32 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
+  u64 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
   // no node, no hash, no data, no ownership here
 }
 
@@ -72,6 +72,12 @@ datatype cn_chunk_hdr_option {
 
 /*PS: if we're abstracting the chunks to a CN custom list as above, then we'll abstract a `struct chunk_hdr *chunk` to a natural-number index into that list and define an `nth`?  Or add the actual address to the abstraction and search for that to access?  Think we need that address in any case, though that doesn't decide this. */
 
+/*@
+function (pointer) my_container_of_chunk_hdr (pointer p)
+{
+  member_shift<struct chunk_hdr>(p, node)
+}
+@*/
 
 /* invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)*/
 /* start and end are the va space within which the chunks have to be */
@@ -88,7 +94,7 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointe
 			header_address : (u64) header_address,
 			alloc_size : hdr.alloc_size,
 			mapped_size : hdr.mapped_size,
-			va_size: 0u32 // TODO: should be va.va_size
+			va_size: if (ptr_eq(hdr.node.next, last)) { end } else {(u64)my_container_of_chunk_hdr(hdr.node.next) - (u64)p }  // TODO: should be va.va_size
 		};
 
 		// check non-overlappingness
