@@ -20,7 +20,8 @@
  */
 #ifdef NO_STATEMENT_EXPRS
 #define container_of(ptr, type, member)					\
-	((type *)((unsigned char *)(ptr) - offsetof(type, member)))
+	((type *)((unsigned long long)(ptr) - offsetof(type, member)))
+	// TODO(2): Change unsigned long long to char *
 	// TODO: Change unsigned char * back to void * once Cerberus allows (non-ISO) pointer arithmetic on void *
 #else /* NO_STATEMENT_EXPRS */
 #define container_of(ptr, type, member) ({				\

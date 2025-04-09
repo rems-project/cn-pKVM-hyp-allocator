@@ -118,7 +118,6 @@ predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_alloca
 }
 
 
-
 function [rec] (datatype cn_chunk_hdr_option) lookup(pointer p, datatype cn_chunk_hdrs hdrs)
 {
 	match (hdrs) {

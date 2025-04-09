@@ -633,7 +633,7 @@ if (ptr_eq(return, NULL)) {
 } else {
 	match (hdr_maybe) {
 		Chunk_none {} => {false}
-		Chunk_some {hdr: hdr} => {is_free_chunk(hdr, size)}
+		Chunk_some {hdr: hdr} => {is_free_chunk(hdr, (u32)size)}
 	}
 };
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
