@@ -49,7 +49,16 @@ struct chunk_hdr {
 };
 
 
+// HK: requires ownership to data...
+// HK: wip
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
+/*@
+	requires
+		take C_pre = Owned<struct chunk_hdr>(chunk);
+	ensures
+		take C_post = Owned<struct chunk_hdr>(chunk);
+		C_post.alloc_size == C_pre.alloc_size;
+@*/
 {
 	size_t len = offsetof(struct chunk_hdr, hash);
 	u64 *data = (u64 *)chunk;
@@ -57,7 +66,13 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 
 	BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
 
-	while (len >= sizeof(u64)) {
+	while (len >= sizeof(u64))
+	/*@
+		inv
+		take C_inv = Owned<struct chunk_hdr>(chunk);
+		C_inv.alloc_size == C_pre.alloc_size;
+	@*/
+	{
 		hash ^= hash_64(*data, 32);
 		len -= sizeof(u64);
 		data++;
@@ -70,6 +85,12 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 }
 
 static inline void chunk_hash_update(struct chunk_hdr *chunk)
+/*@
+	requires
+		take C_pre = Owned<struct chunk_hdr>(chunk);
+	ensures
+		take C_post = Owned<struct chunk_hdr>(chunk);
+@*/
 {
 	if (chunk)
 		chunk->hash = chunk_hash_compute(chunk);
@@ -479,6 +500,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 	return reclaimable;
 }
 
+// TODO: maybe we can write spec for this (HK)
 static unsigned long chunk_addr_fixup(unsigned long addr)
 {
 	unsigned long min_chunk_size = chunk_size(0UL);
@@ -518,6 +540,23 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 			 struct hyp_allocator *allocator)
+// remaining possible specifications
+// -
+/*@
+	requires
+		//take HA_in = Cn_hyp_allocator(allocator);
+		take C_pre = Owned<struct chunk_hdr>(chunk);
+	ensures
+	    //take HA_out = Cn_hyp_allocator(allocator);
+		take C_post = Owned<struct chunk_hdr>(chunk);
+		C_post.alloc_size == (u32)size;
+		C_post.mapped_size == C_pre.mapped_size;
+		C_post.node == C_pre.node;
+		C_post.data == C_pre.data;
+		return == 0i32;
+		//C_post.others == C.others;
+		// TODO: write some spec on HA_out and HA_in
+@*/
 {
 	unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);
 	size_t missing_map, expected_mapping = size;
@@ -530,20 +569,19 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 		expected_mapping = new_chunk_addr + chunk_hdr_size() -
 					(unsigned long)chunk_data(chunk);
 	}
-
-	missing_map = chunk_needs_mapping(chunk, expected_mapping);
-	if (missing_map) {
-		ret = chunk_inc_map(chunk, missing_map, allocator);
-		if (ret)
-			return ret;
-	}
+	// TODO: memcache part. We ignore this for now (HK)
+	// missing_map = chunk_needs_mapping(chunk, expected_mapping);
+	// if (missing_map) {
+	//         ret = chunk_inc_map(chunk, missing_map, allocator);
+	//         if (ret)
+	//                 return ret;
+	// }
 
 	chunk->alloc_size = size;
 	chunk_hash_update(chunk);
 
 	if (new_chunk)
 		WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
-
 	return 0;
 }
 
@@ -601,11 +639,11 @@ unmap:
 }
 
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
-/*@ requires take a_in=Cn_hyp_allocator(allocator); 
+/*@ requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
     ensures take a_out=Cn_hyp_allocator(allocator);
 
-@*/ 
+@*/
 {
 	int ret;
 
@@ -616,6 +654,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 
 	return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
 }
+
 
 static struct chunk_hdr *
 get_free_chunk(struct hyp_allocator *allocator, size_t size)
@@ -639,7 +678,7 @@ if (ptr_eq(return, NULL)) {
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
 @*/
 
-  
+
 {
 	struct chunk_hdr *chunk, *best_chunk = NULL;
 	size_t best_available_size = allocator->size;
@@ -701,7 +740,7 @@ void *hyp_alloc(size_t size)
 	hyp_spin_lock(&allocator->lock);
         //PS: ownership from lock invariant
         //PS: hyp_spin_lock returns Cn_hyp_allocator(&allocator)
-        
+
 	if (list_empty(&hyp_allocator.chunks)) {
 		ret = setup_first_chunk(allocator, size);
 		if (ret)
