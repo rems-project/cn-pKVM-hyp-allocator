@@ -1,4 +1,4 @@
-/** 
+/**
 chunk:
 | hdr | alloc'd | mapped-but-not-alloc'd | ..maybe unmapped VA part before the start of the next chunk (or the start+size) |
 
@@ -49,10 +49,10 @@ struct chunk_hdr {
 
 /*@
 type_synonym va = u64
-  
+
 type_synonym cn_chunk_hdr = {
   va header_address, // the VA of the start of the chunk_hdr
-  u32 alloc_size, // exactly as in the C 
+  u32 alloc_size, // exactly as in the C
   u32 mapped_size,  // exactly as in the C
   u64 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
   // no node, no hash, no data, no ownership here
@@ -94,7 +94,7 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointe
                         header_address : (u64) header_address,
                         alloc_size : hdr.alloc_size,
                         mapped_size : hdr.mapped_size,
-                        va_size: if (ptr_eq(hdr.node.next, last)) { end } else {(u64)my_container_of_chunk_hdr(hdr.node.next) - (u64)p }  // TODO: should be va.va_size
+                        va_size: if (ptr_eq(hdr.node.next, last)) { end } else {(u64)my_container_of_chunk_hdr(hdr.node.next) - (u64)p }
                 };
 
                 // check non-overlappingness
@@ -104,7 +104,7 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointe
 
                 // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
                 take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64)header_address + (u64) hdr.mapped_size); //is Cn_char_array taking a size or an end?
-                // the tail of the list 
+                // the tail of the list
 
                 take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
                 // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
@@ -113,12 +113,11 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointe
 }
 
 
-predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p  ) { // p points to a struct hyp_allocator
+predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
   take ha = RW<struct hyp_allocator>(p);
   let chunk_ptr = member_shift<struct hyp_allocator>(p, chunks);
   let next_ptr = member_shift<struct list_head>(chunk_ptr, next);
-  // TODO: fill va_start and va_end
-  take hdrs = Cn_chunk_hdrs(ha.chunks.next, next_ptr, ha.chunks.prev, 0u64, 0u64);
+  take hdrs = Cn_chunk_hdrs(ha.chunks.next, next_ptr, ha.chunks.prev, ha.start, ha.start + (u64)ha.size);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
@@ -155,7 +154,7 @@ function (boolean) is_free_chunk(cn_chunk_hdr hdr, u32 size)
 //      // it returns a chunk in the list (or NIL?) st the alloc_size is zero
 //      // and total size (not just mapped size, and including header size) is
 //      // at least what you asked for.
-  
+
 //      _is_free_chunk(lookup(p, hdrs),size)
 // }
 

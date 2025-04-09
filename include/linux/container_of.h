@@ -19,10 +19,10 @@
  * WARNING: any const qualifier of @ptr is lost.
  */
 #ifdef NO_STATEMENT_EXPRS
-#define container_of(ptr, type, member)					\
-	((type *)((unsigned long long)(ptr) - offsetof(type, member)))
-	// TODO(2): Change unsigned long long to char *
-	// TODO: Change unsigned char * back to void * once Cerberus allows (non-ISO) pointer arithmetic on void *
+// hack suggested by Kayvan: https://rems-chat.cl.cam.ac.uk/rems/pl/iarhiqj8dfrzujo3m1zysssoir
+#define container_of(ptr, type, member) \
+	((type *)((unsigned char *)(ptr) + (0UL - offsetof(type, member))))
+// TODO: Change unsigned char * back to void * once Cerberus allows (non-ISO) pointer arithmetic on void *
 #else /* NO_STATEMENT_EXPRS */
 #define container_of(ptr, type, member) ({				\
 	void *__mptr = (void *)(ptr);					\

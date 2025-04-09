@@ -101,6 +101,13 @@ void hyp_spin_unlock(hyp_spinlock_t *lock);
 #define PAGE_SIZE		(1UL << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 
+// HK: we cannot define c_PAGE_ALIGN_DOWN until here because PAGE_SIZE is defined just above.
+/*@ function (u64) PAGE_ALIGN_DOWN(u64 addr) @*/
+static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr) /*@  cn_function PAGE_ALIGN_DOWN; @*/
+{
+	return PAGE_ALIGN_DOWN(addr);
+}
+
 
 /*
  * KVM MEMCACHE ***************************************************************

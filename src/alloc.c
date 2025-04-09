@@ -48,30 +48,35 @@ struct chunk_hdr {
         char                    data __aligned(8);
 };
 
+// Auxiliary functions for chunk_hdr
+/*@
+function (boolean) hash_change_only (struct chunk_hdr pre, struct chunk_hdr post)
+{
+	pre.alloc_size == post.alloc_size &&
+	pre.mapped_size == post.mapped_size &&
+	pre.node == post.node
+}
+@*/
 
-// HK: requires ownership to data...
-// HK: wip
+
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
+    trusted; // TODO(HK): for now because I don't know how to handle the cast below correctly.
 	requires
 		take C_pre = Owned<struct chunk_hdr>(chunk);
 	ensures
 		take C_post = Owned<struct chunk_hdr>(chunk);
-		C_post.alloc_size == C_pre.alloc_size;
+		C_pre == C_post;
 @*/
 {
         size_t len = offsetof(struct chunk_hdr, hash);
+		// HK: How do I handle this cast while having the ownership to chunk??
         u64 *data = (u64 *)chunk;
         u32 hash = 0;
 
         BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
 
 	while (len >= sizeof(u64))
-	/*@
-		inv
-		take C_inv = Owned<struct chunk_hdr>(chunk);
-		C_inv.alloc_size == C_pre.alloc_size;
-	@*/
 	{
 		hash ^= hash_64(*data, 32);
 		len -= sizeof(u64);
@@ -90,6 +95,7 @@ static inline void chunk_hash_update(struct chunk_hdr *chunk)
 		take C_pre = Owned<struct chunk_hdr>(chunk);
 	ensures
 		take C_post = Owned<struct chunk_hdr>(chunk);
+		hash_change_only(C_pre, C_post);
 @*/
 {
         if (chunk)
@@ -97,6 +103,12 @@ static inline void chunk_hash_update(struct chunk_hdr *chunk)
 }
 
 static inline void chunk_hash_validate(struct chunk_hdr *chunk)
+/*@
+	requires
+		take C_pre = Owned<struct chunk_hdr>(chunk);
+	ensures
+		take C_post = Owned<struct chunk_hdr>(chunk);
+@*/
 {
         if (chunk)
                 WARN_ON(chunk->hash != chunk_hash_compute(chunk));
@@ -234,6 +246,13 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
 static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct chunk_hdr *prev,
                                      struct hyp_allocator *allocator)
+/*@
+	requires
+		take C_pre = Owned<struct chunk_hdr>(chunk); // HK: to be owned by allocator
+		take HA_in = Cn_hyp_allocator(allocator);
+    ensures
+	    take HA_out = Cn_hyp_allocator(allocator);
+@*/
 {
         list_add(&chunk->node, &prev->node);
         chunk_hash_update(prev);
@@ -324,9 +343,19 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
         return ret;
 }
 
+
 static int chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct chunk_hdr *prev,
                          struct hyp_allocator *allocator)
+/*@
+	requires
+		take Prev_pre = Owned<struct chunk_hdr>(prev);
+		take C = Owned<struct chunk_hdr>(chunk); // to be owned by allocator
+	ensures
+		take Prev_post = Owned<struct chunk_hdr>(prev);
+		Prev_post.mapped_size == (u32)((u64)chunk - (u64)prev);
+		hash_change_only(Prev_pre, Prev_post);
+@*/
 {
         size_t prev_mapped_size;
 
@@ -500,8 +529,17 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
         return reclaimable;
 }
 
-// TODO: maybe we can write spec for this (HK)
 static unsigned long chunk_addr_fixup(unsigned long addr)
+/*@
+	requires
+		let min_chunk_size = cn_chunk_size(0u64);
+		let page = PAGE_ALIGN_DOWN(addr);
+		let delta = addr - page;
+		let res = delta == 0u64 ? addr :
+				(delta < min_chunk_size ? (page + min_chunk_size) : addr);
+	ensures
+		return == res;
+@*/
 {
         unsigned long min_chunk_size = chunk_size(0UL);
         unsigned long page = PAGE_ALIGN_DOWN(addr);
@@ -554,7 +592,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 		C_post.node == C_pre.node;
 		C_post.data == C_pre.data;
 		return == 0i32;
-		//C_post.others == C.others;
 		// TODO: write some spec on HA_out and HA_in
 @*/
 {
@@ -569,7 +606,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 expected_mapping = new_chunk_addr + chunk_hdr_size() -
                                         (unsigned long)chunk_data(chunk);
         }
-        // TODO: memcache part. We ignore this for now (HK)
+        // TODO: memcache part. We ignore this for now (HK).
         // missing_map = chunk_needs_mapping(chunk, expected_mapping);
         // if (missing_map) {
         //         ret = chunk_inc_map(chunk, missing_map, allocator);
@@ -643,7 +680,6 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@ requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
     ensures take a_out=Cn_hyp_allocator(allocator);
-
 @*/
 {
         int ret;
