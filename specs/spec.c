@@ -17,33 +17,33 @@ chunk:
 #if 0
 #include <inttypes.h>
 
-typedef uint8_t		u8;
-typedef uint32_t	u32;
-typedef uint64_t	u64;
+typedef uint8_t         u8;
+typedef uint32_t        u32;
+typedef uint64_t        u64;
 
-typedef u64		phys_addr_t;
+typedef u64             phys_addr_t;
 
 // This is defined in include/linux/types.h
 struct list_head {
-	struct list_head *next, *prev;
+        struct list_head *next, *prev;
 };
 
 // TODO: spinlock
-typedef u64		hyp_spinlock_t;
+typedef u64             hyp_spinlock_t;
 
 static struct hyp_allocator {
-	struct list_head	chunks;
-	unsigned long		start;
-	u32			size;
-	hyp_spinlock_t		lock;
+        struct list_head        chunks;
+        unsigned long           start;
+        u32                     size;
+        hyp_spinlock_t          lock;
 } hyp_allocator;
 
 struct chunk_hdr {
-	u32			alloc_size;
-	u32			mapped_size;
-	struct list_head	node;
-	u32			hash;
-	char			data /* __aligned(8) */;
+        u32                     alloc_size;
+        u32                     mapped_size;
+        struct list_head        node;
+        u32                     hash;
+        char                    data /* __aligned(8) */;
 };
 #endif
 
@@ -84,32 +84,32 @@ function (pointer) my_container_of_chunk_hdr (pointer p)
 /*@
 predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointer last, va start, va end)
 {
-	if (ptr_eq(p,last)) {
-		assert(start <= end);
-		return Chunk_nil {};
-	} else {
-		let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node))); // or some offsetof arithmetic
-		take hdr = RW<struct chunk_hdr>(header_address);
-		let cn_hdr = {
-			header_address : (u64) header_address,
-			alloc_size : hdr.alloc_size,
-			mapped_size : hdr.mapped_size,
-			va_size: if (ptr_eq(hdr.node.next, last)) { end } else {(u64)my_container_of_chunk_hdr(hdr.node.next) - (u64)p }  // TODO: should be va.va_size
-		};
+        if (ptr_eq(p,last)) {
+                assert(start <= end);
+                return Chunk_nil {};
+        } else {
+                let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node))); // or some offsetof arithmetic
+                take hdr = RW<struct chunk_hdr>(header_address);
+                let cn_hdr = {
+                        header_address : (u64) header_address,
+                        alloc_size : hdr.alloc_size,
+                        mapped_size : hdr.mapped_size,
+                        va_size: if (ptr_eq(hdr.node.next, last)) { end } else {(u64)my_container_of_chunk_hdr(hdr.node.next) - (u64)p }  // TODO: should be va.va_size
+                };
 
-		// check non-overlappingness
-		assert(cn_hdr.header_address >= start);
-		let chunk_end = cn_hdr.header_address + (u64) cn_hdr.mapped_size;
-		assert(chunk_end <= end);
+                // check non-overlappingness
+                assert(cn_hdr.header_address >= start);
+                let chunk_end = cn_hdr.header_address + (u64) cn_hdr.mapped_size;
+                assert(chunk_end <= end);
 
-		// ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-		take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64)header_address + (u64) hdr.mapped_size); //is Cn_char_array taking a size or an end?
-		// the tail of the list 
+                // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
+                take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64)header_address + (u64) hdr.mapped_size); //is Cn_char_array taking a size or an end?
+                // the tail of the list 
 
-		take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
-		// do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
-		return Chunk_cons { hd: cn_hdr, tl: tl };
-	}
+                take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
+                // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
+                return Chunk_cons { hd: cn_hdr, tl: tl };
+        }
 }
 
 
@@ -126,37 +126,37 @@ predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_alloca
 
 function [rec] (datatype cn_chunk_hdr_option) lookup(pointer p, datatype cn_chunk_hdrs hdrs)
 {
-	match (hdrs) {
-	Chunk_nil {} => {
-		Chunk_none {}
-	}
-	Chunk_cons {hd:hdr, tl:tl} => {
-		if (hdr.header_address == (u64) p){
-			Chunk_some { hdr:hdr }
-		} else {
-			lookup(p,tl)
-		}
-	}
-	}
+        match (hdrs) {
+        Chunk_nil {} => {
+                Chunk_none {}
+        }
+        Chunk_cons {hd:hdr, tl:tl} => {
+                if (hdr.header_address == (u64) p){
+                        Chunk_some { hdr:hdr }
+                } else {
+                        lookup(p,tl)
+                }
+        }
+        }
 }
 
 function (boolean) is_free_chunk(cn_chunk_hdr hdr, u32 size)
 {
-	   hdr.alloc_size == 0u32 // i.e., unused
-	&& (u64) hdr.va_size // the code's available_size
-	>= cn_chunk_size((u64) size) // TODO: where chunk_size is a CN copy of their macro
-	// we ignore the hash check of the chunk_get macro - even though to
-	// prove safety of the actual code we would need to check the hash
-	// checks succeed.
+           hdr.alloc_size == 0u32 // i.e., unused
+        && (u64) hdr.va_size // the code's available_size
+        >= cn_chunk_size((u64) size) // TODO: where chunk_size is a CN copy of their macro
+        // we ignore the hash check of the chunk_get macro - even though to
+        // prove safety of the actual code we would need to check the hash
+        // checks succeed.
 }
 
 // function (bool) is_free_chunk(pointer p,u32 size, datatype cn_chunk_hdrs hdrs)
 // {
-// 	// it returns a chunk in the list (or NIL?) st the alloc_size is zero
-// 	// and total size (not just mapped size, and including header size) is
-// 	// at least what you asked for.
+//      // it returns a chunk in the list (or NIL?) st the alloc_size is zero
+//      // and total size (not just mapped size, and including header size) is
+//      // at least what you asked for.
   
-// 	_is_free_chunk(lookup(p, hdrs),size)
+//      _is_free_chunk(lookup(p, hdrs),size)
 // }
 
 @*/
