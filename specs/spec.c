@@ -146,7 +146,7 @@ function (boolean) is_free_chunk(cn_chunk_hdr hdr, u32 size)
 {
            hdr.alloc_size == 0u32 // i.e., unused
         && (u64) hdr.va_size // the code's available_size
-        >= cn_chunk_size((u64) size) // TODO: where chunk_size is a CN copy of their macro
+        >= Cn_chunk_size((u64) size) // TODO: where chunk_size is a CN copy of their macro
         // we ignore the hash check of the chunk_get macro - even though to
         // prove safety of the actual code we would need to check the hash
         // checks succeed.

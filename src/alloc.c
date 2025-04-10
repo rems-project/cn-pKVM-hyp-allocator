@@ -132,7 +132,7 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 /*@
 // HK: size_t cast is removed. Macro requires cast because it does not know what the
 // argument type is.
-function (u64) cn_chunk_size (u64 size)
+function (u64) Cn_chunk_size (u64 size)
 {
         (u64) offsetof(chunk_hdr, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
 }
@@ -254,17 +254,39 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
 })
 #endif /* NO_STATEMENT_EXPRS */
 
+/*@
+function (boolean) Cn_list_is_last(struct list_head node, pointer chunks)
+{
+        node.next == chunks
+}
+function (pointer) Cn_chunk_get_next(struct chunk_hdr chunk, pointer allocator)
+{
+        Cn_list_is_last(chunk.node, member_shift<struct hyp_allocator>(allocator, chunks)) ?
+        NULL : my_container_of_chunk_hdr(chunk.node.next)
+}
+// Q(HK): Do I need both &alloactor and allocator? Is there any way to write &X?
+function (u64) Cn_chunk_unmapped_size(pointer chunk_p, struct chunk_hdr chunk, pointer allocator_p, struct hyp_allocator allocator)
+{
+        let next = Cn_chunk_get_next(chunk, allocator_p);
+        let allocator_end = allocator.start + (u64)allocator.size;
+        is_null(next) ? ((u64)next - (u64)Cn_chunk_unmapped_region(chunk_p, chunk))
+        : (allocator_end - (u64)Cn_chunk_unmapped_region(chunk_p, chunk))
+}
+@*/
+
 static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct chunk_hdr *prev,
                                      struct hyp_allocator *allocator)
 /*@
     requires
-        take C_pre = Owned<struct chunk_hdr>(chunk); // HK: to be owned by allocator
+        take C_pre = Owned<struct chunk_hdr>(chunk);
         take HA_in = Cn_hyp_allocator(allocator);
     ensures
         take HA_out = Cn_hyp_allocator(allocator);
+        take C_post = Owned<struct chunk_hdr>(chunk);
 @*/
 {
+        // HK: non-rust ownership type part
         list_add(&chunk->node, &prev->node);
         chunk_hash_update(prev);
         chunk_hash_update(__chunk_next(chunk, allocator));
@@ -362,26 +384,42 @@ function (boolean) chunk_install_sanity_check(pointer prev_p, pointer chunk_p, s
            && !(Cn_chunk_unmapped_region(prev_p, prev) < (u64)chunk_p)
            && !((u64)Cn_chunk_data(prev) + (u64)prev.alloc_size > (u64)chunk_p)
 }
+
+function (struct chunk_hdr) default_chunk_hdr ()
+
+predicate (struct chunk_hdr) OwnChunk(pointer chunk, boolean condition)
+{
+        if (condition)
+        {
+                take v = RW<struct chunk_hdr>(chunk);
+                return v;
+        }
+        else
+        {
+                return default_chunk_hdr();
+        }
+}
 @*/
 
-// Q(HK). What is a good way to write a "context sensitive ownership" such as
-//        "I own prev only when !is_null(prev)"
-// i.e., `is_null(prev) || take Prev_pre = Owned<struct chunk_hdr>(prev);`
-// -> (note for HK) Maybe introduce a predicate that returns Option<struct chunk_hdr>
-// and case analysis everywhere?
+
 static int chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct chunk_hdr *prev,
                          struct hyp_allocator *allocator)
 /*@
     requires
-        take Prev_pre = Owned<struct chunk_hdr>(prev);
-        take C = Owned<struct chunk_hdr>(chunk); // to be owned by allocator
+        take Prev_pre = OwnChunk(prev, !is_null(prev));
+        take C_pre = RW<struct chunk_hdr>(chunk);
     ensures
-        take Prev_post = Owned<struct chunk_hdr>(prev);
-        is_null(prev) || ;
-        hash_change_only(Prev_pre, Prev_post);
+        take Prev_post = OwnChunk(prev, !is_null(prev));
+        take C_post = RW<struct chunk_hdr>(chunk);
+        C_post.mapped_size == (
+                is_null(prev) ?
+                (u32)PAGE_ALIGN_DOWN(Cn_chunk_size(size)) :
+                (Prev_pre.mapped_size - Prev_post.mapped_size)
+        );
+        is_null(prev) || hash_change_only(Prev_pre, Prev_post);
         chunk_install_sanity_check(prev, chunk, Prev_pre) implies (
-            return == 0
+            return == 0i32
             && Prev_post.mapped_size == (u32)((u64)chunk - (u64)prev)
         );
 @*/
@@ -392,6 +430,12 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         /* First chunk, first allocation */
         if (!prev) {
                 INIT_LIST_HEAD(&chunk->node);
+                // HK: This program is insane from the perspective of Rust's ownership type system.
+                // I thought the `list_add` function would take ownership of both the allocator and the chunk,
+                // transferring the chunk's ownership to the allocator.
+                // However, even after adding the chunk to the list, the program still manipulates the chunk.
+                // Q. What is going to be a good strategy to write the predicate for lists in
+                // this case?
                 list_add(&chunk->node, &allocator->chunks);
                 chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
                 chunk->alloc_size = size;
@@ -562,7 +606,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 static unsigned long chunk_addr_fixup(unsigned long addr)
 /*@
     requires
-        let min_chunk_size = cn_chunk_size(0u64);
+        let min_chunk_size = Cn_chunk_size(0u64);
         let page = PAGE_ALIGN_DOWN(addr);
         let delta = addr - page;
         let res = delta == 0u64 ? addr :
@@ -590,6 +634,21 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
 
 static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
                             struct hyp_allocator *allocator)
+/*@
+    requires
+        take C_pre = RW<struct chunk_hdr>(chunk);
+        take A_pre = RW<struct hyp_allocator>(allocator);
+    ensures
+        take C_post = RW<struct chunk_hdr>(chunk);
+        take A_post = RW<struct hyp_allocator>(allocator);
+        let chunk_end = (u64)chunk + (u64)C_pre.mapped_size +
+                Cn_chunk_unmapped_size(chunk, C_pre, allocator, A_pre);
+
+        Cn_list_is_last(C_pre.node, member_shift<struct hyp_allocator>(allocator, chunks))
+        implies return == 0u8;
+        !Cn_list_is_last(C_pre.node, member_shift<struct hyp_allocator>(allocator, chunks))
+        implies return == ((addr + Cn_chunk_size(0u64) < chunk_end) ? 1u8 : 0u8);
+@*/
 {
         unsigned long chunk_end;
 
@@ -600,6 +659,8 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
         if (list_is_last(&chunk->node, &allocator->chunks))
                 return false;
 
+        // HK: it seems like calculating "va_size" of a chunk is much more complicated
+        // than `next_chunk - chunk`.
         chunk_end = (unsigned long)chunk + chunk->mapped_size +
                     chunk_unmapped_size(chunk, allocator);
 
