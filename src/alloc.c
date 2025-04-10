@@ -52,9 +52,9 @@ struct chunk_hdr {
 /*@
 function (boolean) hash_change_only (struct chunk_hdr pre, struct chunk_hdr post)
 {
-	pre.alloc_size == post.alloc_size &&
-	pre.mapped_size == post.mapped_size &&
-	pre.node == post.node
+    pre.alloc_size == post.alloc_size &&
+    pre.mapped_size == post.mapped_size &&
+    pre.node == post.node
 }
 @*/
 
@@ -62,26 +62,26 @@ function (boolean) hash_change_only (struct chunk_hdr pre, struct chunk_hdr post
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     trusted; // TODO(HK): for now because I don't know how to handle the cast below correctly.
-	requires
-		take C_pre = Owned<struct chunk_hdr>(chunk);
-	ensures
-		take C_post = Owned<struct chunk_hdr>(chunk);
-		C_pre == C_post;
+    requires
+        take C_pre = Owned<struct chunk_hdr>(chunk);
+    ensures
+        take C_post = Owned<struct chunk_hdr>(chunk);
+        C_pre == C_post;
 @*/
 {
         size_t len = offsetof(struct chunk_hdr, hash);
-		// HK: How do I handle this cast while having the ownership to chunk??
+        // HK: How do I handle this cast while having the ownership to chunk??
         u64 *data = (u64 *)chunk;
         u32 hash = 0;
 
         BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
 
-	while (len >= sizeof(u64))
-	{
-		hash ^= hash_64(*data, 32);
-		len -= sizeof(u64);
-		data++;
-	}
+    while (len >= sizeof(u64))
+    {
+        hash ^= hash_64(*data, 32);
+        len -= sizeof(u64);
+        data++;
+    }
 
         if (len)
                 hash ^= hash_32(*(u32 *)data, 32);
@@ -91,11 +91,11 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 
 static inline void chunk_hash_update(struct chunk_hdr *chunk)
 /*@
-	requires
-		take C_pre = Owned<struct chunk_hdr>(chunk);
-	ensures
-		take C_post = Owned<struct chunk_hdr>(chunk);
-		hash_change_only(C_pre, C_post);
+    requires
+        take C_pre = Owned<struct chunk_hdr>(chunk);
+    ensures
+        take C_post = Owned<struct chunk_hdr>(chunk);
+        hash_change_only(C_pre, C_post);
 @*/
 {
         if (chunk)
@@ -104,10 +104,10 @@ static inline void chunk_hash_update(struct chunk_hdr *chunk)
 
 static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 /*@
-	requires
-		take C_pre = Owned<struct chunk_hdr>(chunk);
-	ensures
-		take C_post = Owned<struct chunk_hdr>(chunk);
+    requires
+        take C_pre = Owned<struct chunk_hdr>(chunk);
+    ensures
+        take C_post = Owned<struct chunk_hdr>(chunk);
 @*/
 {
         if (chunk)
@@ -136,6 +136,11 @@ function (u64) cn_chunk_size (u64 size)
 {
         (u64) offsetof(chunk_hdr, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
 }
+function (pointer) Cn_chunk_data (struct chunk_hdr chunk)
+{
+    (pointer)chunk.data
+}
+
 @*/
 #endif
 
@@ -186,6 +191,12 @@ static inline struct chunk_hdr* chunk_get(void *addr)
 
 #define chunk_unmapped_region(chunk) \
         ((unsigned long)(chunk) + chunk->mapped_size)
+/*@
+function (u64) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
+{
+    (u64)chunk_p + (u64)chunk.mapped_size
+}
+@*/
 
 static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                                                 struct hyp_allocator *allocator)
@@ -247,11 +258,11 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct chunk_hdr *prev,
                                      struct hyp_allocator *allocator)
 /*@
-	requires
-		take C_pre = Owned<struct chunk_hdr>(chunk); // HK: to be owned by allocator
-		take HA_in = Cn_hyp_allocator(allocator);
+    requires
+        take C_pre = Owned<struct chunk_hdr>(chunk); // HK: to be owned by allocator
+        take HA_in = Cn_hyp_allocator(allocator);
     ensures
-	    take HA_out = Cn_hyp_allocator(allocator);
+        take HA_out = Cn_hyp_allocator(allocator);
 @*/
 {
         list_add(&chunk->node, &prev->node);
@@ -343,19 +354,38 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
         return ret;
 }
 
+/*@
+// no first chunk && no EINVAL in check_install
+function (boolean) chunk_install_sanity_check(pointer prev_p, pointer chunk_p, struct chunk_hdr prev)
+{
+    !is_null(prev_p)
+           && !(Cn_chunk_unmapped_region(prev_p, prev) < (u64)chunk_p)
+           && !((u64)Cn_chunk_data(prev) + (u64)prev.alloc_size > (u64)chunk_p)
+}
+@*/
 
+// Q(HK). What is a good way to write a "context sensitive ownership" such as
+//        "I own prev only when !is_null(prev)"
+// i.e., `is_null(prev) || take Prev_pre = Owned<struct chunk_hdr>(prev);`
+// -> (note for HK) Maybe introduce a predicate that returns Option<struct chunk_hdr>
+// and case analysis everywhere?
 static int chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct chunk_hdr *prev,
                          struct hyp_allocator *allocator)
 /*@
-	requires
-		take Prev_pre = Owned<struct chunk_hdr>(prev);
-		take C = Owned<struct chunk_hdr>(chunk); // to be owned by allocator
-	ensures
-		take Prev_post = Owned<struct chunk_hdr>(prev);
-		Prev_post.mapped_size == (u32)((u64)chunk - (u64)prev);
-		hash_change_only(Prev_pre, Prev_post);
+    requires
+        take Prev_pre = Owned<struct chunk_hdr>(prev);
+        take C = Owned<struct chunk_hdr>(chunk); // to be owned by allocator
+    ensures
+        take Prev_post = Owned<struct chunk_hdr>(prev);
+        is_null(prev) || ;
+        hash_change_only(Prev_pre, Prev_post);
+        chunk_install_sanity_check(prev, chunk, Prev_pre) implies (
+            return == 0
+            && Prev_post.mapped_size == (u32)((u64)chunk - (u64)prev)
+        );
 @*/
+
 {
         size_t prev_mapped_size;
 
@@ -531,14 +561,14 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 
 static unsigned long chunk_addr_fixup(unsigned long addr)
 /*@
-	requires
-		let min_chunk_size = cn_chunk_size(0u64);
-		let page = PAGE_ALIGN_DOWN(addr);
-		let delta = addr - page;
-		let res = delta == 0u64 ? addr :
-				(delta < min_chunk_size ? (page + min_chunk_size) : addr);
-	ensures
-		return == res;
+    requires
+        let min_chunk_size = cn_chunk_size(0u64);
+        let page = PAGE_ALIGN_DOWN(addr);
+        let delta = addr - page;
+        let res = delta == 0u64 ? addr :
+                (delta < min_chunk_size ? (page + min_chunk_size) : addr);
+    ensures
+        return == res;
 @*/
 {
         unsigned long min_chunk_size = chunk_size(0UL);
@@ -581,18 +611,18 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 // remaining possible specifications
 // -
 /*@
-	requires
-		//take HA_in = Cn_hyp_allocator(allocator);
-		take C_pre = Owned<struct chunk_hdr>(chunk);
-	ensures
-	    //take HA_out = Cn_hyp_allocator(allocator);
-		take C_post = Owned<struct chunk_hdr>(chunk);
-		C_post.alloc_size == (u32)size;
-		C_post.mapped_size == C_pre.mapped_size;
-		C_post.node == C_pre.node;
-		C_post.data == C_pre.data;
-		return == 0i32;
-		// TODO: write some spec on HA_out and HA_in
+    requires
+        //take HA_in = Cn_hyp_allocator(allocator);
+        take C_pre = Owned<struct chunk_hdr>(chunk);
+    ensures
+        //take HA_out = Cn_hyp_allocator(allocator);
+        take C_post = Owned<struct chunk_hdr>(chunk);
+        C_post.alloc_size == (u32)size;
+        C_post.mapped_size == C_pre.mapped_size;
+        C_post.node == C_pre.node;
+        C_post.data == C_pre.data;
+        return == 0i32;
+        // TODO: write some spec on HA_out and HA_in
 @*/
 {
         unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);

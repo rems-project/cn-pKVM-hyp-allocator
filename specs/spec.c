@@ -81,6 +81,7 @@ function (pointer) my_container_of_chunk_hdr (pointer p)
 
 /* invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)*/
 /* start and end are the va space within which the chunks have to be */
+// HK: prev is unused? what is for?
 /*@
 predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointer last, va start, va end)
 {
@@ -101,9 +102,11 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointe
                 assert(cn_hdr.header_address >= start);
                 let chunk_end = cn_hdr.header_address + (u64) cn_hdr.mapped_size;
                 assert(chunk_end <= end);
+				// HK: needed to ensure no-integer overflow?
+				assert(chunk_end >= cn_hdr.header_address);
 
                 // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-                take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64)header_address + (u64) hdr.mapped_size); //is Cn_char_array taking a size or an end?
+                take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
                 // the tail of the list
 
                 take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
