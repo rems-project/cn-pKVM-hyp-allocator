@@ -1,6 +1,6 @@
 # attempts to run CN frontend on alloc.c, via an explicit cpp and direct
 
-# includes adapted from _build/compile_commands.json 
+# includes adapted from _build/compile_commands.json
 INCLUDES= -Isrc -Iinclude
 
 # KM version
@@ -24,7 +24,7 @@ cn-verify-via-cpp: tmp-alloc.c
 
 .PHONY: cn-verify
 cn-verify: src/alloc.c
-	cn verify --no-vip -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c
+	cn verify --no-vip $(if $(ONLY),--only=$(ONLY)) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c
 
 .PHONY: clean
 clean:

@@ -48,16 +48,25 @@
 
 #ifdef NO_STATEMENT_EXPRS
 static inline u32 min_u32(u32 x, u32 y)
+/*@
+	ensures return == (x < y ? x : y);
+@*/
 {
 	return __cmp(min, x , y);
 }
 
 static inline u64 min_u64(u64 x, u64 y)
+/*@
+	ensures return == (x < y ? x : y);
+@*/
 {
 	return __cmp(min, x , y);
 }
 
 static inline u64 max_u64(u64 x, u64 y)
+/*@
+	ensures return == (x > y ? x : y);
+@*/
 {
 	return __cmp(max, x , y);
 }

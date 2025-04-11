@@ -135,6 +135,7 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 function (u64) Cn_chunk_size (u64 size)
 {
         (u64) offsetof(chunk_hdr, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
+        //(u64) member_shift<struct chunk_hdr>(NULL, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
 }
 function (pointer) Cn_chunk_data (struct chunk_hdr chunk)
 {
@@ -264,7 +265,7 @@ function (pointer) Cn_chunk_get_next(struct chunk_hdr chunk, pointer allocator)
         Cn_list_is_last(chunk.node, member_shift<struct hyp_allocator>(allocator, chunks)) ?
         NULL : my_container_of_chunk_hdr(chunk.node.next)
 }
-// Q(HK): Do I need both &alloactor and allocator? Is there any way to write &X?
+// Q(HK): Do I need both &alloactor and allocator? Is there a better way to write &X?
 function (u64) Cn_chunk_unmapped_size(pointer chunk_p, struct chunk_hdr chunk, pointer allocator_p, struct hyp_allocator allocator)
 {
         let next = Cn_chunk_get_next(chunk, allocator_p);
@@ -636,18 +637,22 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
                             struct hyp_allocator *allocator)
 /*@
     requires
-        take C_pre = RW<struct chunk_hdr>(chunk);
         take A_pre = RW<struct hyp_allocator>(allocator);
+        take B_pre = Cn_chunk_hdr(chunk, A_pre);
+        let C_pre = B_pre.Hdr;
+        let Node = B_pre.Node;
     ensures
-        take C_post = RW<struct chunk_hdr>(chunk);
         take A_post = RW<struct hyp_allocator>(allocator);
+        take C_post = Cn_chunk_hdr(chunk, A_post);
         let chunk_end = (u64)chunk + (u64)C_pre.mapped_size +
                 Cn_chunk_unmapped_size(chunk, C_pre, allocator, A_pre);
 
-        Cn_list_is_last(C_pre.node, member_shift<struct hyp_allocator>(allocator, chunks))
+        Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))
         implies return == 0u8;
-        !Cn_list_is_last(C_pre.node, member_shift<struct hyp_allocator>(allocator, chunks))
-        implies return == ((addr + Cn_chunk_size(0u64) < chunk_end) ? 1u8 : 0u8);
+        !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))
+        implies return == ((Cn_chunk_size(0u64) < chunk_end) ? 1u8 : 0u8);
+        // HK: To prove the above, we require an invariant stating that
+        // all sizes are less than 2^32 to avoid integer overflow.
 @*/
 {
         unsigned long chunk_end;
@@ -659,12 +664,10 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
         if (list_is_last(&chunk->node, &allocator->chunks))
                 return false;
 
-        // HK: it seems like calculating "va_size" of a chunk is much more complicated
-        // than `next_chunk - chunk`.
         chunk_end = (unsigned long)chunk + chunk->mapped_size +
                     chunk_unmapped_size(chunk, allocator);
 
-        return addr + chunk_size(0UL) < chunk_end;
+        return chunk_size(0UL) < chunk_end;
 }
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,

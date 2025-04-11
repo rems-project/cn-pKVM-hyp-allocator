@@ -83,35 +83,48 @@ function (pointer) my_container_of_chunk_hdr (pointer p)
 /* start and end are the va space within which the chunks have to be */
 // HK: prev is unused? what is for?
 /*@
-predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, pointer last, va start, va end)
+predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, struct hyp_allocator ha)
 {
-        if (ptr_eq(p,last)) {
-                assert(start <= end);
+        take hdr = RW<struct chunk_hdr>(header_address);
+        let last = ha.chunks.prev;
+        let end = ha.start + (u64)ha.size;
+        let p = member_shift<struct chunk_hdr>(header_address, node);
+        let cn_hdr = {
+                header_address : (u64) header_address,
+                alloc_size : hdr.alloc_size,
+                mapped_size : hdr.mapped_size,
+                va_size: if (ptr_eq(hdr.node.next, last)) { end } else {(u64)my_container_of_chunk_hdr(hdr.node.next) - (u64)p }
+        };
+
+        // check non-overlappingness
+        assert(cn_hdr.header_address >= ha.start);
+        let chunk_end = cn_hdr.header_address + (u64) cn_hdr.mapped_size;
+        assert(chunk_end <= end);
+        // HK: needed to ensure no-integer overflow?
+        assert(chunk_end >= cn_hdr.header_address);
+
+        // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
+        take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
+        // the tail of the list
+
+        // HK: the chunk lists must be sorted in address order.
+        // (otherwise, the chunk_unmapped_size function may return
+        // incorrect sizes)
+        assert((u64)p < (u64)hdr.node.next);
+        return {Hdr: cn_hdr, Node: hdr.node};
+
+}
+predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, struct hyp_allocator ha)
+{
+        if (ptr_eq(p,ha.chunks.prev)) {
+                assert(ha.start <= ha.start + (u64)ha.size);
                 return Chunk_nil {};
         } else {
                 let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node))); // or some offsetof arithmetic
-                take hdr = RW<struct chunk_hdr>(header_address);
-                let cn_hdr = {
-                        header_address : (u64) header_address,
-                        alloc_size : hdr.alloc_size,
-                        mapped_size : hdr.mapped_size,
-                        va_size: if (ptr_eq(hdr.node.next, last)) { end } else {(u64)my_container_of_chunk_hdr(hdr.node.next) - (u64)p }
-                };
-
-                // check non-overlappingness
-                assert(cn_hdr.header_address >= start);
-                let chunk_end = cn_hdr.header_address + (u64) cn_hdr.mapped_size;
-                assert(chunk_end <= end);
-				// HK: needed to ensure no-integer overflow?
-				assert(chunk_end >= cn_hdr.header_address);
-
-                // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-                take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
-                // the tail of the list
-
-                take tl = Cn_chunk_hdrs(hdr.node.next, p, last, chunk_end, end);
+                take cn_hdr = Cn_chunk_hdr(header_address, ha);
+                take tl = Cn_chunk_hdrs(cn_hdr.Node.next, ha);
                 // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
-                return Chunk_cons { hd: cn_hdr, tl: tl };
+                return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
         }
 }
 
@@ -120,7 +133,7 @@ predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_alloca
   take ha = RW<struct hyp_allocator>(p);
   let chunk_ptr = member_shift<struct hyp_allocator>(p, chunks);
   let next_ptr = member_shift<struct list_head>(chunk_ptr, next);
-  take hdrs = Cn_chunk_hdrs(ha.chunks.next, next_ptr, ha.chunks.prev, ha.start, ha.start + (u64)ha.size);
+  take hdrs = Cn_chunk_hdrs(ha.chunks.next, ha);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
