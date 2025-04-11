@@ -54,7 +54,7 @@ type_synonym cn_chunk_hdr = {
   va header_address, // the VA of the start of the chunk_hdr
   u32 alloc_size, // exactly as in the C
   u32 mapped_size,  // exactly as in the C
-  u64 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
+  u32 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
   // no node, no hash, no data, no ownership here
 }
 
@@ -75,7 +75,7 @@ datatype cn_chunk_hdr_option {
 /*@
 function (pointer) my_container_of_chunk_hdr (pointer p)
 {
-  member_shift<struct chunk_hdr>(p, node)
+     (pointer)((u64)p - (u64)offsetof(chunk_hdr, node))
 }
 @*/
 
@@ -89,11 +89,13 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         let last = ha.chunks.prev;
         let end = ha.start + (u64)ha.size;
         let p = member_shift<struct chunk_hdr>(header_address, node);
+        let va_size = (ptr_eq(hdr.node.next, last) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
+        assert(va_size <= (u64)MAXu32());
         let cn_hdr = {
                 header_address : (u64) header_address,
                 alloc_size : hdr.alloc_size,
                 mapped_size : hdr.mapped_size,
-                va_size: if (ptr_eq(hdr.node.next, last)) { end } else {(u64)my_container_of_chunk_hdr(hdr.node.next) - (u64)p }
+                va_size: (u32)va_size
         };
 
         // check non-overlappingness
@@ -108,8 +110,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         // the tail of the list
 
         // HK: the chunk lists must be sorted in address order.
-        // (otherwise, the chunk_unmapped_size function may return
-        // incorrect sizes)
+        // (otherwise, the chunk_unmapped_size function may return incorrect sizes)
         assert((u64)p < (u64)hdr.node.next);
         return {Hdr: cn_hdr, Node: hdr.node};
 

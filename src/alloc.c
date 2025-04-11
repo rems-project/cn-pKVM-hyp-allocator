@@ -105,9 +105,10 @@ static inline void chunk_hash_update(struct chunk_hdr *chunk)
 static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 /*@
     requires
-        take C_pre = Owned<struct chunk_hdr>(chunk);
+        take C_pre = OwnChunk(chunk, !is_null(chunk));
     ensures
-        take C_post = Owned<struct chunk_hdr>(chunk);
+        take C_post = OwnChunk(chunk, !is_null(chunk));
+        is_null(chunk) || C_post == C_pre;
 @*/
 {
         if (chunk)
@@ -266,12 +267,9 @@ function (pointer) Cn_chunk_get_next(struct chunk_hdr chunk, pointer allocator)
         NULL : my_container_of_chunk_hdr(chunk.node.next)
 }
 // Q(HK): Do I need both &alloactor and allocator? Is there a better way to write &X?
-function (u64) Cn_chunk_unmapped_size(pointer chunk_p, struct chunk_hdr chunk, pointer allocator_p, struct hyp_allocator allocator)
+function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 {
-        let next = Cn_chunk_get_next(chunk, allocator_p);
-        let allocator_end = allocator.start + (u64)allocator.size;
-        is_null(next) ? ((u64)next - (u64)Cn_chunk_unmapped_region(chunk_p, chunk))
-        : (allocator_end - (u64)Cn_chunk_unmapped_region(chunk_p, chunk))
+        hdr.va_size - hdr.mapped_size
 }
 @*/
 
@@ -633,6 +631,49 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
         return addr;
 }
 
+// HK: for sanity check
+static struct chunk_hdr * my_chunk_get_next(struct chunk_hdr * chunk, struct hyp_allocator* allocator)
+/*@
+        requires
+                take A_pre = RW<struct hyp_allocator>(allocator);
+                take B_pre = Cn_chunk_hdr(chunk, A_pre);
+                let Node = B_pre.Node;
+                let next_node = Node.next;
+                let next_chunk = my_container_of_chunk_hdr(next_node);
+                take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
+        ensures
+                take A_post = RW<struct hyp_allocator>(allocator);
+                take B_post = Cn_chunk_hdr(chunk, A_post);
+                take C_post = Cn_chunk_hdr(next_chunk, A_post);
+                return == NULL || return == next_chunk;
+@*/
+{
+        struct chunk_hdr * next = list_is_last(&(chunk)->node, &(allocator)->chunks) ?
+                NULL : list_next_entry(chunk, node);
+        chunk_hash_validate(next);
+        return next;
+}
+
+static size_t my_chunk_unmapped_size(struct chunk_hdr * chunk, struct hyp_allocator* allocator)
+/*@
+        requires
+                take A_pre = RW<struct hyp_allocator>(allocator);
+                take B_pre = Cn_chunk_hdr(chunk, A_pre);
+                let Hdr = B_pre.Hdr;
+        ensures
+                take A_post = RW<struct hyp_allocator>(allocator);
+                take B_post = Cn_chunk_hdr(chunk, A_post);
+                A_pre == A_post;
+                B_pre == B_post;
+                return == (u64)(Hdr.va_size - Hdr.mapped_size);
+@*/
+{
+        struct chunk_hdr *next = chunk_get_next(chunk, allocator);
+        unsigned long allocator_end = (allocator)->start +
+                                        (allocator)->size;
+        return next ? (unsigned long)next - chunk_unmapped_region(chunk) : allocator_end - chunk_unmapped_region(chunk);
+}
+
 static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
                             struct hyp_allocator *allocator)
 /*@
@@ -645,7 +686,7 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
         take A_post = RW<struct hyp_allocator>(allocator);
         take C_post = Cn_chunk_hdr(chunk, A_post);
         let chunk_end = (u64)chunk + (u64)C_pre.mapped_size +
-                Cn_chunk_unmapped_size(chunk, C_pre, allocator, A_pre);
+                (u64)Cn_chunk_unmapped_size(C_pre);
 
         Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))
         implies return == 0u8;
