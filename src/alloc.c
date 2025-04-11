@@ -645,7 +645,8 @@ static struct chunk_hdr * my_chunk_get_next(struct chunk_hdr * chunk, struct hyp
                 take A_post = RW<struct hyp_allocator>(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
-                return == NULL || return == next_chunk;
+                is_last_chunk(Node, A_post) implies return == NULL;
+                !is_last_chunk(Node, A_post) implies return == next_chunk;
 @*/
 {
         struct chunk_hdr * next = list_is_last(&(chunk)->node, &(allocator)->chunks) ?
@@ -660,9 +661,14 @@ static size_t my_chunk_unmapped_size(struct chunk_hdr * chunk, struct hyp_alloca
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 take B_pre = Cn_chunk_hdr(chunk, A_pre);
                 let Hdr = B_pre.Hdr;
+                let Node = B_pre.Node;
+                let next_node = Node.next;
+                let next_chunk = my_container_of_chunk_hdr(next_node);
+                take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
         ensures
                 take A_post = RW<struct hyp_allocator>(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
+                take C_post = Cn_chunk_hdr(next_chunk, A_post);
                 A_pre == A_post;
                 B_pre == B_post;
                 return == (u64)(Hdr.va_size - Hdr.mapped_size);

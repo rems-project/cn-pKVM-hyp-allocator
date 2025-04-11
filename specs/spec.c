@@ -77,6 +77,10 @@ function (pointer) my_container_of_chunk_hdr (pointer p)
 {
      (pointer)((u64)p - (u64)offsetof(chunk_hdr, node))
 }
+function (boolean) is_last_chunk(struct list_head node, struct hyp_allocator ha)
+{
+        ptr_eq(node.next, ha.chunks)
+}
 @*/
 
 /* invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)*/
@@ -89,7 +93,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         let last = ha.chunks.prev;
         let end = ha.start + (u64)ha.size;
         let p = member_shift<struct chunk_hdr>(header_address, node);
-        let va_size = (ptr_eq(hdr.node.next, last) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
+        let va_size = (is_last_chunk(hdr.node, ha) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
         assert(va_size <= (u64)MAXu32());
         let cn_hdr = {
                 header_address : (u64) header_address,
@@ -117,6 +121,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
 }
 predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, struct hyp_allocator ha)
 {
+        // HK: gonna check this condition is correct or not.
         if (ptr_eq(p,ha.chunks.prev)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
                 return Chunk_nil {};
