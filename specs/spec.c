@@ -103,7 +103,6 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 }
 @*/
 
-
 /* invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)*/
 /* start and end are the va space within which the chunks have to be */
 /*@
@@ -111,14 +110,19 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
 {
         take hdr = RW<struct chunk_hdr>(header_address);
         let end = ha.start + (u64)ha.size;
-        let va_size = (ptr_eq(hdr.node.next, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
-        assert(va_size <= (u64)MAXu32());
+        assert(ha.start < end);
+        let va_size = (Cn_list_is_last(hdr.node, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
+        assert((u64)hdr.node.next <= end);
         let cn_hdr = {
                 header_address : (u64) header_address,
                 alloc_size : hdr.alloc_size,
                 mapped_size : hdr.mapped_size,
                 va_size: (u32)va_size
         };
+
+        assert(cn_hdr.alloc_size <= cn_hdr.mapped_size);
+        assert(cn_hdr.mapped_size <= cn_hdr.va_size);
+        assert(va_size <= (u64)MAXu32());
 
         // check non-overlappingness
         assert(cn_hdr.header_address >= ha.start);
