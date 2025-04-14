@@ -105,10 +105,10 @@ static inline void chunk_hash_update(struct chunk_hdr *chunk)
 static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 /*@
     requires
-        take C_pre = OwnChunk(chunk, !is_null(chunk));
+        take C_pre = MaybeChunkHdr(chunk, !is_null(chunk));
     ensures
-        take C_post = OwnChunk(chunk, !is_null(chunk));
-        is_null(chunk) || C_post == C_pre;
+        take C_post = MaybeChunkHdr(chunk, !is_null(chunk));
+        C_post == C_pre;
 @*/
 {
         if (chunk)
@@ -384,43 +384,70 @@ function (boolean) chunk_install_sanity_check(pointer prev_p, pointer chunk_p, s
            && !((u64)Cn_chunk_data(prev) + (u64)prev.alloc_size > (u64)chunk_p)
 }
 
-function (struct chunk_hdr) default_chunk_hdr ()
+datatype chunk_hdr_option {
+  ChunkHdr_none {},
+  ChunkHdr_some { struct chunk_hdr hdr }
+}
 
-predicate (struct chunk_hdr) OwnChunk(pointer chunk, boolean condition)
+predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condition)
 {
         if (condition)
         {
                 take v = RW<struct chunk_hdr>(chunk);
-                return v;
+                return ChunkHdr_some { hdr: v };
         }
         else
         {
-                return default_chunk_hdr();
+                return ChunkHdr_none {};
         }
 }
 @*/
-
 
 static int chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct chunk_hdr *prev,
                          struct hyp_allocator *allocator)
 /*@
     requires
-        take Prev_pre = OwnChunk(prev, !is_null(prev));
+        take Prev_pre = MaybeChunkHdr(prev, !is_null(prev));
         take C_pre = RW<struct chunk_hdr>(chunk);
     ensures
-        take Prev_post = OwnChunk(prev, !is_null(prev));
+        take Prev_post = MaybeChunkHdr(prev, !is_null(prev));
         take C_post = RW<struct chunk_hdr>(chunk);
         C_post.mapped_size == (
-                is_null(prev) ?
-                (u32)PAGE_ALIGN_DOWN(Cn_chunk_size(size)) :
-                (Prev_pre.mapped_size - Prev_post.mapped_size)
+                match Prev_pre {
+                        ChunkHdr_none {} => {
+                                (u32)PAGE_ALIGN_DOWN(Cn_chunk_size(size))
+                        }
+                        ChunkHdr_some {hdr: hdr1} => {
+                                match Prev_post {
+                                        ChunkHdr_none {} => { 0u32 } // unreachable
+                                        ChunkHdr_some {hdr: hdr2} => {
+                                                (hdr1.mapped_size - hdr2.mapped_size)
+                                        }
+                                }
+                        }
+                }
         );
-        is_null(prev) || hash_change_only(Prev_pre, Prev_post);
-        chunk_install_sanity_check(prev, chunk, Prev_pre) implies (
-            return == 0i32
-            && Prev_post.mapped_size == (u32)((u64)chunk - (u64)prev)
-        );
+        match (Prev_pre) {
+                ChunkHdr_none {} => {
+                        true
+                }
+                ChunkHdr_some {hdr: hdr1} => {
+                        match (Prev_post) {
+                                ChunkHdr_none {} => {
+                                        false
+                                }
+                                ChunkHdr_some {hdr: hdr2} => {
+                                        hash_change_only(hdr1, hdr2) &&
+                                        chunk_install_sanity_check(prev, chunk, hdr1) implies (
+                                        return == 0i32
+                                        && hdr2.mapped_size == (u32)((u64)chunk - (u64)prev)
+                                        )
+                                }
+                        }
+                }
+        };
+        //is_null(prev) || hash_change_only(Prev_pre, Prev_post);
 @*/
 
 {
@@ -651,7 +678,7 @@ static bool my_list_is_last(struct chunk_hdr *chunk, struct hyp_allocator *alloc
         ensures
                 take A_post = RW<struct hyp_allocator>(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
-                return == (is_last_chunk(chunk_node_ptr, A_post) ? 1u8 : 0u8);
+                return == (Cn_list_is_last(B_pre.Node, member_shift<struct hyp_allocator>(allocator, chunks))? 1u8 : 0u8);
 @*/
 {
         return list_is_last(&(chunk)->node, &(allocator)->chunks);
@@ -671,8 +698,8 @@ static struct chunk_hdr *my_chunk_get_next(struct chunk_hdr *chunk, struct hyp_a
                 take A_post = RW<struct hyp_allocator>(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
-                is_last_chunk(chunk_node_ptr, A_post) implies return == NULL;
-                !is_last_chunk(chunk_node_ptr, A_post) implies return == next_chunk;
+                Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
+                !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == next_chunk;
 @*/
 {
         struct chunk_hdr * next = list_is_last(&(chunk)->node, &(allocator)->chunks) ?
@@ -708,10 +735,20 @@ static size_t my_chunk_unmapped_size(struct chunk_hdr * chunk, struct hyp_alloca
 
 static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
                             struct hyp_allocator *allocator)
+
+/*
+   required_size
+   |-------------|-------------|
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           va_size
+   => |---------|    |-----------|
+        |--------------^
+*/
 /*@
     requires
         take A_pre = RW<struct hyp_allocator>(allocator);
         take B_pre = Cn_chunk_hdr(chunk, A_pre);
+        let node_ptr = member_shift<struct chunk_hdr>(chunk, node);
         let C_pre = B_pre.Hdr;
         let Node = B_pre.Node;
     ensures
@@ -740,7 +777,7 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
         chunk_end = (unsigned long)chunk + chunk->mapped_size +
                     chunk_unmapped_size(chunk, allocator);
 
-        return chunk_size(0UL) < chunk_end;
+        return addr + chunk_size(0UL) < chunk_end;
 }
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
