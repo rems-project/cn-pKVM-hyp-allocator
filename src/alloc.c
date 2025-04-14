@@ -170,6 +170,9 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
                 Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
                 !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == next_chunk;
+                A_post == A_pre;
+                B_post == B_pre;
+                C_post == C_pre;
 @*/
 {
         return list_is_last(&(chunk)->node, &(allocator)->chunks) ?
@@ -193,6 +196,9 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                 take C_post = Cn_chunk_hdr(prev_chunk, A_post);
                 Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
                 !Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == prev_chunk;
+                A_post == A_pre;
+                B_post == B_pre;
+                C_post == C_pre;
 @*/
 {
         return list_is_first(&(chunk)->node, &(allocator)->chunks) ?
@@ -216,6 +222,9 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
                 Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
                 !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == next_chunk;
+                A_post == A_pre;
+                B_post == B_pre;
+                C_post == C_pre;
 @*/
 {
         struct chunk_hdr *next = __chunk_next(chunk, allocator);
@@ -240,6 +249,9 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
                 take C_post = Cn_chunk_hdr(prev_chunk, A_post);
                 Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
                 !Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == prev_chunk;
+                A_post == A_pre;
+                B_post == B_pre;
+                C_post == C_pre;
 @*/
 {
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
@@ -359,7 +371,6 @@ function (pointer) Cn_chunk_get_next(struct chunk_hdr chunk, pointer allocator)
         Cn_list_is_last(chunk.node, member_shift<struct hyp_allocator>(allocator, chunks)) ?
         NULL : my_container_of_chunk_hdr(chunk.node.next)
 }
-// Q(HK): Do I need both &alloactor and allocator? Is there a better way to write &X?
 function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 {
         hdr.va_size - hdr.mapped_size
