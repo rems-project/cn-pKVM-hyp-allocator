@@ -77,9 +77,9 @@ function (pointer) my_container_of_chunk_hdr (pointer p)
 {
      (pointer)((u64)p - (u64)offsetof(chunk_hdr, node))
 }
-function (boolean) is_last_chunk(struct list_head node, struct hyp_allocator ha)
+function (boolean) is_last_chunk(pointer node_address, struct hyp_allocator ha)
 {
-        ptr_eq(node.next, ha.chunks)
+        ptr_eq(node_address, ha.chunks.prev)
 }
 @*/
 
@@ -93,7 +93,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         let last = ha.chunks.prev;
         let end = ha.start + (u64)ha.size;
         let p = member_shift<struct chunk_hdr>(header_address, node);
-        let va_size = (is_last_chunk(hdr.node, ha) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
+        let va_size = (is_last_chunk(p, ha) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
         assert(va_size <= (u64)MAXu32());
         let cn_hdr = {
                 header_address : (u64) header_address,
@@ -119,16 +119,15 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         return {Hdr: cn_hdr, Node: hdr.node};
 
 }
-predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, struct hyp_allocator ha)
+predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, struct hyp_allocator ha, pointer last)
 {
-        // HK: gonna check this condition is correct or not.
-        if (ptr_eq(p,ha.chunks.prev)) {
+        if (ptr_eq(p,last)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
                 return Chunk_nil {};
         } else {
                 let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node))); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
-                take tl = Cn_chunk_hdrs(cn_hdr.Node.next, ha);
+                take tl = Cn_chunk_hdrs(cn_hdr.Node.next, ha, last);
                 // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
                 return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
         }
@@ -139,7 +138,7 @@ predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_alloca
   take ha = RW<struct hyp_allocator>(p);
   let chunk_ptr = member_shift<struct hyp_allocator>(p, chunks);
   let next_ptr = member_shift<struct list_head>(chunk_ptr, next);
-  take hdrs = Cn_chunk_hdrs(ha.chunks.next, ha);
+  take hdrs = Cn_chunk_hdrs(ha.chunks.next, ha, chunk_ptr);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }

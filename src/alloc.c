@@ -632,11 +632,27 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
 }
 
 // HK: for sanity check
-static struct chunk_hdr * my_chunk_get_next(struct chunk_hdr * chunk, struct hyp_allocator* allocator)
+static bool my_list_is_last(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 /*@
         requires
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 take B_pre = Cn_chunk_hdr(chunk, A_pre);
+                let chunk_node_ptr = member_shift<struct chunk_hdr>(chunk, node);
+        ensures
+                take A_post = RW<struct hyp_allocator>(allocator);
+                take B_post = Cn_chunk_hdr(chunk, A_post);
+                return == (is_last_chunk(chunk_node_ptr, A_post) ? 1u8 : 0u8);
+@*/
+{
+        return list_is_last(&(chunk)->node, &(allocator)->chunks);
+}
+
+static struct chunk_hdr *my_chunk_get_next(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
+/*@
+        requires
+                take A_pre = RW<struct hyp_allocator>(allocator);
+                take B_pre = Cn_chunk_hdr(chunk, A_pre);
+                let chunk_node_ptr = member_shift<struct chunk_hdr>(chunk, node);
                 let Node = B_pre.Node;
                 let next_node = Node.next;
                 let next_chunk = my_container_of_chunk_hdr(next_node);
@@ -645,8 +661,8 @@ static struct chunk_hdr * my_chunk_get_next(struct chunk_hdr * chunk, struct hyp
                 take A_post = RW<struct hyp_allocator>(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
-                is_last_chunk(Node, A_post) implies return == NULL;
-                !is_last_chunk(Node, A_post) implies return == next_chunk;
+                is_last_chunk(chunk_node_ptr, A_post) implies return == NULL;
+                !is_last_chunk(chunk_node_ptr, A_post) implies return == next_chunk;
 @*/
 {
         struct chunk_hdr * next = list_is_last(&(chunk)->node, &(allocator)->chunks) ?
@@ -906,7 +922,11 @@ predicate void MaybeCn_char_array(pointer p, u64 size)
 @*/
 
 void *hyp_alloc(size_t size)
-/*@ ensures take U = MaybeCn_char_array(return, size); @*/
+/*@
+        requires true;
+        // TODO: allocator (global variable) ownership
+        ensures take U = MaybeCn_char_array(return, size);
+@*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
         struct chunk_hdr *chunk, *last_chunk;
