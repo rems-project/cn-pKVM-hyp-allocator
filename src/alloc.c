@@ -669,14 +669,17 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
 //     of specs like: chunk ∈ allocator-chunks (using lookup predicate).
 //   - However, this is going to be a very "inefficient" spec (involves recursively
 //     defined predicate). Is there any good way to avoid this?
+// HK(Update): Even though the above comments will be applicable to somewhere in the
+// future, to prove the following spec, it is actually not a problem.
+// (if you replace Cn_list_is_last with is_last_chunk, you will have the problem)
 static bool my_list_is_last(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 /*@
         requires
-                take A_pre = RW<struct hyp_allocator>(allocator);
+                take A_pre = Cn_hyp_allocator_only(allocator);
                 take B_pre = Cn_chunk_hdr(chunk, A_pre);
                 let chunk_node_ptr = member_shift<struct chunk_hdr>(chunk, node);
         ensures
-                take A_post = RW<struct hyp_allocator>(allocator);
+                take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 return == (Cn_list_is_last(B_pre.Node, member_shift<struct hyp_allocator>(allocator, chunks))? 1u8 : 0u8);
 @*/
@@ -687,7 +690,7 @@ static bool my_list_is_last(struct chunk_hdr *chunk, struct hyp_allocator *alloc
 static struct chunk_hdr *my_chunk_get_next(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 /*@
         requires
-                take A_pre = RW<struct hyp_allocator>(allocator);
+                take A_pre = Cn_hyp_allocator_only(allocator);
                 take B_pre = Cn_chunk_hdr(chunk, A_pre);
                 let chunk_node_ptr = member_shift<struct chunk_hdr>(chunk, node);
                 let Node = B_pre.Node;
@@ -695,7 +698,7 @@ static struct chunk_hdr *my_chunk_get_next(struct chunk_hdr *chunk, struct hyp_a
                 let next_chunk = my_container_of_chunk_hdr(next_node);
                 take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
         ensures
-                take A_post = RW<struct hyp_allocator>(allocator);
+                take A_post =Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
                 Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
@@ -711,7 +714,7 @@ static struct chunk_hdr *my_chunk_get_next(struct chunk_hdr *chunk, struct hyp_a
 static size_t my_chunk_unmapped_size(struct chunk_hdr * chunk, struct hyp_allocator* allocator)
 /*@
         requires
-                take A_pre = RW<struct hyp_allocator>(allocator);
+                take A_pre = Cn_hyp_allocator_only(allocator);
                 take B_pre = Cn_chunk_hdr(chunk, A_pre);
                 let Hdr = B_pre.Hdr;
                 let Node = B_pre.Node;
@@ -719,7 +722,7 @@ static size_t my_chunk_unmapped_size(struct chunk_hdr * chunk, struct hyp_alloca
                 let next_chunk = my_container_of_chunk_hdr(next_node);
                 take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
         ensures
-                take A_post = RW<struct hyp_allocator>(allocator);
+                take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
                 A_pre == A_post;
@@ -746,20 +749,20 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
 */
 /*@
     requires
-        take A_pre = RW<struct hyp_allocator>(allocator);
+        take A_pre = Cn_hyp_allocator_only(allocator);
         take B_pre = Cn_chunk_hdr(chunk, A_pre);
         let node_ptr = member_shift<struct chunk_hdr>(chunk, node);
         let C_pre = B_pre.Hdr;
         let Node = B_pre.Node;
     ensures
-        take A_post = RW<struct hyp_allocator>(allocator);
+        take A_post = Cn_hyp_allocator_only(allocator);
         take C_post = Cn_chunk_hdr(chunk, A_post);
         let chunk_end = (u64)chunk + (u64)C_pre.mapped_size +
                 (u64)Cn_chunk_unmapped_size(C_pre);
 
-        Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))
+        Cn_list_is_last(Node, A_post.head)
         implies return == 0u8;
-        !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))
+        !Cn_list_is_last(Node, A_post.head)
         implies return == ((Cn_chunk_size(0u64) < chunk_end) ? 1u8 : 0u8);
         // HK: To prove the above, we require an invariant stating that
         // all sizes are less than 2^32 to avoid integer overflow.

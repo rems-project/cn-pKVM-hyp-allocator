@@ -58,6 +58,14 @@ type_synonym cn_chunk_hdr = {
   // no node, no hash, no data, no ownership here
 }
 
+type_synonym cn_hyp_allocator = {
+        pointer head,    // used for checking the last chunk
+        pointer first,   // used for list walking
+        pointer last,    // last chunk
+        va start,
+        u32 size
+}
+
 datatype cn_chunk_hdrs {
   Chunk_nil {},
   Chunk_cons { cn_chunk_hdr hd, datatype cn_chunk_hdrs tl }
@@ -81,18 +89,29 @@ function (boolean) is_last_chunk(pointer node_address, struct hyp_allocator ha)
 {
         ptr_eq(node_address, ha.chunks.prev)
 }
+predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
+{
+        take ha = RW<struct hyp_allocator>(p);
+        let cn_hyp = {
+                head:  member_shift<struct hyp_allocator>(p, chunks),
+                first: ha.chunks.next,
+                last:  ha.chunks.prev,
+                start: ha.start,
+                size:  ha.size
+        };
+        return cn_hyp;
+}
 @*/
+
 
 /* invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)*/
 /* start and end are the va space within which the chunks have to be */
 /*@
-predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, struct hyp_allocator ha)
+predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
 {
         take hdr = RW<struct chunk_hdr>(header_address);
-        let last = ha.chunks.prev;
         let end = ha.start + (u64)ha.size;
-        let p = member_shift<struct chunk_hdr>(header_address, node);
-        let va_size = (is_last_chunk(p, ha) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
+        let va_size = (ptr_eq(hdr.node.next, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
         assert(va_size <= (u64)MAXu32());
         let cn_hdr = {
                 header_address : (u64) header_address,
@@ -114,13 +133,13 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
 
         // HK: the chunk lists must be sorted in address order.
         // (otherwise, the chunk_unmapped_size function may return incorrect sizes)
-        assert((u64)p < (u64)hdr.node.next);
+        assert((u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next);
         return {Hdr: cn_hdr, Node: hdr.node};
 
 }
 // HK: prev is unused? what is for?
 // -> HK: important for sanity check of linked list (e.g. node->next->prev == node)
-predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, struct hyp_allocator ha,  pointer last)
+predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
 {
         if (ptr_eq(p,last)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
@@ -136,11 +155,11 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, struct
 }
 
 
-predicate ({struct hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
-  take ha = RW<struct hyp_allocator>(p);
+predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
+  take ha = Cn_hyp_allocator_only(p);
   let chunk_ptr = member_shift<struct hyp_allocator>(p, chunks);
   let next_ptr = member_shift<struct list_head>(chunk_ptr, next);
-  take hdrs = Cn_chunk_hdrs(ha.chunks.next, chunk_ptr, ha, chunk_ptr);
+  take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
