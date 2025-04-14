@@ -301,6 +301,7 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
                 A_pre == A_post;
                 B_pre == B_post;
+                C_pre == C_post;
                 return == (u64)(Hdr.va_size - Hdr.mapped_size);
 @*/
 {
@@ -832,6 +833,7 @@ static size_t my_chunk_unmapped_size(struct chunk_hdr * chunk, struct hyp_alloca
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
                 A_pre == A_post;
                 B_pre == B_post;
+                C_pre == C_post;
                 return == (u64)(Hdr.va_size - Hdr.mapped_size);
 @*/
 {
@@ -860,16 +862,24 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
         let node_ptr = member_shift<struct chunk_hdr>(chunk, node);
         let C_pre = B_pre.Hdr;
         let Node = B_pre.Node;
+        let next_node = Node.next;
+        let next_chunk = my_container_of_chunk_hdr(next_node);
+        take D_pre = Cn_chunk_hdr(next_chunk, A_pre);
+        D_pre.Node.prev == member_shift<struct chunk_hdr>(chunk, node);
     ensures
         take A_post = Cn_hyp_allocator_only(allocator);
-        take C_post = Cn_chunk_hdr(chunk, A_post);
+        take B_post = Cn_chunk_hdr(chunk, A_post);
+        take D_post = Cn_chunk_hdr(next_chunk, A_post);
         let chunk_end = (u64)chunk + (u64)C_pre.mapped_size +
                 (u64)Cn_chunk_unmapped_size(C_pre);
 
         Cn_list_is_last(Node, A_post.head)
         implies return == 0u8;
         !Cn_list_is_last(Node, A_post.head)
-        implies return == ((Cn_chunk_size(0u64) < chunk_end) ? 1u8 : 0u8);
+        implies return == (((addr + Cn_chunk_size(0u64)) < chunk_end) ? 1u8 : 0u8);
+        A_pre == A_post;
+        B_pre == B_post;
+        D_pre == D_post;
         // HK: To prove the above, we require an invariant stating that
         // all sizes are less than 2^32 to avoid integer overflow.
 @*/
