@@ -632,6 +632,16 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
 }
 
 // HK: for sanity check
+// Note:
+//   - Implementation says chunk->node->next == &allocator->chunks
+//   - Spec says &chunk->node == allocator->chunks->prev
+//   - This should be verified assuming that "chunks" satisfy the invariant for
+//     doubly-linked lists, which should be a part of the global invariant for
+//     chunks and allocators.
+//   - To enforce this invariant holds, we probably need to write a kind
+//     of specs like: chunk ∈ allocator-chunks (using lookup predicate).
+//   - However, this is going to be a very "inefficient" spec (involves recursively
+//     defined predicate). Is there any good way to avoid this?
 static bool my_list_is_last(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 /*@
         requires
