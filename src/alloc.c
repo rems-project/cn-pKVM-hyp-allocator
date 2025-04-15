@@ -617,13 +617,27 @@ static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 }
 
 static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
+/*@
+        requires
+                take C_pre = RW<struct chunk_hdr>(chunk);
+                let mapping_needs = Cn_chunk_size(size);
+                //let mapping_missing = CN_PAGE_ALIGN(mapping_needs - (u64)C_pre.mapped_size);
+                let mapping_missing = mapping_needs - (u64)C_pre.mapped_size;
+        ensures
+                take C_post = RW<struct chunk_hdr>(chunk);
+                C_pre == C_post;
+                let res = (mapping_needs <= (u64)C_pre.mapped_size) ?
+                           0u64 : mapping_missing;
+                return == res;
+@*/
 {
         size_t mapping_missing, mapping_needs = chunk_size(size);
 
         if (mapping_needs <= chunk->mapped_size)
                 return 0;
 
-        mapping_missing = PAGE_ALIGN(mapping_needs - chunk->mapped_size);
+        //mapping_missing = PAGE_ALIGN(mapping_needs - chunk->mapped_size);
+        mapping_missing = (size_t)1UL - 1;
 
         return mapping_missing;
 }
@@ -930,12 +944,12 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                                         (unsigned long)chunk_data(chunk);
         }
         // TODO: memcache part. We ignore this for now (HK).
-        // missing_map = chunk_needs_mapping(chunk, expected_mapping);
-        // if (missing_map) {
-        //         ret = chunk_inc_map(chunk, missing_map, allocator);
-        //         if (ret)
-        //                 return ret;
-        // }
+        missing_map = chunk_needs_mapping(chunk, expected_mapping);
+        if (missing_map) {
+                ret = chunk_inc_map(chunk, missing_map, allocator);
+                if (ret)
+                        return ret;
+        }
 
         chunk->alloc_size = size;
         chunk_hash_update(chunk);

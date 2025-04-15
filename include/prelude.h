@@ -61,7 +61,6 @@ typedef u64		phys_addr_t;
 #define IS_ALIGNED(x, a)	(((x) & ((typeof(x))(a) - 1)) == 0)
 #define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
 
-
 #define READ_ONCE(x)	(*(const volatile typeof(x) *)&(x))
 
 #define WRITE_ONCE(x, val)						\
@@ -106,6 +105,12 @@ void hyp_spin_unlock(hyp_spinlock_t *lock);
 static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr) /*@  cn_function PAGE_ALIGN_DOWN; @*/
 {
 	return PAGE_ALIGN_DOWN(addr);
+}
+
+/*@ function (u64) CN_PAGE_ALIGN(u64 addr) @*/
+static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function CN_PAGE_ALIGN; @*/
+{
+	return PAGE_ALIGN(addr);
 }
 
 
