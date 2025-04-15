@@ -121,21 +121,6 @@ static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function PAGE
 	return PAGE_ALIGN(addr);
 }
 
-
-// #define __ALIGN_KERNEL(x, a)	\
-// 	__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
-// #define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
-
-// #define ALIGN_DOWN(x, a)	__ALIGN_KERNEL((x) - ((a) - 1), (a))
-
-// #define PAGE_ALIGN_DOWN(addr)	ALIGN_DOWN(addr, PAGE_SIZE)
-
-// PAGE_ALIGN_DOWN(addr) 
-// = ALIGN_DOWN(addr, PAGE_SIZE)
-// = __ALIGN_KERNEL((addr) - ((PAGE_SIZE) - 1), PAGE_SIZE)
-// = __ALIGN_KERNEL_MASK((addr) - ((PAGE_SIZE) - 1), PAGE_SIZE - 1)
-// = (((addr) - ((PAGE_SIZE) - 1) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
-
 /*@
 function (u64) PAGE_ALIGN_DOWN(u64 addr) {
 	let page_mask = shift_left(1u64, 12u64) - 1u64; 
