@@ -26,6 +26,10 @@ cn-verify-via-cpp: tmp-alloc.c
 cn-verify: src/alloc.c
 	cn verify --no-vip $(if $(ONLY),--only=$(ONLY)) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c
 
+.PHONY: cn-instrument
+cn-instrument: src/alloc.c
+	cn instrument -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c
+
 .PHONY: clean
 clean:
 	rm -f tmp-alloc.c

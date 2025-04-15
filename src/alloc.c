@@ -22,11 +22,16 @@ extern unsigned long hyp_nr_cpus;
 #endif /* STANDALONE */
 
 #define MIN_ALLOC 8UL
-/*@ function (u64) MIN_ALLOC () @*/
-static unsigned long c_MIN_ALLOC() /*@  cn_function MIN_ALLOC; @*/
+static unsigned long c_MIN_ALLOC()
 {
         return MIN_ALLOC;
 }
+
+/*@
+function (u64) MIN_ALLOC () {
+	8u64
+}
+@*/
 
 static DEFINE_PER_CPU(int, hyp_allocator_errno);
 static DEFINE_PER_CPU(struct kvm_hyp_memcache, hyp_allocator_mc);

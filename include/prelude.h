@@ -28,6 +28,7 @@ typedef u64		phys_addr_t;
 #ifdef __cerb__
 // TODO
 #define __aligned(x)
+#define __attribute__(x)        
 #else
 #define __aligned(x)		__attribute__((__aligned__(x)))
 #endif
@@ -107,8 +108,9 @@ void hyp_spin_unlock(hyp_spinlock_t *lock);
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 
 // HK: we cannot define c_PAGE_ALIGN_DOWN until here because PAGE_SIZE is defined just above.
-/*@ function (u64) PAGE_ALIGN_DOWN(u64 addr) @*/
-static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr) /*@  cn_function PAGE_ALIGN_DOWN; @*/
+// /*@ function (u64) PAGE_ALIGN_DOWN(u64 addr) @*/
+static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr) 
+// /*@ cn_function PAGE_ALIGN_DOWN; @*/
 {
 	return PAGE_ALIGN_DOWN(addr);
 }
@@ -118,6 +120,28 @@ static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function PAGE
 {
 	return PAGE_ALIGN(addr);
 }
+
+
+// #define __ALIGN_KERNEL(x, a)	\
+// 	__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
+// #define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
+
+// #define ALIGN_DOWN(x, a)	__ALIGN_KERNEL((x) - ((a) - 1), (a))
+
+// #define PAGE_ALIGN_DOWN(addr)	ALIGN_DOWN(addr, PAGE_SIZE)
+
+// PAGE_ALIGN_DOWN(addr) 
+// = ALIGN_DOWN(addr, PAGE_SIZE)
+// = __ALIGN_KERNEL((addr) - ((PAGE_SIZE) - 1), PAGE_SIZE)
+// = __ALIGN_KERNEL_MASK((addr) - ((PAGE_SIZE) - 1), PAGE_SIZE - 1)
+// = (((addr) - ((PAGE_SIZE) - 1) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
+
+/*@
+function (u64) PAGE_ALIGN_DOWN(u64 addr) {
+	let page_mask = shift_left(1u64, 12u64) - 1u64; 
+	(addr & ~page_mask)
+}
+@*/
 
 
 /*

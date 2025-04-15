@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include <alloc.h>
+#include "alloc.c"
 
 phys_addr_t ident_to_pa(void *addr)
 {
