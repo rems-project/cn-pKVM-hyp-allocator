@@ -76,6 +76,12 @@ do {									\
 #define	EBUSY		16	/* Device or resource busy */
 #define	EINVAL		22	/* Invalid argument */
 
+/*@ function (i32) EINVAL() @*/
+static int c_EINVAL() /*@ cn_function EINVAL; @*/
+{
+	return EINVAL;
+}
+
 #include <linux/bitfield.h>
 #include <linux/minmax.h>
 #include <linux/list.h>
@@ -107,8 +113,8 @@ static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr) /*@  cn_function
 	return PAGE_ALIGN_DOWN(addr);
 }
 
-/*@ function (u64) CN_PAGE_ALIGN(u64 addr) @*/
-static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function CN_PAGE_ALIGN; @*/
+/*@ function (u64) PAGE_ALIGN(u64 addr) @*/
+static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function PAGE_ALIGN; @*/
 {
 	return PAGE_ALIGN(addr);
 }

@@ -151,7 +151,7 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
         } else {
                 let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node))); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
-                assert(cn_hdr.Node.prev == prev);
+                assert(ptr_eq(cn_hdr.Node.prev, prev));
                 take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
                 // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
                 return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };

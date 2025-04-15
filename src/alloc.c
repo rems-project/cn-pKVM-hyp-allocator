@@ -63,9 +63,9 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     trusted; // TODO(HK): for now because I don't know how to handle the cast below correctly.
     requires
-        take C_pre = Owned<struct chunk_hdr>(chunk);
+        take C_pre = RW<struct chunk_hdr>(chunk);
     ensures
-        take C_post = Owned<struct chunk_hdr>(chunk);
+        take C_post = RW<struct chunk_hdr>(chunk);
         C_pre == C_post;
 @*/
 {
@@ -92,9 +92,9 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 static inline void chunk_hash_update(struct chunk_hdr *chunk)
 /*@
     requires
-        take C_pre = Owned<struct chunk_hdr>(chunk);
+        take C_pre = RW<struct chunk_hdr>(chunk);
     ensures
-        take C_post = Owned<struct chunk_hdr>(chunk);
+        take C_post = RW<struct chunk_hdr>(chunk);
         hash_change_only(C_pre, C_post);
 @*/
 {
@@ -163,7 +163,7 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 let next_node = Node.next;
                 let next_chunk = my_container_of_chunk_hdr(next_node);
                 take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
-                C_pre.Node.prev == member_shift<struct chunk_hdr>(chunk, node);
+                ptr_eq(C_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
         ensures
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
@@ -189,7 +189,7 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                 let prev_node = Node.prev;
                 let prev_chunk = my_container_of_chunk_hdr(prev_node);
                 take C_pre = Cn_chunk_hdr(prev_chunk, A_pre);
-                C_pre.Node.next == member_shift<struct chunk_hdr>(chunk, node);
+                ptr_eq(C_pre.Node.next, member_shift<struct chunk_hdr>(chunk, node));
         ensures
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
@@ -215,7 +215,7 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 let next_node = Node.next;
                 let next_chunk = my_container_of_chunk_hdr(next_node);
                 take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
-                C_pre.Node.prev == member_shift<struct chunk_hdr>(chunk, node);
+                ptr_eq(C_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
         ensures
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
@@ -242,7 +242,7 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
                 let prev_node = Node.prev;
                 let prev_chunk = my_container_of_chunk_hdr(prev_node);
                 take C_pre = Cn_chunk_hdr(prev_chunk, A_pre);
-                C_pre.Node.next == member_shift<struct chunk_hdr>(chunk, node);
+                ptr_eq(C_pre.Node.next, member_shift<struct chunk_hdr>(chunk, node));
         ensures
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
@@ -294,7 +294,7 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 let next_node = Node.next;
                 let next_chunk = my_container_of_chunk_hdr(next_node);
                 take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
-                C_pre.Node.prev == member_shift<struct chunk_hdr>(chunk, node);
+                ptr_eq(C_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
         ensures
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
@@ -302,7 +302,7 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 A_pre == A_post;
                 B_pre == B_post;
                 C_pre == C_post;
-                return == (u64)(Hdr.va_size - Hdr.mapped_size);
+                return == (u64)Cn_chunk_unmapped_size(Hdr);
 @*/
 {
         struct chunk_hdr *next = chunk_get_next(chunk, allocator);
@@ -361,11 +361,11 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
 /*@
 function (boolean) Cn_list_is_first(struct list_head node, pointer chunks)
 {
-        node.prev == chunks
+        ptr_eq(node.prev, chunks)
 }
 function (boolean) Cn_list_is_last(struct list_head node, pointer chunks)
 {
-        node.next == chunks
+        ptr_eq(node.next, chunks)
 }
 function (pointer) Cn_chunk_get_next(struct chunk_hdr chunk, pointer allocator)
 {
@@ -383,11 +383,11 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct hyp_allocator *allocator)
 /*@
     requires
-        take C_pre = Owned<struct chunk_hdr>(chunk);
+        take C_pre = RW<struct chunk_hdr>(chunk);
         take HA_in = Cn_hyp_allocator(allocator);
     ensures
         take HA_out = Cn_hyp_allocator(allocator);
-        take C_post = Owned<struct chunk_hdr>(chunk);
+        take C_post = RW<struct chunk_hdr>(chunk);
 @*/
 {
         // HK: non-rust ownership type part
@@ -621,8 +621,7 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
         requires
                 take C_pre = RW<struct chunk_hdr>(chunk);
                 let mapping_needs = Cn_chunk_size(size);
-                //let mapping_missing = CN_PAGE_ALIGN(mapping_needs - (u64)C_pre.mapped_size);
-                let mapping_missing = mapping_needs - (u64)C_pre.mapped_size;
+                let mapping_missing = PAGE_ALIGN(mapping_needs - (u64)C_pre.mapped_size);
         ensures
                 take C_post = RW<struct chunk_hdr>(chunk);
                 C_pre == C_post;
@@ -631,13 +630,15 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
                 return == res;
 @*/
 {
-        size_t mapping_missing, mapping_needs = chunk_size(size);
+        // TODO: fix this. Due to the Cerberus elaboration bug, we cannot use
+        // size_t here currently.
+        // size_t mapping_missing, mapping_needs = chunk_size(size);
+        unsigned long mapping_missing, mapping_needs = chunk_size(size);
 
         if (mapping_needs <= chunk->mapped_size)
                 return 0;
 
-        //mapping_missing = PAGE_ALIGN(mapping_needs - chunk->mapped_size);
-        mapping_missing = (size_t)1UL - 1;
+        mapping_missing = PAGE_ALIGN(mapping_needs - chunk->mapped_size);
 
         return mapping_missing;
 }
@@ -694,6 +695,18 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
 
 static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
                          struct hyp_allocator *allocator)
+/*@
+        requires
+                take A_pre = Cn_hyp_allocator_only(allocator);
+                take C_pre = Cn_chunk_hdr(chunk, A_pre);
+                let cond = (u64)Cn_chunk_unmapped_size(C_pre.Hdr) >= map_size;
+        ensures
+                take A_post = Cn_hyp_allocator_only(allocator);
+                take C_post = Cn_chunk_hdr(chunk, A_post);
+                !cond implies return == -EINVAL();
+                //cond implies return == 0;
+                //cond implies C_post.mapped_size == (C_pre.mapped_size + map_size);
+@*/
 {
         int ret;
 
@@ -920,10 +933,10 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 /*@
     requires
         //take HA_in = Cn_hyp_allocator(allocator);
-        take C_pre = Owned<struct chunk_hdr>(chunk);
+        take C_pre = RW<struct chunk_hdr>(chunk);
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);
-        take C_post = Owned<struct chunk_hdr>(chunk);
+        take C_post = RW<struct chunk_hdr>(chunk);
         C_post.alloc_size == (u32)size;
         C_post.mapped_size == C_pre.mapped_size;
         C_post.node == C_pre.node;

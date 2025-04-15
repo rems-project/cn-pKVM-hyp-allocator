@@ -23,7 +23,7 @@ static inline int list_empty(const struct list_head *head)
 		take H_pre = RW<struct list_head>(head);
 	ensures
 		take H_post = RW<struct list_head>(head);
-		return == (H_post.next == head ? 1i32 : 0i32);
+		return == (ptr_eq(H_post.next, head) ? 1i32 : 0i32);
 @*/
 {
 	return READ_ONCE(head->next) == head;
@@ -42,8 +42,8 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 		take L_pre = RW<struct list_head>(list);
 	ensures
 		take L_post = RW<struct list_head>(list);
-		L_post.next == list;
-		L_post.prev == list;
+		ptr_eq(L_post.next, list);
+		ptr_eq(L_post.prev, list);
 @*/
 {
 	// HK(patch)
@@ -123,7 +123,7 @@ static inline int list_is_first(const struct list_head *list, const struct list_
 	ensures
 		take L_post = RW<struct list_head>(list);
 		L_pre == L_post;
-		return == (L_pre.prev == head ? 1i32 : 0i32);
+		return == (ptr_eq(L_pre.prev, head) ? 1i32 : 0i32);
 @*/
 {
 	return list->prev == head;
@@ -136,7 +136,7 @@ static inline int list_is_last(const struct list_head *list, const struct list_h
 	ensures
 		take L_post = RW<struct list_head>(list);
 		L_pre == L_post;
-		return == (L_pre.next == head ? 1i32 : 0i32);
+	return == (ptr_eq(L_pre.next, head) ? 1i32 : 0i32);
 @*/
 {
 	return list->next == head;
@@ -154,7 +154,7 @@ static inline void __list_add(struct list_head *new,
 			      struct list_head *next)
 /*@
 	requires
-		new != prev && prev != next && next != new;
+		!ptr_eq(new, prev) && !ptr_eq(prev, next) && !ptr_eq(next, new);
 		take New_pre = RW<struct list_head>(new);
 		take Prev_pre = RW<struct list_head>(prev);
 		take Next_pre = RW<struct list_head>(next);
@@ -162,10 +162,10 @@ static inline void __list_add(struct list_head *new,
 		take Prev_post = RW<struct list_head>(prev);
 		take Next_post = RW<struct list_head>(next);
 		take New_post = RW<struct list_head>(new);
-		Next_post.prev == new;
-		New_post.next == next;
-		New_post.prev == prev;
-		Prev_post.next == new;
+		ptr_eq(Next_post.prev, new);
+		ptr_eq(New_post.next, next);
+		ptr_eq(New_post.prev, prev);
+		ptr_eq(Prev_post.next, new);
 @*/
 {
 #if 0
@@ -187,16 +187,16 @@ static inline void list_add(struct list_head *new, struct list_head *head)
 		take New_pre = RW<struct list_head>(new);
 		take Head_pre = RW<struct list_head>(head);
 		let next = Head_pre.next;
-		new != head && head != next && next != new;
+		!ptr_eq(new, head) && !ptr_eq(head, next) && !ptr_eq(next, new);
 		take Next_pre = RW<struct list_head>(next);
 	ensures
 		take New_post = RW<struct list_head>(new);
 		take Head_post = RW<struct list_head>(head);
 		take Next_post = RW<struct list_head>(next);
-		Next_post.prev == new;
-		New_post.next == next;
-		New_post.prev == head;
-		Head_post.next == new;
+		ptr_eq(Next_post.prev, new);
+		ptr_eq(New_post.next, next);
+		ptr_eq(New_post.prev, head);
+		ptr_eq(Head_post.next, new);
 @*/
 {
 	__list_add(new, head, head->next);
