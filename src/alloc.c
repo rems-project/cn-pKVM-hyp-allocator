@@ -173,8 +173,8 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
-                Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
-                !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == next_chunk;
+                Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies is_null(return);
+                !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies ptr_eq(return, next_chunk);
                 A_post == A_pre;
                 B_post == B_pre;
                 C_post == C_pre;
@@ -199,8 +199,8 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(prev_chunk, A_post);
-                Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
-                !Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == prev_chunk;
+                Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies is_null(return);
+                !Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies ptr_eq(return, prev_chunk);
                 A_post == A_pre;
                 B_post == B_pre;
                 C_post == C_pre;
@@ -225,8 +225,8 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
-                Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
-                !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == next_chunk;
+                Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies is_null(return);
+                !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies ptr_eq(return, next_chunk);
                 A_post == A_pre;
                 B_post == B_pre;
                 C_post == C_pre;
@@ -252,8 +252,8 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(prev_chunk, A_post);
-                Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
-                !Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == prev_chunk;
+                Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies is_null(return);
+                !Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies ptr_eq(return, prev_chunk);
                 A_post == A_pre;
                 B_post == B_pre;
                 C_post == C_pre;
@@ -271,7 +271,7 @@ static inline struct chunk_hdr* chunk_get(void *addr)
         ensures
                 take C_post = RW<struct chunk_hdr>(addr);
                 C_pre == C_post;
-                return == addr;
+                ptr_eq(return, addr);
 @*/
 {
         struct chunk_hdr *chunk = (struct chunk_hdr *)addr;
@@ -833,13 +833,13 @@ static struct chunk_hdr *my_chunk_get_next(struct chunk_hdr *chunk, struct hyp_a
                 let next_node = Node.next;
                 let next_chunk = my_container_of_chunk_hdr(next_node);
                 take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
-                C_pre.Node.prev == member_shift<struct chunk_hdr>(chunk, node);
+                ptr_eq(C_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
         ensures
                 take A_post =Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
                 take C_post = Cn_chunk_hdr(next_chunk, A_post);
-                Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies return == NULL;
-                !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies return == next_chunk;
+                Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies is_null(return);
+                !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies ptr_eq(return, next_chunk);
 @*/
 {
         struct chunk_hdr * next = list_is_last(&(chunk)->node, &(allocator)->chunks) ?
@@ -858,7 +858,7 @@ static size_t my_chunk_unmapped_size(struct chunk_hdr * chunk, struct hyp_alloca
                 let next_node = Node.next;
                 let next_chunk = my_container_of_chunk_hdr(next_node);
                 take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
-                C_pre.Node.prev == member_shift<struct chunk_hdr>(chunk, node);
+                ptr_eq(C_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
         ensures
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take B_post = Cn_chunk_hdr(chunk, A_post);
@@ -897,7 +897,7 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
         let next_node = Node.next;
         let next_chunk = my_container_of_chunk_hdr(next_node);
         take D_pre = Cn_chunk_hdr(next_chunk, A_pre);
-        D_pre.Node.prev == member_shift<struct chunk_hdr>(chunk, node);
+        ptr_eq(D_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
     ensures
         take A_post = Cn_hyp_allocator_only(allocator);
         take B_post = Cn_chunk_hdr(chunk, A_post);
