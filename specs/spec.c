@@ -132,7 +132,10 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         assert(chunk_end >= cn_hdr.header_address);
 
         // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-        take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
+        // HK: is this correct?
+        // Who owns the memory of [p, p+alloc_size) where p = header_address + sizeof(struct chunk_hdr)?
+        //take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
+        take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr>), (u64) hdr.mapped_size - (u64)sizeof<struct chunk_hdr>);
         // the tail of the list
 
         // HK: the chunk lists must be sorted in address order.

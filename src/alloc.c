@@ -288,6 +288,8 @@ function (u64) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
 }
 @*/
 
+// TODO(HK): C_pre should replaced with cn_chunk_hdr_option to handle the
+// last chunk case
 static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                                                 struct hyp_allocator *allocator)
 /*@
@@ -436,6 +438,15 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 
 static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
+// HK: Hyp_allocator_map mines a new memory from memcache and maps it.
+// This means that it returns an ownership of this mined memory out of thin air.
+/*@
+        trusted;
+        requires
+                true;
+        ensures
+                take C = Conditional_Cn_char_array((pointer)va, (u64)size, return == 0i32);
+@*/
 {
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
         unsigned long va_end = va + size;
@@ -698,18 +709,34 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
         return 0;
 }
 
-static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
+// TODO(HK): fix this after the elaboration bug is fixed
+//static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
+static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                          struct hyp_allocator *allocator)
 /*@
         requires
                 take A_pre = Cn_hyp_allocator_only(allocator);
                 take C_pre = Cn_chunk_hdr(chunk, A_pre);
+                let Node = C_pre.Node;
+                let next_node = Node.next;
+                let next_chunk = my_container_of_chunk_hdr(next_node);
+                take Next_pre = Cn_chunk_hdr(next_chunk, A_pre);
+                ptr_eq(Next_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
                 let cond = (u64)Cn_chunk_unmapped_size(C_pre.Hdr) >= map_size;
         ensures
                 take A_post = Cn_hyp_allocator_only(allocator);
                 take C_post = Cn_chunk_hdr(chunk, A_post);
+                take Next_post = Cn_chunk_hdr(next_chunk, A_post);
+                A_post == A_pre;
+                Next_post == Next_pre;
+                C_post.Hdr.alloc_size == C_pre.Hdr.alloc_size;
+                C_post.Hdr.va_size == C_pre.Hdr.va_size;
+                C_post.Hdr.header_address == C_pre.Hdr.header_address;
                 !cond implies return == -EINVAL();
-                //cond implies return == 0;
+                return == 0i32 implies
+                C_post.Hdr.mapped_size == (C_pre.Hdr.mapped_size + (u32)map_size);
+                return != 0i32 implies
+                C_post.Hdr.mapped_size == C_pre.Hdr.mapped_size;
                 //cond implies C_post.mapped_size == (C_pre.mapped_size + map_size);
 @*/
 {
@@ -718,13 +745,15 @@ static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
         if (chunk_unmapped_size(chunk, allocator) < map_size)
                 return -EINVAL;
 
+        // TODO(HK): this function returns a "new memory ownership", so we have
+        // to handle this
         ret = hyp_allocator_map(allocator, chunk_unmapped_region(chunk),
                                 map_size);
         if (ret)
                 return ret;
 
         chunk->mapped_size += map_size;
-        chunk_hash_update(chunk);
+        //chunk_hash_update(chunk);
 
         return 0;
 }
@@ -1106,6 +1135,19 @@ predicate void Cn_char_array(pointer p, u64 size)
                 W<char>(array_shift<char>(p, i))
         };
         return;
+}
+
+predicate void Conditional_Cn_char_array(pointer p, u64 size, boolean cond)
+{
+        if (cond) {
+                take U = each(u64 i; i < size){
+                        W<char>(array_shift<char>(p, i))
+                };
+                return;
+        }
+        else {
+                return;
+        }
 }
 
 predicate void MaybeCn_char_array(pointer p, u64 size)
