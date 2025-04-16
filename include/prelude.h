@@ -28,7 +28,7 @@ typedef u64		phys_addr_t;
 #ifdef __cerb__
 // TODO
 #define __aligned(x)
-#define __attribute__(x)        
+#define __attribute__(x)
 #else
 #define __aligned(x)		__attribute__((__aligned__(x)))
 #endif
@@ -77,11 +77,16 @@ do {									\
 #define	EBUSY		16	/* Device or resource busy */
 #define	EINVAL		22	/* Invalid argument */
 
-/*@ function (i32) EINVAL() @*/
-static int c_EINVAL() /*@ cn_function EINVAL; @*/
-{
-	return EINVAL;
+// /*@ function (i32) EINVAL() @*/
+// static int c_EINVAL() /*@ cn_function EINVAL; @*/
+// {
+// 	return EINVAL;
+// }
+/*@
+function (i32) EINVAL() {
+	22i32
 }
+@*/
 
 #include <linux/bitfield.h>
 #include <linux/minmax.h>
@@ -109,25 +114,28 @@ void hyp_spin_unlock(hyp_spinlock_t *lock);
 
 // HK: we cannot define c_PAGE_ALIGN_DOWN until here because PAGE_SIZE is defined just above.
 // /*@ function (u64) PAGE_ALIGN_DOWN(u64 addr) @*/
-static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr) 
+static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr)
 // /*@ cn_function PAGE_ALIGN_DOWN; @*/
 {
 	return PAGE_ALIGN_DOWN(addr);
 }
 
-/*@ function (u64) PAGE_ALIGN(u64 addr) @*/
-static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function PAGE_ALIGN; @*/
-{
-	return PAGE_ALIGN(addr);
-}
+// /*@ function (u64) PAGE_ALIGN(u64 addr) @*/
+// static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function PAGE_ALIGN; @*/
+// {
+// 	return PAGE_ALIGN(addr);
+// }
 
 /*@
 function (u64) PAGE_ALIGN_DOWN(u64 addr) {
-	let page_mask = shift_left(1u64, 12u64) - 1u64; 
+	let page_mask = shift_left(1u64, 12u64) - 1u64;
 	(addr & ~page_mask)
 }
+function (u64) PAGE_ALIGN(u64 addr) {
+	let page_mask = shift_left(1u64, 12u64) - 1u64;
+	(addr + page_mask) & ~page_mask
+}
 @*/
-
 
 /*
  * KVM MEMCACHE ***************************************************************
