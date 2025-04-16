@@ -709,6 +709,22 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
         return 0;
 }
 
+/*@
+lemma ConcatArray (pointer va, u64 size1, u64 size2)
+requires
+    let va2 = (u64)va + size1;
+    take U = each(u64 i; i < size1){
+        W<char>(array_shift<char>(va, i))
+    };
+    take V = each(u64 i; i < size2){
+        W<char>(array_shift<char>((pointer)va2, i))
+    };
+ensures
+    take X = each(u64 i; i < size1 + size2){
+        W<char>(array_shift<char>(va, i))
+    };
+@*/
+
 // TODO(HK): fix this after the elaboration bug is fixed
 //static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
 static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
@@ -751,6 +767,8 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                                 map_size);
         if (ret)
                 return ret;
+
+        /*@ apply ConcatArray(array_shift<unsigned char>(chunk, sizeof<struct chunk_hdr>), (u64)chunk->mapped_size - (u64)sizeof<struct chunk_hdr>, (u64)map_size); @*/
 
         chunk->mapped_size += map_size;
         //chunk_hash_update(chunk);
