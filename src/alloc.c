@@ -771,7 +771,7 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         /*@ apply ConcatArray(array_shift<unsigned char>(chunk, sizeof<struct chunk_hdr>), (u64)chunk->mapped_size - (u64)sizeof<struct chunk_hdr>, (u64)map_size); @*/
 
         chunk->mapped_size += map_size;
-        //chunk_hash_update(chunk);
+        chunk_hash_update(chunk);
 
         return 0;
 }
