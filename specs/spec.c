@@ -99,6 +99,7 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
                 start: ha.start,
                 size:  ha.size
         };
+        assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
         return cn_hyp;
 }
 @*/
@@ -120,9 +121,9 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
                 va_size: (u32)va_size
         };
 
+        assert(va_size <= (u64)MAXu32());
         assert(cn_hdr.alloc_size <= cn_hdr.mapped_size);
         assert(cn_hdr.mapped_size <= cn_hdr.va_size);
-        assert(va_size <= (u64)MAXu32());
 
         // check non-overlappingness
         assert(cn_hdr.header_address >= ha.start);
@@ -169,6 +170,18 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
+}
+
+function (boolean) Is_chunk_some(datatype cn_chunk_hdr_option maybe_hdr)
+{
+        match (maybe_hdr) {
+        Chunk_none {} => {
+                false
+        }
+        Chunk_some {hdr:hdr} => {
+                true
+        }
+        }
 }
 
 

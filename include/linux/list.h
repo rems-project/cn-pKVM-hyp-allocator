@@ -187,7 +187,9 @@ static inline void list_add(struct list_head *new, struct list_head *head)
 		take New_pre = RW<struct list_head>(new);
 		take Head_pre = RW<struct list_head>(head);
 		let next = Head_pre.next;
-		!ptr_eq(new, head) && !ptr_eq(head, next) && !ptr_eq(next, new);
+		!ptr_eq(new, head);
+		!ptr_eq(head, next);
+		!ptr_eq(next, new);
 		take Next_pre = RW<struct list_head>(next);
 	ensures
 		take New_post = RW<struct list_head>(new);

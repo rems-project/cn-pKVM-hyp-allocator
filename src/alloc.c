@@ -390,11 +390,35 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct hyp_allocator *allocator)
 /*@
     requires
+        take A_pre = Cn_hyp_allocator_only(allocator);
         take C_pre = RW<struct chunk_hdr>(chunk);
-        take HA_in = Cn_hyp_allocator(allocator);
+        take Prev_pre = Cn_chunk_hdr(prev, A_pre);
+        let new = member_shift<struct chunk_hdr>(chunk, node);
+        let head = member_shift<struct chunk_hdr>(prev, node);
+        let next = Prev_pre.Node.next;
+        !ptr_eq(new, head) && !ptr_eq(head, next) && !ptr_eq(next, new);
+        take Next_pre = RW<struct list_head>(next);
+        // Checking if chunk is correctly in the allocator memory region,
+        // which is necessary to be a member of the chunk list.
+        // (i.e., Cn_chunk_hdr to be true)
+        A_pre.start <= (u64)chunk && (u64)chunk < A_pre.start + (u64)A_pre.size;
+        A_pre.start <= (u64)next && (u64)next < A_pre.start + (u64)A_pre.size;
+        (u64)chunk < (u64)next;
+        C_pre.alloc_size <= C_pre.mapped_size;
+        !ptr_eq(C_pre.node.next, A_pre.head);
+        let va_size = (u64)my_container_of_chunk_hdr(next) - (u64)chunk;
+        (u64)C_pre.mapped_size <= va_size;
     ensures
-        take HA_out = Cn_hyp_allocator(allocator);
-        take C_post = RW<struct chunk_hdr>(chunk);
+        take A_post = Cn_hyp_allocator_only(allocator);
+        take C_post = Cn_chunk_hdr(chunk, A_post);
+        take Prev_post = Cn_chunk_hdr(prev, A_pre);
+        take Next_post = RW<struct list_head>(next);
+        // TODO: we can write a spec that chunk is in the chunk list
+
+        ptr_eq(Next_post.prev, new);
+        ptr_eq(C_post.node.next, next);
+        ptr_eq(C_post.node.prev, head);
+        ptr_eq(Prev_post.Node.next, new);
 @*/
 {
         // HK: non-rust ownership type part
@@ -524,51 +548,43 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
 }
 @*/
 
+// chunk: the new chunk to install
+// size: alloc size for chunk
+// prev: the previous chunk for `chunk`
+// invariant:
+//   - there is no chunk between prev and chunk
+//   - chunk is not owned by the allocator
 static int chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct chunk_hdr *prev,
                          struct hyp_allocator *allocator)
 /*@
     requires
-        take Prev_pre = MaybeChunkHdr(prev, !is_null(prev));
+        take HA_pre = Cn_hyp_allocator(allocator);
         take C_pre = RW<struct chunk_hdr>(chunk);
+        HA_pre.ha.start <= (u64)chunk && (u64)chunk < (HA_pre.ha.start + (u64)HA_pre.ha.size);
+        !is_null(prev) implies Is_chunk_some(lookup(prev, HA_pre.hdrs));
+        is_null(prev) implies !Is_chunk_some(lookup(prev, HA_pre.hdrs));
     ensures
-        take Prev_post = MaybeChunkHdr(prev, !is_null(prev));
-        take C_post = RW<struct chunk_hdr>(chunk);
-        C_post.mapped_size == (
-                match Prev_pre {
-                        ChunkHdr_none {} => {
-                                (u32)PAGE_ALIGN_DOWN(Cn_chunk_size(size))
-                        }
-                        ChunkHdr_some {hdr: hdr1} => {
-                                match Prev_post {
-                                        ChunkHdr_none {} => { 0u32 } // unreachable
-                                        ChunkHdr_some {hdr: hdr2} => {
-                                                (hdr1.mapped_size - hdr2.mapped_size)
-                                        }
-                                }
-                        }
+        take HA_post = Cn_hyp_allocator(allocator);
+        Is_chunk_some(lookup(chunk, HA_post.hdrs));
+        match (lookup(prev, HA_post.hdrs)) {
+        Chunk_some { hdr: prev_hdr } => {
+                // TODO
+                true
+        }
+        Chunk_none {} => {
+                match (lookup(chunk, HA_post.hdrs)) {
+                Chunk_some {hdr: chunk_hdr } => {
+                        chunk_hdr.header_address == (u64)chunk
+                        // TODO(HK)
+                        //&& chunk_hdr.va_size == C_pre.va_size
+                        && (u64)chunk_hdr.alloc_size == size
+                        && (u64)chunk_hdr.mapped_size == PAGE_ALIGN(Cn_chunk_size(size))
                 }
-        );
-        match (Prev_pre) {
-                ChunkHdr_none {} => {
-                        true
+                Chunk_none {} => { false }
                 }
-                ChunkHdr_some {hdr: hdr1} => {
-                        match (Prev_post) {
-                                ChunkHdr_none {} => {
-                                        false
-                                }
-                                ChunkHdr_some {hdr: hdr2} => {
-                                        hash_change_only(hdr1, hdr2) &&
-                                        chunk_install_sanity_check(prev, chunk, hdr1) implies (
-                                        return == 0i32
-                                        && hdr2.mapped_size == (u32)((u64)chunk - (u64)prev)
-                                        )
-                                }
-                        }
-                }
+        }
         };
-        //is_null(prev) || hash_change_only(Prev_pre, Prev_post);
 @*/
 
 {
@@ -581,8 +597,6 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 // I thought the `list_add` function would take ownership of both the allocator and the chunk,
                 // transferring the chunk's ownership to the allocator.
                 // However, even after adding the chunk to the list, the program still manipulates the chunk.
-                // Q. What is going to be a good strategy to write the predicate for lists in
-                // this case?
                 list_add(&chunk->node, &allocator->chunks);
                 chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
                 chunk->alloc_size = size;
@@ -710,6 +724,9 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
 }
 
 /*@
+// HK: This lemma is unsound because it ignores pointer provenance.
+// Workaround: attach a single provenance with the address in [HA.start, HA.end)
+// and use it everywhere (TODO).
 lemma ConcatArray (pointer va, u64 size1, u64 size2)
 requires
     let va2 = (u64)va + size1;
@@ -768,6 +785,7 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         if (ret)
                 return ret;
 
+        /*@ cn_print(sizeof<struct chunk_hdr>); @*/
         /*@ apply ConcatArray(array_shift<unsigned char>(chunk, sizeof<struct chunk_hdr>), (u64)chunk->mapped_size - (u64)sizeof<struct chunk_hdr>, (u64)map_size); @*/
 
         chunk->mapped_size += map_size;
@@ -1005,6 +1023,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         new_chunk_addr = chunk_addr_fixup(new_chunk_addr);
         if (chunk_can_split(chunk, new_chunk_addr, allocator)) {
                 new_chunk = (struct chunk_hdr *)new_chunk_addr;
+                // HK: when we can split the chunk,
+                // the va addresses of the header of the new chunk have to be mapped.
                 expected_mapping = new_chunk_addr + chunk_hdr_size() -
                                         (unsigned long)chunk_data(chunk);
         }
