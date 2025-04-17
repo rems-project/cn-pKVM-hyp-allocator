@@ -104,25 +104,37 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 }
 @*/
 
-/* invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)*/
-/* start and end are the va space within which the chunks have to be */
 /*@
+predicate (struct chunk_hdr) Own_chunk_hdr(pointer header_address)
+{
+        take cn_hdr = RW<struct chunk_hdr>(header_address);
+        assert(cn_hdr.alloc_size <= cn_hdr.mapped_size);
+
+        // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
+        // HK: is this correct?
+        // Who owns the memory of [p, p+alloc_size) where p = header_address + sizeof(struct chunk_hdr)?
+        //take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
+        take A = Cn_char_array(array_shift<unsigned char>(header_address, Cn_chunk_hdr_size()), (u64) cn_hdr.mapped_size - Cn_chunk_hdr_size());
+
+        return cn_hdr;
+}
+// invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)
+// start and end are the va space within which the chunks have to be
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
 {
-        take hdr = RW<struct chunk_hdr>(header_address);
+        take hdr = Own_chunk_hdr(header_address);
+
         let end = ha.start + (u64)ha.size;
-        assert(ha.start < end);
         let va_size = (Cn_list_is_last(hdr.node, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
+        assert(va_size <= (u64)MAXu32());
         assert((u64)hdr.node.next <= end);
+
         let cn_hdr = {
                 header_address : (u64) header_address,
                 alloc_size : hdr.alloc_size,
                 mapped_size : hdr.mapped_size,
                 va_size: (u32)va_size
         };
-
-        assert(va_size <= (u64)MAXu32());
-        assert(cn_hdr.alloc_size <= cn_hdr.mapped_size);
         assert(cn_hdr.mapped_size <= cn_hdr.va_size);
 
         // check non-overlappingness
@@ -132,12 +144,6 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         // HK: needed to ensure no-integer overflow?
         assert(chunk_end >= cn_hdr.header_address);
 
-        // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-        // HK: is this correct?
-        // Who owns the memory of [p, p+alloc_size) where p = header_address + sizeof(struct chunk_hdr)?
-        //take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
-        take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr>), (u64) hdr.mapped_size - (u64)sizeof<struct chunk_hdr>);
-        // the tail of the list
 
         // HK: the chunk lists must be sorted in address order.
         // (otherwise, the chunk_unmapped_size function may return incorrect sizes)
@@ -165,6 +171,8 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
 
 predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
   take ha = Cn_hyp_allocator_only(p);
+  let end = ha.start + (u64)ha.size;
+  assert(ha.start < end);  // no overflow
   let chunk_ptr = member_shift<struct hyp_allocator>(p, chunks);
   let next_ptr = member_shift<struct list_head>(chunk_ptr, next);
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);

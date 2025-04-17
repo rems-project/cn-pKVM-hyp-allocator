@@ -29,7 +29,7 @@ static unsigned long c_MIN_ALLOC()
 
 /*@
 function (u64) MIN_ALLOC () {
-	8u64
+        8u64
 }
 @*/
 
@@ -136,11 +136,15 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 
 #ifdef __cerb__
 /*@
+function (u64) Cn_chunk_hdr_size ()
+{
+        (u64) offsetof(chunk_hdr, data)
+}
 // HK: size_t cast is removed. Macro requires cast because it does not know what the
 // argument type is.
 function (u64) Cn_chunk_size (u64 size)
 {
-        (u64) offsetof(chunk_hdr, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
+        Cn_chunk_hdr_size() + (size > MIN_ALLOC() ? size : MIN_ALLOC())
         //(u64) member_shift<struct chunk_hdr>(NULL, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
 }
 function (pointer) Cn_chunk_data (struct chunk_hdr chunk)
@@ -416,8 +420,8 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         // TODO: we can write a spec that chunk is in the chunk list
 
         ptr_eq(Next_post.prev, new);
-        ptr_eq(C_post.node.next, next);
-        ptr_eq(C_post.node.prev, head);
+        ptr_eq(C_post.Node.next, next);
+        ptr_eq(C_post.Node.prev, head);
         ptr_eq(Prev_post.Node.next, new);
 @*/
 {
@@ -785,8 +789,7 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         if (ret)
                 return ret;
 
-        /*@ cn_print(sizeof<struct chunk_hdr>); @*/
-        /*@ apply ConcatArray(array_shift<unsigned char>(chunk, sizeof<struct chunk_hdr>), (u64)chunk->mapped_size - (u64)sizeof<struct chunk_hdr>, (u64)map_size); @*/
+        /*@ apply ConcatArray(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)chunk->mapped_size - Cn_chunk_hdr_size(), (u64)map_size); @*/
 
         chunk->mapped_size += map_size;
         chunk_hash_update(chunk);
