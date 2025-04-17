@@ -105,6 +105,7 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 @*/
 
 /*@
+// Own_chunk_hdr just owns the chunk header and the mapped part of the chunk
 predicate (struct chunk_hdr) Own_chunk_hdr(pointer header_address)
 {
         take cn_hdr = RW<struct chunk_hdr>(header_address);
@@ -118,8 +119,8 @@ predicate (struct chunk_hdr) Own_chunk_hdr(pointer header_address)
 
         return cn_hdr;
 }
-// invoke as cn_chunk_hdrs(ha.chunks.next, &(ha.chunks.next), ha.chunks.prev)
-// start and end are the va space within which the chunks have to be
+// Cn_chunk_hdr validates the locations of the chunk header and its next are
+// in the hyp_allocator's address space
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
 {
         take hdr = Own_chunk_hdr(header_address);

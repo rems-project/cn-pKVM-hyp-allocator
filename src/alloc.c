@@ -395,20 +395,21 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 /*@
     requires
         take A_pre = Cn_hyp_allocator_only(allocator);
-        take C_pre = RW<struct chunk_hdr>(chunk);
+        take C_pre = Own_chunk_hdr(chunk);
         take Prev_pre = Cn_chunk_hdr(prev, A_pre);
         let new = member_shift<struct chunk_hdr>(chunk, node);
         let head = member_shift<struct chunk_hdr>(prev, node);
         let next = Prev_pre.Node.next;
         !ptr_eq(new, head) && !ptr_eq(head, next) && !ptr_eq(next, new);
-        take Next_pre = RW<struct list_head>(next);
+        let next_chunk_ptr = my_container_of_chunk_hdr(next);
+        take Next_Chunk_pre = Cn_chunk_hdr(next_chunk_ptr, A_pre);
+
         // Checking if chunk is correctly in the allocator memory region,
         // which is necessary to be a member of the chunk list.
         // (i.e., Cn_chunk_hdr to be true)
         A_pre.start <= (u64)chunk && (u64)chunk < A_pre.start + (u64)A_pre.size;
         A_pre.start <= (u64)next && (u64)next < A_pre.start + (u64)A_pre.size;
         (u64)chunk < (u64)next;
-        C_pre.alloc_size <= C_pre.mapped_size;
         !ptr_eq(C_pre.node.next, A_pre.head);
         let va_size = (u64)my_container_of_chunk_hdr(next) - (u64)chunk;
         (u64)C_pre.mapped_size <= va_size;
@@ -416,10 +417,11 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         take A_post = Cn_hyp_allocator_only(allocator);
         take C_post = Cn_chunk_hdr(chunk, A_post);
         take Prev_post = Cn_chunk_hdr(prev, A_pre);
-        take Next_post = RW<struct list_head>(next);
+        take Next_Chunk_post = Cn_chunk_hdr(next_chunk_ptr, A_post);
+
         // TODO: we can write a spec that chunk is in the chunk list
 
-        ptr_eq(Next_post.prev, new);
+        ptr_eq(Next_Chunk_post.Node.prev, new);
         ptr_eq(C_post.Node.next, next);
         ptr_eq(C_post.Node.prev, head);
         ptr_eq(Prev_post.Node.next, new);
