@@ -123,12 +123,18 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 #define chunk_is_used(chunk) \
         (!!(chunk)->alloc_size)
 
+// HK: eliminate the cast to unsigned long
 #define chunk_hdr_size() \
-        offsetof(struct chunk_hdr, data)
+        ((unsigned long)offsetof(struct chunk_hdr, data))
+// #define chunk_hdr_size() \
+//         offsetof(struct chunk_hdr, data)
 
 #ifdef NO_STATEMENT_EXPRS
+// HK: replace unsigned long with size_t
 #define chunk_size(size) \
-        (chunk_hdr_size() + max_u64((size_t)(size), MIN_ALLOC))
+        (chunk_hdr_size() + max_u64((unsigned long)(size), MIN_ALLOC))
+//#define chunk_size(size) \
+        //(chunk_hdr_size() + max_u64((size_t)(size), MIN_ALLOC))
 #else /* NO_STATEMENT_EXPRS */
 #define chunk_size(size) \
         (chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
@@ -422,7 +428,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 
         // chunk is currently not in the chunk list
         !Is_chunk_some(lookup(chunk, H_pre.hdrs));
-        take C = Own_chunk_hdr(chunk);
+        take C = Own_chunk(chunk);
 
         // prev must be in the chunk list
         match (lookup(prev, H_pre.hdrs))
@@ -590,7 +596,6 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
 // size: alloc size for chunk
 // prev: the previous chunk for `chunk`
 //   - this is never be allocator->chunks
-//   - which is important for alias analysis internally
 // invariant:
 //   - there is no chunk between prev and chunk
 //   - chunk is not owned by the allocator
@@ -600,33 +605,52 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 /*@
     requires
         take HA_pre = Cn_hyp_allocator(allocator);
-        take C_pre = RW<struct chunk_hdr>(chunk);
-        HA_pre.ha.start <= (u64)chunk && (u64)chunk < (HA_pre.ha.start + (u64)HA_pre.ha.size);
+        take C_pre = Own_chunk(chunk);
+        let allocator_end = (HA_pre.ha.start + (u64)HA_pre.ha.size);
+        // chunk is located in the allocator's memory
+        HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end;
+        // if prev is no NULL, it must be in the chunk list
         !is_null(prev) implies Is_chunk_some(lookup(prev, HA_pre.hdrs));
-        is_null(prev) implies !Is_chunk_some(lookup(prev, HA_pre.hdrs));
-        // HK: prev cannot be allocator-chunks
-        !ptr_eq(prev, member_shift<struct hyp_allocator>(allocator, chunks));
+        // When prev is NULL, allocator's chunks must be empty
+        is_null(prev) implies HA_pre.hdrs == Chunk_nil {};
+        // prev is not allocator-chunks
+        !ptr_eq(member_shift<struct chunk_hdr>(prev, node),
+                member_shift<struct hyp_allocator>(allocator, chunks));
+        // chunk is also not allocator-chunks
+        !ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
+                member_shift<struct hyp_allocator>(allocator, chunks));
     ensures
         take HA_post = Cn_hyp_allocator(allocator);
         Is_chunk_some(lookup(chunk, HA_post.hdrs));
-        match (lookup(prev, HA_post.hdrs)) {
-        Chunk_some { hdr: prev_hdr } => {
-                // TODO
-                true
-        }
-        Chunk_none {} => {
-                match (lookup(chunk, HA_post.hdrs)) {
-                Chunk_some {hdr: chunk_hdr } => {
-                        chunk_hdr.header_address == (u64)chunk
-                        // TODO(HK)
-                        //&& chunk_hdr.va_size == C_pre.va_size
-                        && (u64)chunk_hdr.alloc_size == size
-                        && (u64)chunk_hdr.mapped_size == PAGE_ALIGN(Cn_chunk_size(size))
-                }
-                Chunk_none {} => { false }
-                }
-        }
+
+        // case for the first chunk
+        let first_chunk = {
+                header_address: (u64)chunk,
+                mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
+                alloc_size: (u32) size,
+                va_size: (u32) (allocator_end - (u64)chunk)
         };
+        is_null(prev) implies (
+                HA_post.hdrs == Chunk_cons { hd: first_chunk, tl: Chunk_nil {}}
+        );
+        //match (lookup(prev, HA_post.hdrs)) {
+        //Chunk_some { hdr: prev_hdr } => {
+        //        // TODO
+        //        true
+        //}
+        //Chunk_none {} => {
+        //        match (lookup(chunk, HA_post.hdrs)) {
+        //        Chunk_some {hdr: chunk_hdr } => {
+        //                chunk_hdr.header_address == (u64)chunk
+        //                // TODO(HK)
+        //                //&& chunk_hdr.va_size == C_pre.va_size
+        //                && (u64)chunk_hdr.alloc_size == size
+        //                && (u64)chunk_hdr.mapped_size == PAGE_ALIGN(Cn_chunk_size(size))
+        //        }
+        //        Chunk_none {} => { false }
+        //        }
+        //}
+        //};
 @*/
 
 {
@@ -634,6 +658,7 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         /* First chunk, first allocation */
         if (!prev) {
+                /*@ split_case(ptr_eq(HA_pre.ha.first, HA_pre.ha.head)); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: This program is insane from the perspective of Rust's ownership type system.
                 // I thought the `list_add` function would take ownership of both the allocator and the chunk,
@@ -1043,7 +1068,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 // -
 /*@
     requires
-        //take HA_in = Cn_hyp_allocator(allocator);
+        take HA_pre = Cn_hyp_allocator(allocator);
+
         take C_pre = RW<struct chunk_hdr>(chunk);
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);

@@ -105,8 +105,8 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 @*/
 
 /*@
-// Own_chunk_hdr just owns the chunk header and the mapped part of the chunk
-predicate (struct chunk_hdr) Own_chunk_hdr(pointer header_address)
+// Own_chunk just owns the chunk header and the mapped part of the chunk
+predicate (struct chunk_hdr) Own_chunk(pointer header_address)
 {
         take cn_hdr = RW<struct chunk_hdr>(header_address);
         assert(cn_hdr.alloc_size <= cn_hdr.mapped_size);
@@ -123,7 +123,7 @@ predicate (struct chunk_hdr) Own_chunk_hdr(pointer header_address)
 // in the hyp_allocator's address space
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
 {
-        take hdr = Own_chunk_hdr(header_address);
+        take hdr = Own_chunk(header_address);
 
         let end = ha.start + (u64)ha.size;
         let va_size = (Cn_list_is_last(hdr.node, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
