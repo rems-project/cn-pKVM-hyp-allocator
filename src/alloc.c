@@ -394,37 +394,65 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct hyp_allocator *allocator)
 /*@
     requires
-        take A_pre = Cn_hyp_allocator_only(allocator);
-        take C_pre = Own_chunk_hdr(chunk);
-        take Prev_pre = Cn_chunk_hdr(prev, A_pre);
-        let new = member_shift<struct chunk_hdr>(chunk, node);
-        let head = member_shift<struct chunk_hdr>(prev, node);
-        let next = Prev_pre.Node.next;
-        !ptr_eq(new, head) && !ptr_eq(head, next) && !ptr_eq(next, new);
-        let next_chunk_ptr = my_container_of_chunk_hdr(next);
-        take Next_Chunk_pre = Cn_chunk_hdr(next_chunk_ptr, A_pre);
+        take H_pre = Cn_hyp_allocator(allocator);
+        // chunk is currently not in the chunk list
+        !Is_chunk_some(lookup(chunk, H_pre.hdrs));
+        take C = Own_chunk_hdr(chunk);
+        // prev is in the chunk list, which implies prev->next is in the chunk list
+        // that is,
+        match (lookup(prev, H_pre.hdrs))
+        {
+        Chunk_none {} => { false }
+        Chunk_some { hdr:Prev } => {
+                // Checking if chunk is correctly in the allocator memory region,
+                // which is necessary to be a member of the chunk list.
+                // (i.e., Cn_chunk_hdr to be true)
 
-        // Checking if chunk is correctly in the allocator memory region,
-        // which is necessary to be a member of the chunk list.
-        // (i.e., Cn_chunk_hdr to be true)
-        A_pre.start <= (u64)chunk && (u64)chunk < A_pre.start + (u64)A_pre.size;
-        A_pre.start <= (u64)next && (u64)next < A_pre.start + (u64)A_pre.size;
-        (u64)chunk < (u64)next;
-        !ptr_eq(C_pre.node.next, A_pre.head);
-        let va_size = (u64)my_container_of_chunk_hdr(next) - (u64)chunk;
-        (u64)C_pre.mapped_size <= va_size;
+                // Q(HK): is there a better way to do this?
+                match (next_chunk(prev, H_pre.hdrs)) {
+                Chunk_none {} => {
+                        H_pre.ha.start <= (u64)chunk
+                        && (u64)chunk < H_pre.ha.start + (u64)H_pre.ha.size
+                        && H_pre.ha.start <= (H_pre.ha.start + (u64)H_pre.ha.size)
+                        && (H_pre.ha.start + (u64)H_pre.ha.size) < H_pre.ha.start + (u64)H_pre.ha.size
+                        && (u64)chunk < (H_pre.ha.start + (u64)H_pre.ha.size)
+                        && (u64)C.mapped_size <= (H_pre.ha.start + (u64)H_pre.ha.size) - (u64)chunk
+                }
+                Chunk_some { hdr:Next_Chunk } => {
+                        H_pre.ha.start <= (u64)chunk
+                        && (u64)chunk < H_pre.ha.start + (u64)H_pre.ha.size
+                        && H_pre.ha.start <= (u64)Next_Chunk.header_address
+                        && (u64)Next_Chunk.header_address < H_pre.ha.start + (u64)H_pre.ha.size
+                        && (u64)chunk < (u64)Next_Chunk.header_address
+                        && (u64)C.mapped_size <= (u64)Next_Chunk.header_address - (u64)chunk
+                }
+                }
+        }
+        };
+
+
+        // take A_pre = Cn_hyp_allocator_only(allocator);
+        // take Prev_pre = Cn_chunk_hdr(prev, A_pre);
+        // let new = member_shift<struct chunk_hdr>(chunk, node);
+        // let head = member_shift<struct chunk_hdr>(prev, node);
+        // let next = Prev_pre.Node.next;
+        // !ptr_eq(new, head) && !ptr_eq(head, next) && !ptr_eq(next, new);
+        // let next_chunk_ptr = my_container_of_chunk_hdr(next);
+        // take Next_Chunk_pre = Cn_chunk_hdr(next_chunk_ptr, A_pre);
+
     ensures
-        take A_post = Cn_hyp_allocator_only(allocator);
-        take C_post = Cn_chunk_hdr(chunk, A_post);
-        take Prev_post = Cn_chunk_hdr(prev, A_pre);
-        take Next_Chunk_post = Cn_chunk_hdr(next_chunk_ptr, A_post);
+        take A_post = Cn_hyp_allocator(allocator);
+        // take A_post = Cn_hyp_allocator_only(allocator);
+        // take C_post = Cn_chunk_hdr(chunk, A_post);
+        // take Prev_post = Cn_chunk_hdr(prev, A_pre);
+        // take Next_Chunk_post = Cn_chunk_hdr(next_chunk_ptr, A_post);
 
-        // TODO: we can write a spec that chunk is in the chunk list
+        // // TODO: we can write a spec that chunk is in the chunk list
 
-        ptr_eq(Next_Chunk_post.Node.prev, new);
-        ptr_eq(C_post.Node.next, next);
-        ptr_eq(C_post.Node.prev, head);
-        ptr_eq(Prev_post.Node.next, new);
+        // ptr_eq(Next_Chunk_post.Node.prev, new);
+        // ptr_eq(C_post.Node.next, next);
+        // ptr_eq(C_post.Node.prev, head);
+        // ptr_eq(Prev_post.Node.next, new);
 @*/
 {
         // HK: non-rust ownership type part

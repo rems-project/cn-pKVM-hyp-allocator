@@ -148,7 +148,11 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
 
         // HK: the chunk lists must be sorted in address order.
         // (otherwise, the chunk_unmapped_size function may return incorrect sizes)
-        assert((u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next);
+        // unless this is not the last chunk
+        assert(
+                (u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next
+                || (u64)hdr.node.next == (u64)ha.head
+        );
         return {Hdr: cn_hdr, Node: hdr.node};
 
 }
@@ -203,6 +207,29 @@ function [rec] (datatype cn_chunk_hdr_option) lookup(pointer p, datatype cn_chun
         Chunk_cons {hd:hdr, tl:tl} => {
                 if (hdr.header_address == (u64) p){
                         Chunk_some { hdr:hdr }
+                } else {
+                        lookup(p,tl)
+                }
+        }
+        }
+}
+
+function [rec] (datatype cn_chunk_hdr_option) next_chunk(pointer p, datatype cn_chunk_hdrs hdrs)
+{
+        match (hdrs) {
+        Chunk_nil {} => {
+                Chunk_none {}
+        }
+        Chunk_cons {hd:hdr, tl:tl} => {
+                if (hdr.header_address == (u64) p){
+                        match (tl) {
+                        Chunk_nil {} => {
+                                Chunk_none {}
+                        }
+                        Chunk_cons {hd:hdr2, tl:tl2} => {
+                                Chunk_some { hdr:hdr2 }
+                        }
+                        }
                 } else {
                         lookup(p,tl)
                 }
