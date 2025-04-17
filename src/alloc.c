@@ -389,6 +389,18 @@ function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 }
 @*/
 
+/*@
+// to reduce the repetition of the code
+function (boolean) chunk_list_insert_aux(cn_hyp_allocator ha, pointer chunk, struct chunk_hdr C, pointer prev, u64 next)
+{
+        let va_size = next - (u64)chunk;
+
+        ha.start <= (u64)chunk && (u64)chunk < ha.start + (u64)ha.size
+        && (u64)prev < (u64)chunk && (u64)chunk < next
+        && (u64)C.mapped_size <= va_size
+}
+@*/
+
 static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct chunk_hdr *prev,
                                      struct hyp_allocator *allocator)
@@ -408,51 +420,19 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 // which is necessary to be a member of the chunk list.
                 // (i.e., Cn_chunk_hdr to be true)
 
-                // Q(HK): is there a better way to do this?
                 match (next_chunk(prev, H_pre.hdrs)) {
                 Chunk_none {} => {
-                        H_pre.ha.start <= (u64)chunk
-                        && (u64)chunk < H_pre.ha.start + (u64)H_pre.ha.size
-                        && H_pre.ha.start <= (H_pre.ha.start + (u64)H_pre.ha.size)
-                        && (H_pre.ha.start + (u64)H_pre.ha.size) < H_pre.ha.start + (u64)H_pre.ha.size
-                        && (u64)chunk < (H_pre.ha.start + (u64)H_pre.ha.size)
-                        && (u64)C.mapped_size <= (H_pre.ha.start + (u64)H_pre.ha.size) - (u64)chunk
+                        // prev is the last chunk
+                        chunk_list_insert_aux(H_pre.ha, chunk, C, prev, H_pre.ha.start + (u64)H_pre.ha.size)
                 }
                 Chunk_some { hdr:Next_Chunk } => {
-                        H_pre.ha.start <= (u64)chunk
-                        && (u64)chunk < H_pre.ha.start + (u64)H_pre.ha.size
-                        && H_pre.ha.start <= (u64)Next_Chunk.header_address
-                        && (u64)Next_Chunk.header_address < H_pre.ha.start + (u64)H_pre.ha.size
-                        && (u64)chunk < (u64)Next_Chunk.header_address
-                        && (u64)C.mapped_size <= (u64)Next_Chunk.header_address - (u64)chunk
+                        chunk_list_insert_aux(H_pre.ha, chunk, C, prev, (u64)Next_Chunk.header_address)
                 }
                 }
         }
         };
-
-
-        // take A_pre = Cn_hyp_allocator_only(allocator);
-        // take Prev_pre = Cn_chunk_hdr(prev, A_pre);
-        // let new = member_shift<struct chunk_hdr>(chunk, node);
-        // let head = member_shift<struct chunk_hdr>(prev, node);
-        // let next = Prev_pre.Node.next;
-        // !ptr_eq(new, head) && !ptr_eq(head, next) && !ptr_eq(next, new);
-        // let next_chunk_ptr = my_container_of_chunk_hdr(next);
-        // take Next_Chunk_pre = Cn_chunk_hdr(next_chunk_ptr, A_pre);
-
     ensures
         take A_post = Cn_hyp_allocator(allocator);
-        // take A_post = Cn_hyp_allocator_only(allocator);
-        // take C_post = Cn_chunk_hdr(chunk, A_post);
-        // take Prev_post = Cn_chunk_hdr(prev, A_pre);
-        // take Next_Chunk_post = Cn_chunk_hdr(next_chunk_ptr, A_post);
-
-        // // TODO: we can write a spec that chunk is in the chunk list
-
-        // ptr_eq(Next_Chunk_post.Node.prev, new);
-        // ptr_eq(C_post.Node.next, next);
-        // ptr_eq(C_post.Node.prev, head);
-        // ptr_eq(Prev_post.Node.next, new);
 @*/
 {
         // HK: non-rust ownership type part
@@ -585,6 +565,8 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
 // chunk: the new chunk to install
 // size: alloc size for chunk
 // prev: the previous chunk for `chunk`
+//   - this is never be allocator->chunks
+//   - which is important for alias analysis internally
 // invariant:
 //   - there is no chunk between prev and chunk
 //   - chunk is not owned by the allocator
@@ -598,6 +580,8 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         HA_pre.ha.start <= (u64)chunk && (u64)chunk < (HA_pre.ha.start + (u64)HA_pre.ha.size);
         !is_null(prev) implies Is_chunk_some(lookup(prev, HA_pre.hdrs));
         is_null(prev) implies !Is_chunk_some(lookup(prev, HA_pre.hdrs));
+        // HK: prev cannot be allocator-chunks
+        !ptr_eq(prev, member_shift<struct hyp_allocator>(allocator, chunks));
     ensures
         take HA_post = Cn_hyp_allocator(allocator);
         Is_chunk_some(lookup(chunk, HA_post.hdrs));

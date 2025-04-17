@@ -181,6 +181,9 @@ static inline void __list_add(struct list_head *new,
 	prev->next = new;
 }
 
+// HK: this is not complete
+// we have to handle the case for the first allocation where
+// head == allocator->chunks and head->next == allocator->chunks
 static inline void list_add(struct list_head *new, struct list_head *head)
 /*@
 	requires
