@@ -390,7 +390,7 @@ function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 @*/
 
 /*@
-// to reduce the repetition of the code
+// check if the new chunk is at the right place in the allocator memory
 function (boolean) chunk_list_insert_aux(cn_hyp_allocator ha, pointer chunk, struct chunk_hdr C, pointer prev, u64 next)
 {
         let va_size = next - (u64)chunk;
@@ -401,25 +401,35 @@ function (boolean) chunk_list_insert_aux(cn_hyp_allocator ha, pointer chunk, str
 }
 @*/
 
+// This function takes
+//   - a chunk *not in the chunk list*
+//   - a chunk *in the chunk list*, which will be the previous chunk of the new chunk
+//   - the allocator
+// and inserts the new chunk into the chunk list after the previous chunk.
+
+// HK: This is the point where raw pointer manipulations and beautiful list
+// specifications meet, which is one of the most difficult parts of the whole
+// spec writing.
+// Currently, I "believe" that the spec I wrote is correct, but it is not
+// automatically verified by CN.
 static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct chunk_hdr *prev,
                                      struct hyp_allocator *allocator)
 /*@
+    trusted;
     requires
         take H_pre = Cn_hyp_allocator(allocator);
+
         // chunk is currently not in the chunk list
         !Is_chunk_some(lookup(chunk, H_pre.hdrs));
         take C = Own_chunk_hdr(chunk);
-        // prev is in the chunk list, which implies prev->next is in the chunk list
-        // that is,
+
+        // prev must be in the chunk list
         match (lookup(prev, H_pre.hdrs))
         {
         Chunk_none {} => { false }
         Chunk_some { hdr:Prev } => {
-                // Checking if chunk is correctly in the allocator memory region,
-                // which is necessary to be a member of the chunk list.
-                // (i.e., Cn_chunk_hdr to be true)
-
+                // check if chunk is at the right place in the allocator memory
                 match (next_chunk(prev, H_pre.hdrs)) {
                 Chunk_none {} => {
                         // prev is the last chunk
@@ -436,7 +446,19 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 @*/
 {
         // HK: non-rust ownership type part
+
+        // HK: Proof for the ownership of RW<struct list_head*>(&(&prev->node)->next)
+        //  - If prev->node is the last node, then prev->node.next == allocator->chunks,
+        //    which is in H_pre.ha
+        //  - If prev->node is not the last node, then prev->node.next is in Next_Chunk.
+
+        // HK: Proof for the ownership of prev
+        //   - prev must be in the chunk list from the precondition
+        //   - that implies we have the ownership of prev
+
         list_add(&chunk->node, &prev->node);
+
+        // /*@ unfold lookup(prev, H_pre.hdrs); @*/
         chunk_hash_update(prev);
         chunk_hash_update(__chunk_next(chunk, allocator));
         chunk_hash_update(chunk);
