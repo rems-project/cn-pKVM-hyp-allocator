@@ -12,6 +12,25 @@ struct list_head {
 	struct list_head *next, *prev;
 };
 
+/*@
+datatype list_head_option
+{
+		List_Head_None {},
+		List_Head_Some { struct list_head L }
+}
+predicate(datatype list_head_option) CondListHead(pointer p, boolean condition)
+{
+		if (condition)
+		{
+				take L = RW<struct list_head>(p);
+				return List_Head_Some{L : L};
+		}
+		else
+		{
+				return List_Head_None{};
+		}
+}
+@*/
 
 /**
  * list_empty - tests whether a list is empty
@@ -144,35 +163,44 @@ static inline int list_is_last(const struct list_head *list, const struct list_h
 
 
 /*
- * Insert a new entry between two known consecutive entries.
- *
- * This is only for internal list manipulation where we know
- * the prev/next entries already!
- */
+	* Insert a new entry between two known consecutive entries.
+	*
+	* This is only for internal list manipulation where we know
+	* the prev/next entries already!
+	*/
+// HK: we have to handle the case for the first allocation where
+// head == allocator->chunks and head->next == allocator->chunks
+// That's why we need the pattern matching.
 static inline void __list_add(struct list_head *new,
-			      struct list_head *prev,
-			      struct list_head *next)
+								struct list_head *prev,
+								struct list_head *next)
 /*@
 	requires
-		!ptr_eq(new, prev) && !ptr_eq(prev, next) && !ptr_eq(next, new);
+		let head = prev;
 		take New_pre = RW<struct list_head>(new);
-		take Prev_pre = RW<struct list_head>(prev);
-		take Next_pre = RW<struct list_head>(next);
+		take Head_pre = RW<struct list_head>(head);
+		!ptr_eq(new, next);
+		let p = !ptr_eq(head, next);
+		take Next_pre_opt = CondListHead(next, p);
 	ensures
-		take Prev_post = RW<struct list_head>(prev);
-		take Next_post = RW<struct list_head>(next);
 		take New_post = RW<struct list_head>(new);
-		ptr_eq(Next_post.prev, new);
-		ptr_eq(New_post.next, next);
-		ptr_eq(New_post.prev, prev);
-		ptr_eq(Prev_post.next, new);
+		take Head_post = RW<struct list_head>(head);
+		take Next_post_opt = CondListHead(next, !ptr_eq(head, next));
+		match Next_post_opt {
+			List_Head_None {} => {
+				list_add_aux(Head_post, New_post, Head_post, new, next, head)
+			}
+			List_Head_Some { L: Next_post } => {
+				list_add_aux(Next_post, New_post, Head_post, new, next, head)
+			}
+		};
 @*/
 {
 #if 0
 	if (!__list_add_valid(new, prev, next))
 		return;
 #endif
-
+	/*@ split_case(!ptr_eq(head, next)); @*/
 	next->prev = new;
 	new->next = next;
 	new->prev = prev;
@@ -181,27 +209,41 @@ static inline void __list_add(struct list_head *new,
 	prev->next = new;
 }
 
-// HK: this is not complete
-// we have to handle the case for the first allocation where
-// head == allocator->chunks and head->next == allocator->chunks
+/*@
+function (boolean) list_add_aux(struct list_head Next_post, struct list_head New_post, struct list_head Head_post, pointer new, pointer next, pointer head)
+{
+	// HK: this is not complete
+	// we have to handle the case for the first allocation where
+	// head == allocator->chunks and head->next == allocator->chunks
+	ptr_eq(Next_post.prev, new)
+	&& ptr_eq(New_post.next, next)
+	&& ptr_eq(New_post.prev, head)
+	&& ptr_eq(Head_post.next, new)
+}
+@*/
+
+// Spec is almost the copy of __list_add.
 static inline void list_add(struct list_head *new, struct list_head *head)
 /*@
 	requires
 		take New_pre = RW<struct list_head>(new);
 		take Head_pre = RW<struct list_head>(head);
 		let next = Head_pre.next;
-		!ptr_eq(new, head);
-		!ptr_eq(head, next);
-		!ptr_eq(next, new);
-		take Next_pre = RW<struct list_head>(next);
+		!ptr_eq(new, next);
+		let p = !ptr_eq(head, next);
+		take Next_pre_opt = CondListHead(next, p);
 	ensures
 		take New_post = RW<struct list_head>(new);
 		take Head_post = RW<struct list_head>(head);
-		take Next_post = RW<struct list_head>(next);
-		ptr_eq(Next_post.prev, new);
-		ptr_eq(New_post.next, next);
-		ptr_eq(New_post.prev, head);
-		ptr_eq(Head_post.next, new);
+		take Next_post_opt = CondListHead(next, !ptr_eq(head, next));
+		match Next_post_opt {
+			List_Head_None {} => {
+				list_add_aux(Head_post, New_post, Head_post, new, next, head)
+			}
+			List_Head_Some { L: Next_post } => {
+				list_add_aux(Next_post, New_post, Head_post, new, next, head)
+			}
+		};
 @*/
 {
 	__list_add(new, head, head->next);
