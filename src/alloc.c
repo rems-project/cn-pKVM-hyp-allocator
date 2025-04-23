@@ -421,6 +421,16 @@ function (boolean) chunk_list_insert_aux(cn_hyp_allocator ha, pointer chunk, str
 static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct chunk_hdr *prev,
                                      struct hyp_allocator *allocator)
+/*
+
+1. chunk list in allocator
+-> xx -> ... -> prev -> next -> ...
+2. chunk is not in the list
+==>
+-> xx -> ... -> prev -> chunk -> next -> ...
+
+*/
+
 /*@
     trusted;
     requires
@@ -452,6 +462,12 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 @*/
 {
         // HK: non-rust ownership type part
+        // This is also why we cannot directly apply the idea of
+        // [Hermes&Krebbers ITP 2024] to this program.
+        // In p9, the specification for inserting a node into a list is
+        // defined as:
+        // { DCycle c L ∗ l ↦ [ _, _ ] } insert c l { DCycle c (l :: L) }
+        // but we cannot give up the ownership of l just after the insertion.
 
         // HK: Proof for the ownership of RW<struct list_head*>(&(&prev->node)->next)
         //  - If prev->node is the last node, then prev->node.next == allocator->chunks,
@@ -660,10 +676,8 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         if (!prev) {
                 /*@ split_case(ptr_eq(HA_pre.ha.first, HA_pre.ha.head)); @*/
                 INIT_LIST_HEAD(&chunk->node);
-                // HK: This program is insane from the perspective of Rust's ownership type system.
-                // I thought the `list_add` function would take ownership of both the allocator and the chunk,
-                // transferring the chunk's ownership to the allocator.
-                // However, even after adding the chunk to the list, the program still manipulates the chunk.
+                // HK: non-rust ownership type part
+                // See the comments in chunk_list_insert
                 list_add(&chunk->node, &allocator->chunks);
                 chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
                 chunk->alloc_size = size;
@@ -1190,17 +1204,14 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // (should CN support enforced per-type naming conventions?)
 /*@
 requires  take HA_in = Cn_hyp_allocator(allocator);
-ensures   take HA_out = Cn_hyp_allocator(allocator);
-HA_out==HA_in;
-let hdr_maybe = lookup(return, HA_in.hdrs);
-if (ptr_eq(return, NULL)) {
-        hdr_maybe == Chunk_none {}
-} else {
-        match (hdr_maybe) {
-                Chunk_none {} => {false}
-                Chunk_some {hdr: hdr} => {is_free_chunk(hdr, (u32)size)}
-        }
-};
+ensures
+// if ptr_eq(return, NULL) {
+// } else {
+  take HA_out = Cn_hyp_allocator_focusing_on(allocator, return);
+  HA_out.ha==HA_in.ha;
+  // TODO: HA_in.hdrs == HA_out.hdrs1.rev ++ (HA_out.chunk::HA_out.hdrs2);
+  is_free_chunk(HA_out.chunk, (u32)size);
+//}
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
 @*/
 

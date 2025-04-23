@@ -156,6 +156,15 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         return {Hdr: cn_hdr, Node: hdr.node};
 
 }
+predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl}) Cn_chunk_hdrs_non_last(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
+{
+        let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node))); // or some offsetof arithmetic
+        take cn_hdr = Cn_chunk_hdr(header_address, ha);
+        assert(ptr_eq(cn_hdr.Node.prev, prev));
+        take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
+        // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
+        return {hd: cn_hdr.Hdr, tl: tl};
+}
 // HK: prev is unused? what is for?
 // -> HK: important for sanity check of linked list (e.g. node->next->prev == node)
 predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
@@ -164,13 +173,47 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
                 assert(ha.start <= ha.start + (u64)ha.size);
                 return Chunk_nil {};
         } else {
-                let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node))); // or some offsetof arithmetic
+                take T = Cn_chunk_hdrs_non_last(p, prev, ha, last);
+                return Chunk_cons { hd: T.hd, tl: T.tl };
+        }
+}
+
+predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last, datatype cn_chunk_hdrs accum)
+{
+        if (ptr_eq(p,last)) {
+                return accum;
+        } else {
+                let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node)));
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.prev, prev));
-                take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
-                // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
-                return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
+                let c = Chunk_cons { hd: cn_hdr.Hdr, tl: accum };
+                take res = Cn_chunk_hdrs_rev(cn_hdr.Node.next, p, ha, last, c);
+                return res;
         }
+}
+
+function (pointer) HeadOrValue(datatype cn_chunk_hdrs hdrs, pointer value)
+{
+        match (hdrs) {
+        Chunk_nil {} => {
+                value
+        }
+        Chunk_cons {hd:hdr, tl:tl} => {
+                (pointer)hdr.header_address
+        }
+        }
+}
+
+predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs before, cn_chunk_hdr chunk, datatype cn_chunk_hdrs after}) Cn_hyp_allocator_focusing_on( pointer p, pointer chunk) { // p points to a struct hyp_allocator
+  take ha = Cn_hyp_allocator_only(p);
+  let end = ha.start + (u64)ha.size;
+  assert(ha.start < end);  // no overflow
+
+  take hdrs1 = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, chunk, Chunk_nil {});
+  let prev = HeadOrValue(hdrs1, ha.head);
+  take T = Cn_chunk_hdrs_non_last(chunk, prev, ha, ha.head);
+  return( {ha:ha, before: hdrs1, chunk: T.hd, after: T.tl} );
+  // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
 
 
@@ -178,8 +221,6 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   take ha = Cn_hyp_allocator_only(p);
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
-  let chunk_ptr = member_shift<struct hyp_allocator>(p, chunks);
-  let next_ptr = member_shift<struct list_head>(chunk_ptr, next);
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
