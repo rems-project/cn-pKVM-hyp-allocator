@@ -115,6 +115,8 @@ predicate (struct chunk_hdr) Own_chunk(pointer header_address)
         // HK: is this correct?
         // Who owns the memory of [p, p+alloc_size) where p = header_address + sizeof(struct chunk_hdr)?
         //take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
+        // TODO(HK): this should be conditional because if the chunk data is allocated
+        // to the client, the allocator should not own it.
         take A = Cn_char_array(array_shift<unsigned char>(header_address, Cn_chunk_hdr_size()), (u64) cn_hdr.mapped_size - Cn_chunk_hdr_size());
 
         return cn_hdr;
@@ -215,6 +217,31 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs before, cn_chunk_hdr chu
   return( {ha:ha, before: hdrs1, chunk: T.hd, after: T.tl} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
+
+// **This function is specialized for chunk lists obtained by Cn_hyp_allocator_focusing_on**
+// That is, it assumes
+// - before: in the reverse order
+// - after: in the forward order
+function [rec] (datatype cn_chunk_hdrs) ConcatChunkList(datatype cn_chunk_hdrs before, cn_chunk_hdrs after)
+{
+        match (before) {
+        Chunk_nil {} => {
+                after
+        }
+        Chunk_cons {hd:hdr, tl:tl} => {
+                ConcatChunkList(tl, Chunk_cons {hd:hdr, tl: after})
+        }
+        }
+}
+
+lemma LSegsToList(cn_hyp_allocator ha, datatype cn_chunk_hdrs before, cn_chunk_hdr chunk, datatype cn_chunk_hdrs after, pointer p, pointer chunkp)
+requires
+        take C = Cn_hyp_allocator_focusing_on(p, chunkp);
+        C == {ha:ha, before:before, chunk:chunk, after:after};
+ensures
+        take C2 = Cn_hyp_allocator(p);
+        C2 == {ha: ha, hdrs: ConcatChunkList(before, Chunk_cons {hd: chunk, tl: after})};
+
 
 
 predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator

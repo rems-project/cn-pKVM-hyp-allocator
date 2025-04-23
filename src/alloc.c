@@ -1208,13 +1208,12 @@ ensures
 // if ptr_eq(return, NULL) {
 // } else {
   take HA_out = Cn_hyp_allocator_focusing_on(allocator, return);
-  HA_out.ha==HA_in.ha;
-  // TODO: HA_in.hdrs == HA_out.hdrs1.rev ++ (HA_out.chunk::HA_out.hdrs2);
+  {ha: HA_out.ha, hdrs: ConcatChunkList(HA_out.before, Chunk_cons {hd: HA_out.chunk, tl: HA_out.after})}
+  == HA_in;
   is_free_chunk(HA_out.chunk, (u32)size);
 //}
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
 @*/
-
 
 {
         struct chunk_hdr *chunk, *best_chunk = NULL;
@@ -1309,6 +1308,7 @@ void *hyp_alloc(size_t size)
                 ret = chunk_recycle(chunk, size, allocator);
                 goto end;
         }
+        // HK: when there is no free chunk, we divide the last chunk
 
         last_chunk = chunk_get(list_last_entry(&allocator->chunks, struct chunk_hdr, node));
 
