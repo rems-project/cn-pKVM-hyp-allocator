@@ -518,6 +518,7 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
         struct chunk_hdr *next = __chunk_next(chunk, allocator);
 
+        // non-rust ownership type part
         list_del(&chunk->node);
         chunk_hash_update(prev);
         chunk_hash_update(next);
@@ -1453,6 +1454,7 @@ void hyp_free(void *addr)
         prev_chunk = chunk_get_prev(chunk, allocator);
         next_chunk = chunk_get_next(chunk, allocator);
 
+        // HK: free is easy :) except for merging
         chunk->alloc_size = 0;
         chunk_hash_update(chunk);
 

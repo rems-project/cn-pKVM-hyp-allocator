@@ -257,12 +257,42 @@ static inline void list_add(struct list_head *new, struct list_head *head)
  * the prev/next entries already!
  */
 static inline void __list_del(struct list_head * prev, struct list_head * next)
+/*@
+	requires
+		take Next_pre = RW<struct list_head>(next);
+		take Prev_pre = RW<struct list_head>(prev);
+	ensures
+		take Next_post = RW<struct list_head>(next);
+		take Prev_post = RW<struct list_head>(prev);
+		ptr_eq(Prev_post.next, next);
+		ptr_eq(Next_post.prev, prev);
+		ptr_eq(Prev_post.prev, Prev_pre.prev);
+		ptr_eq(Next_post.next, Next_pre.next);
+@*/
 {
 	next->prev = prev;
-	WRITE_ONCE(prev->next, next);
+	// TODO: Recover WRITE_ONCE
+	//WRITE_ONCE(prev->next, next);
+	prev->next = next;
 }
 
 static inline void __list_del_entry(struct list_head *entry)
+/*@
+	requires
+		take Entry_pre = RW<struct list_head>(entry);
+		let next = Entry_pre.next;
+		let prev = Entry_pre.prev;
+		take Next_pre = RW<struct list_head>(next);
+		take Prev_pre = RW<struct list_head>(prev);
+	ensures
+		take Entry_post = RW<struct list_head>(entry);
+		take Next_post = RW<struct list_head>(next);
+		take Prev_post = RW<struct list_head>(prev);
+		ptr_eq(Prev_post.next, next);
+		ptr_eq(Next_post.prev, prev);
+		ptr_eq(Prev_post.prev, Prev_pre.prev);
+		ptr_eq(Next_post.next, Next_pre.next);
+@*/
 {
 #if 0
 	if (!__list_del_entry_valid(entry))
@@ -272,7 +302,24 @@ static inline void __list_del_entry(struct list_head *entry)
 	__list_del(entry->prev, entry->next);
 }
 
+// Spec is the copy of __list_del_entry.
 static inline void list_del(struct list_head *entry)
+/*@
+	requires
+		take Entry_pre = RW<struct list_head>(entry);
+		let next = Entry_pre.next;
+		let prev = Entry_pre.prev;
+		take Next_pre = RW<struct list_head>(next);
+		take Prev_pre = RW<struct list_head>(prev);
+	ensures
+		take Entry_post = RW<struct list_head>(entry);
+		take Next_post = RW<struct list_head>(next);
+		take Prev_post = RW<struct list_head>(prev);
+		ptr_eq(Prev_post.next, next);
+		ptr_eq(Next_post.prev, prev);
+		ptr_eq(Prev_post.prev, Prev_pre.prev);
+		ptr_eq(Next_post.next, Next_pre.next);
+@*/
 {
 	__list_del_entry(entry);
 #if 0
