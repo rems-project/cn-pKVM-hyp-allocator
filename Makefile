@@ -29,7 +29,7 @@ cn-verify: src/alloc.c
 .PHONY: cn-instrument
 cn-instrument: src/alloc.c
 	$(CPP) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/main.c > main.pp.c
-	cn instrument -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) main.pp.c
+	cn instrument --run -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) main.pp.c
 
 .PHONY: clean
 clean:
