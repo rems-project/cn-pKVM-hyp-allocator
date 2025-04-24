@@ -1226,6 +1226,15 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 //         FreeChunk_none {},
 //         FreeChunk_some { cn_hyp_allocator ha, cn_free_chunk free_chunk}
 // }
+lemma ListSeg (pointer allocator, pointer result)
+    requires
+        take HA1 = Cn_hyp_allocator_focusing_on(allocator, result);
+    ensures
+        take HA2 = Cn_hyp_allocator(allocator);
+        let free_chunk = HA1.free_chunk;
+        HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(free_chunk.before, Chunk_cons {hd: free_chunk.chunk, tl: free_chunk.after})};
+
+
 predicate (boolean) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
 {
         if (ptr_eq(result, NULL)) {
@@ -1249,6 +1258,7 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // what variable name to use for the result of Cn_hyp_allocator?
 // (should CN support enforced per-type naming conventions?)
 /*@
+trusted;
 requires take HA_in = Cn_hyp_allocator(allocator);
 ensures
         take res = GetFreeChunk(allocator, size, return, HA_in);
@@ -1265,10 +1275,24 @@ ensures
         // Several thoughts:
         // 1. Doesn't care about the mapped_size, which may involve a lot of
         // mappings and unmappings. No?
-        // 2. the invariant should be like
+        // 2. the invariant should be a bit complicated
+        //  | 1 | -> | 2 | ... -> |best_chunk| -> ... -> |cur| -> ... -> |last|
+        // a possible strategy for ownerships when best_chunk is not null
+        //   - ListSeg Fst      ; first part until best_chunk
+        //   - Chunk_hdr Best   ; best_chunk
+        //   - ListSeg Discarded; from next of best_chunk to cur
+        //   - Chunk_hdr Cur    ; cur
+        //   - List Remaining   ; from next of cur to last
+        // where ListSeg is a reversed list
+        // if (best_chunk is not NULL) {
+        //   take Fst  = ListSeg(ha.first, best_chunk);
+        //   take Best = Chunk_hdr(best_chunk);
+        //   take
+        // }
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
                 {size} unchanged;
+                //take Fst = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, Chunk_nil{});
         @*/
         {
                 size_t available_size = chunk->mapped_size +
