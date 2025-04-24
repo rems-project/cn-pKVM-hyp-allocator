@@ -1195,6 +1195,26 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
         return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
 }
 
+/*@
+// datatype free_chunk_option {
+//         FreeChunk_none {},
+//         FreeChunk_some { cn_hyp_allocator ha, cn_free_chunk free_chunk}
+// }
+predicate (boolean) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
+{
+        if (ptr_eq(result, NULL)) {
+                take HA_out = Cn_hyp_allocator(allocator);
+                return HA_in == HA_out;
+        } else {
+                take HA_out = Cn_hyp_allocator_focusing_on(allocator, result);
+                let free_chunk = HA_out.free_chunk;
+
+                return
+                is_free_chunk(free_chunk.chunk, (u32)size)
+                && {ha: HA_out.ha, hdrs: ConcatChunkList(free_chunk.before, Chunk_cons {hd: free_chunk.chunk, tl: free_chunk.after})} == HA_in;
+        }
+}
+@*/
 
 static struct chunk_hdr *
 get_free_chunk(struct hyp_allocator *allocator, size_t size)
@@ -1203,15 +1223,11 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // what variable name to use for the result of Cn_hyp_allocator?
 // (should CN support enforced per-type naming conventions?)
 /*@
-requires  take HA_in = Cn_hyp_allocator(allocator);
+requires take HA_in = Cn_hyp_allocator(allocator);
 ensures
-// if ptr_eq(return, NULL) {
-// } else {
-  take HA_out = Cn_hyp_allocator_focusing_on(allocator, return);
-  {ha: HA_out.ha, hdrs: ConcatChunkList(HA_out.before, Chunk_cons {hd: HA_out.chunk, tl: HA_out.after})}
-  == HA_in;
-  is_free_chunk(HA_out.chunk, (u32)size);
-//}
+        take res = GetFreeChunk(allocator, size, return, HA_in);
+        res;
+
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
 @*/
 
@@ -1219,7 +1235,16 @@ ensures
         struct chunk_hdr *chunk, *best_chunk = NULL;
         size_t best_available_size = allocator->size;
 
-        list_for_each_entry(chunk, &allocator->chunks, node) {
+        // HK: O(n) search for the best chunk
+        // Several thoughts:
+        // 1. Doesn't care about the mapped_size, which may involve a lot of
+        // mappings and unmappings. No?
+        // 2. the invariant should be like
+        list_for_each_entry(chunk, &allocator->chunks, node)
+        /*@ inv {allocator} unchanged;
+                {size} unchanged;
+        @*/
+        {
                 size_t available_size = chunk->mapped_size +
                                         chunk_unmapped_size(chunk, allocator);
                 if (chunk_is_used(chunk))
@@ -1230,6 +1255,7 @@ ensures
 
                 if (!best_chunk) {
                         best_chunk = chunk;
+                        // [BUG] HK: why best_available_size is not set here?
                         continue;
                 }
 

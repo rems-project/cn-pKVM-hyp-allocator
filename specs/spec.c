@@ -206,7 +206,13 @@ function (pointer) HeadOrValue(datatype cn_chunk_hdrs hdrs, pointer value)
         }
 }
 
-predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs before, cn_chunk_hdr chunk, datatype cn_chunk_hdrs after}) Cn_hyp_allocator_focusing_on( pointer p, pointer chunk) { // p points to a struct hyp_allocator
+type_synonym cn_free_chunk = {
+        cn_chunk_hdrs before,
+        cn_chunk_hdr chunk,
+        cn_chunk_hdrs after
+}
+
+predicate ({cn_hyp_allocator ha, cn_free_chunk free_chunk}) Cn_hyp_allocator_focusing_on( pointer p, pointer chunk) { // p points to a struct hyp_allocator
   take ha = Cn_hyp_allocator_only(p);
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
@@ -214,7 +220,8 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs before, cn_chunk_hdr chu
   take hdrs1 = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, chunk, Chunk_nil {});
   let prev = HeadOrValue(hdrs1, ha.head);
   take T = Cn_chunk_hdrs_non_last(chunk, prev, ha, ha.head);
-  return( {ha:ha, before: hdrs1, chunk: T.hd, after: T.tl} );
+  let free_chunk = {before: hdrs1, chunk: T.hd, after: T.tl};
+  return( {ha:ha, free_chunk: free_chunk} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
 
@@ -237,12 +244,12 @@ function [rec] (datatype cn_chunk_hdrs) ConcatChunkList(datatype cn_chunk_hdrs b
 lemma LSegsToList(cn_hyp_allocator ha, datatype cn_chunk_hdrs before, cn_chunk_hdr chunk, datatype cn_chunk_hdrs after, pointer p, pointer chunkp)
 requires
         take C = Cn_hyp_allocator_focusing_on(p, chunkp);
-        C == {ha:ha, before:before, chunk:chunk, after:after};
+        let free_chunk = {before: before, chunk: chunk, after: after};
+        C == {ha:ha, free_chunk: free_chunk};
 ensures
         take C2 = Cn_hyp_allocator(p);
+        let free_chunk2 = {before: before, chunk: chunk, after: after};
         C2 == {ha: ha, hdrs: ConcatChunkList(before, Chunk_cons {hd: chunk, tl: after})};
-
-
 
 predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
   take ha = Cn_hyp_allocator_only(p);
