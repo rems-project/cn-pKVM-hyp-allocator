@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <stdio.h>
+// #include <stdio.h>
 #include <assert.h>
 
 #include "alloc.c"
@@ -30,8 +30,6 @@ int dummy_memcache(struct kvm_hyp_memcache *mc, u64 min_pages)
 
 #define fatal(STR,...)							\
 	do {								\
-		fprintf(stderr, "ERROR: \x1b[31m"STR			\
-			" {ret: %d}\x1b[0m\n", __VA_ARGS__);		\
 		exit(EXIT_FAILURE);					\
 	} while(0)
 
@@ -79,12 +77,12 @@ void test2(void)
 	q = hyp_alloc(sizeof(int));
 	assert(q);
 	dump_chunks();
-	printf("==> %d\n", hyp_alloc_reclaimable());
+	// printf("==> %d\n", hyp_alloc_reclaimable());
 	hyp_free(r);
 	dump_chunks();
 	hyp_alloc_reclaim(&host_mc, 14);
 	dump_chunks();
-	printf("==> %d\n", hyp_alloc_reclaimable());
+	// printf("==> %d\n", hyp_alloc_reclaimable());
 }
 
 void test3(void)
@@ -99,8 +97,8 @@ void test3(void)
 	dump_chunks();
 	int n = hyp_alloc_reclaimable();
 	dump_chunks();
-	printf("==> %d\n", n);
-	printf("errno: %d\n", hyp_alloc_errno());
+	// printf("==> %d\n", n);
+	// printf("errno: %d\n", hyp_alloc_errno());
 
 	hyp_alloc_reclaim(&host_mc, n);
 	// n = hyp_alloc_reclaimable();
