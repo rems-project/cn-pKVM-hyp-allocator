@@ -52,6 +52,16 @@ struct chunk_hdr {
         u32                     hash;
         char                    data __aligned(8);
 };
+// HK: having char data at the end of the struct is very annoying
+// If we write RW<struct chunk_hdr>, a single byte of the data is going to be owned
+// unintentionally.
+// TODO: rewrite the spec to use chunk_hdr_only instead of chunk_hdr
+struct chunk_hdr_only {
+        u32                     alloc_size;
+        u32                     mapped_size;
+        struct list_head        node;
+        u32                     hash;
+};
 
 // Auxiliary functions for chunk_hdr
 /*@
@@ -66,11 +76,17 @@ function (boolean) hash_change_only (struct chunk_hdr pre, struct chunk_hdr post
 
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
-    trusted; // TODO(HK): for now because I don't know how to handle the cast below correctly.
+    trusted;
     requires
-        take C_pre = RW<struct chunk_hdr>(chunk);
+        //take C_pre = RW<struct chunk_hdr>(chunk);
+        // take C_pre = each(u64 i; 0u64 <= i && sizeof<unsigned long long> * i < (u64)offsetof(chunk_hdr, hash)) {
+        //         RW<unsigned long long>(array_shift<unsigned long long>(chunk, i))
+        // };
     ensures
         take C_post = RW<struct chunk_hdr>(chunk);
+        //take C_post = each(u64 i; 0u64 <= i && sizeof<unsigned long long> *i < (u64)offsetof(chunk_hdr, hash)) {
+        //        RW<unsigned long long>(array_shift<unsigned long long>(chunk, i))
+        //};
         C_pre == C_post;
 @*/
 {
@@ -82,7 +98,17 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
 
     while (len >= sizeof(u64))
+    /*@
+        inv
+        let L = (u64)offsetof(chunk_hdr, hash);
+        take C = RW<struct chunk_hdr>(chunk);
+        len <= L;
+        (u64)data + len == (u64)chunk + L;
+        {chunk} unchanged;
+    @*/
     {
+        // HK: I don't know how to say we have the ownership of data
+        // because we see the struct into just a sequence of bytes.
         hash ^= hash_64(*data, 32);
         len -= sizeof(u64);
         data++;
