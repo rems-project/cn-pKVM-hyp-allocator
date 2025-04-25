@@ -7,6 +7,7 @@ INCLUDES= -Isrc -Iinclude
 INCLUDES= -I$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Isrc -Iinclude
 CPP=cc -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__
 
+# Fulminate
 RUNTIME_PREFIX= $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
 RUNTIME_CPP=clang-19 -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__cerb__ 
 RUNTIME_INCLUDES= -Isrc -Iinclude
