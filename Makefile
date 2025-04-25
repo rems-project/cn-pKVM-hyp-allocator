@@ -9,8 +9,8 @@ CPP=cc -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef 
 
 # Fulminate
 RUNTIME_PREFIX= $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
-RUNTIME_CPP=clang-19 -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__cerb__ 
 RUNTIME_INCLUDES= -Isrc -Iinclude
+RUNTIME_CPP=clang-19 -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__cerb__ 
 
 tmp-alloc.c: src/alloc.c
 	$(CPP) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c > tmp-alloc.c
