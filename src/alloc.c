@@ -78,7 +78,7 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     trusted;
     requires
-        //take C_pre = RW<struct chunk_hdr>(chunk);
+        take C_pre = RW<struct chunk_hdr>(chunk);
         // take C_pre = each(u64 i; 0u64 <= i && sizeof<unsigned long long> * i < (u64)offsetof(chunk_hdr, hash)) {
         //         RW<unsigned long long>(array_shift<unsigned long long>(chunk, i))
         // };
@@ -423,7 +423,7 @@ function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 
 /*@
 // check if the new chunk is at the right place in the allocator memory
-function (boolean) chunk_list_insert_aux(cn_hyp_allocator ha, pointer chunk, struct chunk_hdr C, pointer prev, u64 next)
+function (boolean) chunk_list_insert_aux(cn_hyp_allocator ha, pointer chunk, struct chunk_hdr_only C, pointer prev, u64 next)
 {
         let va_size = next - (u64)chunk;
 
@@ -464,7 +464,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 
         // chunk is currently not in the chunk list
         !Is_chunk_some(lookup(chunk, H_pre.hdrs));
-        take C = Own_chunk(chunk);
+        take C = Own_chunk_hdr(chunk);
 
         // prev must be in the chunk list
         match (lookup(prev, H_pre.hdrs))
@@ -554,7 +554,7 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
         requires
                 true;
         ensures
-                take C = Conditional_Cn_char_array((pointer)va, (u64)size, return == 0i32);
+                true;
 @*/
 {
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
@@ -633,7 +633,49 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
 }
 @*/
 
-
+/*@
+predicate (cn_hyp_allocator) ChunkInstallPre(pointer chunk, u64 size, pointer prev, pointer allocator)
+{
+        if (is_null(prev))
+        {
+        take a_in=Cn_hyp_allocator(allocator);
+        assert(a_in.hdrs==Chunk_nil{});
+        return a_in.ha;
+        }
+        else
+        {
+        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
+        take Chunk = Own_chunk_hdr(chunk);
+        let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
+        // chunk is located in the allocator's memory
+        assert(HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end);
+        return HA_pre.ha;
+        }
+}
+predicate (boolean) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer allocator, cn_hyp_allocator ha_pre)
+{
+        if (is_null(prev))
+        {
+        take HA_post =Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let allocator_end = (u64)ha_pre.start + (u64)ha_pre.size;
+        let first_chunk = {
+                header_address: (u64)chunk,
+                mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
+                alloc_size: (u32) size,
+                va_size: (u32) (allocator_end - (u64)chunk)
+        };
+        assert(HA_post.lseg.after == Chunk_nil {});
+        assert(HA_post.lseg.chunk == first_chunk);
+        assert(HA_post.lseg.before == Chunk_nil {} );
+        return true;
+        }
+        else
+        {
+                //todo
+                return true;
+        }
+}
+@*/
 
 // chunk: the new chunk to install
 // size: alloc size for chunk
@@ -647,53 +689,9 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
 /*@
     requires
-        take HA_pre = Cn_hyp_allocator(allocator);
-        take C_pre = Own_chunk(chunk);
-        let allocator_end = (HA_pre.ha.start + (u64)HA_pre.ha.size);
-        // chunk is located in the allocator's memory
-        HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end;
-        // if prev is no NULL, it must be in the chunk list
-        !is_null(prev) implies Is_chunk_some(lookup(prev, HA_pre.hdrs));
-        // When prev is NULL, allocator's chunks must be empty
-        is_null(prev) implies HA_pre.hdrs == Chunk_nil {};
-        // prev is not allocator-chunks
-        !ptr_eq(member_shift<struct chunk_hdr>(prev, node),
-                member_shift<struct hyp_allocator>(allocator, chunks));
-        // chunk is also not allocator-chunks
-        !ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
-                member_shift<struct hyp_allocator>(allocator, chunks));
+        take Pre = ChunkInstallPre(chunk, size, prev, allocator);
     ensures
-        take HA_post = Cn_hyp_allocator(allocator);
-        Is_chunk_some(lookup(chunk, HA_post.hdrs));
-
-        // case for the first chunk
-        let first_chunk = {
-                header_address: (u64)chunk,
-                mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
-                alloc_size: (u32) size,
-                va_size: (u32) (allocator_end - (u64)chunk)
-        };
-        is_null(prev) implies (
-                HA_post.hdrs == Chunk_cons { hd: first_chunk, tl: Chunk_nil {}}
-        );
-        //match (lookup(prev, HA_post.hdrs)) {
-        //Chunk_some { hdr: prev_hdr } => {
-        //        // TODO
-        //        true
-        //}
-        //Chunk_none {} => {
-        //        match (lookup(chunk, HA_post.hdrs)) {
-        //        Chunk_some {hdr: chunk_hdr } => {
-        //                chunk_hdr.header_address == (u64)chunk
-        //                // TODO(HK)
-        //                //&& chunk_hdr.va_size == C_pre.va_size
-        //                && (u64)chunk_hdr.alloc_size == size
-        //                && (u64)chunk_hdr.mapped_size == PAGE_ALIGN(Cn_chunk_size(size))
-        //        }
-        //        Chunk_none {} => { false }
-        //        }
-        //}
-        //};
+        take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre);
 @*/
 
 {
@@ -701,7 +699,6 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         /* First chunk, first allocation */
         if (!prev) {
-                /*@ split_case(ptr_eq(HA_pre.ha.first, HA_pre.ha.head)); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: non-rust ownership type part
                 // See the comments in chunk_list_insert
@@ -1205,11 +1202,42 @@ unmap:
 
         return unmapped;
 }
+/*@
+// function (boolean) SetupFirstChunk_ex1(cn_chunk_hdrs after)
+// {
+//         match (after) {
+//             Chunk_nil {} => { false }
+//             Chunk_cons { hd: next_chunk, tl: tl } => {
+//                     tl == Chunk_nil {}
+//             }
+//         }
+//
+// }
+predicate (boolean) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre,size_t size, i32 ret)
+{
+    if (ret == 0i32) {
+        let start = (pointer)ha_pre.start;
+        take a_out=Cn_hyp_allocator_focusing_on(allocator, start);
+        // ownership to be returned to the client
+        let chunk_data = array_shift<unsigned char>(start, Cn_chunk_hdr_size());
+        take D = Cn_char_array(chunk_data, (u64)a_out.lseg.chunk.alloc_size);
+        return a_out.lseg.before == Chunk_nil {}
+            && a_out.lseg.chunk.header_address == (u64)start
+            && (u64)a_out.lseg.chunk.alloc_size > size
+            && a_out.lseg.after == Chunk_nil{};
+    } else {
+        take a_out=Cn_hyp_allocator(allocator);
+        return a_out.ha == ha_pre && a_out.hdrs == Chunk_nil {};
+    }
+}
+@*/
 
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@ requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
-    ensures take a_out=Cn_hyp_allocator(allocator);
+    ensures
+    take X = SetupFirstChunk(allocator, a_in.ha, size, return);
+    X;
 @*/
 {
         int ret;
@@ -1232,8 +1260,8 @@ lemma ListSeg (pointer allocator, pointer result)
         take HA1 = Cn_hyp_allocator_focusing_on(allocator, result);
     ensures
         take HA2 = Cn_hyp_allocator(allocator);
-        let free_chunk = HA1.free_chunk;
-        HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(free_chunk.before, Chunk_cons {hd: free_chunk.chunk, tl: free_chunk.after})};
+        let lseg = HA1.lseg;
+        HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};
 
 
 predicate (boolean) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
@@ -1243,11 +1271,11 @@ predicate (boolean) GetFreeChunk(pointer allocator, u64 size, pointer result, {c
                 return HA_in == HA_out;
         } else {
                 take HA_out = Cn_hyp_allocator_focusing_on(allocator, result);
-                let free_chunk = HA_out.free_chunk;
+                let lseg = HA_out.lseg;
 
                 return
-                is_free_chunk(free_chunk.chunk, (u32)size)
-                && {ha: HA_out.ha, hdrs: ConcatChunkList(free_chunk.before, Chunk_cons {hd: free_chunk.chunk, tl: free_chunk.after})} == HA_in;
+                is_free_chunk(lseg.chunk, (u32)size)
+                && {ha: HA_out.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})} == HA_in;
         }
 }
 @*/
@@ -1259,7 +1287,6 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // what variable name to use for the result of Cn_hyp_allocator?
 // (should CN support enforced per-type naming conventions?)
 /*@
-trusted;
 requires take HA_in = Cn_hyp_allocator(allocator);
 ensures
         take res = GetFreeChunk(allocator, size, return, HA_in);
@@ -1526,6 +1553,8 @@ static size_t chunk_reclaimable(struct chunk_hdr *chunk,
         return end - start;
 }
 
+// HK: counts the number of unused but mapped pages.
+// This includes the pages that are in the memcache.
 int hyp_alloc_reclaimable(void)
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -1554,6 +1583,7 @@ int hyp_alloc_reclaimable(void)
         return reclaimable;
 }
 
+// Hk: another interesting target
 void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 {
         struct hyp_allocator *allocator = &hyp_allocator;

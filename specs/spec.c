@@ -106,26 +106,17 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 
 /*@
 // Own_chunk just owns the chunk header and the mapped part of the chunk
-predicate (struct chunk_hdr) Own_chunk(pointer header_address)
+predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
 {
-        take cn_hdr = RW<struct chunk_hdr>(header_address);
+        take cn_hdr = RW<struct chunk_hdr_only>(header_address);
         assert(cn_hdr.alloc_size <= cn_hdr.mapped_size);
-
-        // ownership of the mapped but not allocated part of the chunk - as [from...to) in u64 va
-        // HK: is this correct?
-        // Who owns the memory of [p, p+alloc_size) where p = header_address + sizeof(struct chunk_hdr)?
-        //take A = Cn_char_array(array_shift<unsigned char>(header_address, sizeof<struct chunk_hdr> + (u64) hdr.alloc_size), (u64) hdr.mapped_size);
-        // TODO(HK): this should be conditional because if the chunk data is allocated
-        // to the client, the allocator should not own it.
-        take A = Cn_char_array(array_shift<unsigned char>(header_address, Cn_chunk_hdr_size()), (u64) cn_hdr.mapped_size - Cn_chunk_hdr_size());
-
         return cn_hdr;
 }
 // Cn_chunk_hdr validates the locations of the chunk header and its next are
 // in the hyp_allocator's address space
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
 {
-        take hdr = Own_chunk(header_address);
+        take hdr = Own_chunk_hdr(header_address);
 
         let end = ha.start + (u64)ha.size;
         let va_size = (Cn_list_is_last(hdr.node, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
@@ -139,6 +130,15 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
                 va_size: (u32)va_size
         };
         assert(cn_hdr.mapped_size <= cn_hdr.va_size);
+
+        // own chunk data
+        let chunk_data = array_shift<unsigned char>(header_address, Cn_chunk_hdr_size());
+
+        let start = cn_hdr.alloc_size == 0u32 ? chunk_data :
+                array_shift<unsigned char>(chunk_data, cn_hdr.alloc_size);
+        let size_owned_by_ha = cn_hdr.alloc_size == 0u32 ? ((u64) cn_hdr.va_size - Cn_chunk_hdr_size()) :
+                ((u64)cn_hdr.va_size -  Cn_chunk_hdr_size() - (u64)cn_hdr.alloc_size);
+        take A = Cn_char_array(start, size_owned_by_ha);
 
         // check non-overlappingness
         assert(cn_hdr.header_address >= ha.start);
@@ -206,13 +206,13 @@ function (pointer) HeadOrValue(datatype cn_chunk_hdrs hdrs, pointer value)
         }
 }
 
-type_synonym cn_free_chunk = {
+type_synonym cn_lseg = {
         cn_chunk_hdrs before,
         cn_chunk_hdr chunk,
         cn_chunk_hdrs after
 }
 
-predicate ({cn_hyp_allocator ha, cn_free_chunk free_chunk}) Cn_hyp_allocator_focusing_on( pointer p, pointer chunk) { // p points to a struct hyp_allocator
+predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( pointer p, pointer chunk) { // p points to a struct hyp_allocator
   take ha = Cn_hyp_allocator_only(p);
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
@@ -220,10 +220,11 @@ predicate ({cn_hyp_allocator ha, cn_free_chunk free_chunk}) Cn_hyp_allocator_foc
   take hdrs1 = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, chunk, Chunk_nil {});
   let prev = HeadOrValue(hdrs1, ha.head);
   take T = Cn_chunk_hdrs_non_last(chunk, prev, ha, ha.head);
-  let free_chunk = {before: hdrs1, chunk: T.hd, after: T.tl};
-  return( {ha:ha, free_chunk: free_chunk} );
+  let lseg = {before: hdrs1, chunk: T.hd, after: T.tl};
+  return( {ha:ha, lseg: lseg} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
+
 
 // **This function is specialized for chunk lists obtained by Cn_hyp_allocator_focusing_on**
 // That is, it assumes
@@ -244,11 +245,11 @@ function [rec] (datatype cn_chunk_hdrs) ConcatChunkList(datatype cn_chunk_hdrs b
 lemma LSegsToList(cn_hyp_allocator ha, datatype cn_chunk_hdrs before, cn_chunk_hdr chunk, datatype cn_chunk_hdrs after, pointer p, pointer chunkp)
 requires
         take C = Cn_hyp_allocator_focusing_on(p, chunkp);
-        let free_chunk = {before: before, chunk: chunk, after: after};
-        C == {ha:ha, free_chunk: free_chunk};
+        let lseg = {before: before, chunk: chunk, after: after};
+        C == {ha:ha, lseg: lseg};
 ensures
         take C2 = Cn_hyp_allocator(p);
-        let free_chunk2 = {before: before, chunk: chunk, after: after};
+        let lseg2 = {before: before, chunk: chunk, after: after};
         C2 == {ha: ha, hdrs: ConcatChunkList(before, Chunk_cons {hd: chunk, tl: after})};
 
 predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
