@@ -161,8 +161,9 @@ static inline void *pop_hyp_memcache(struct kvm_hyp_memcache *mc,
 				     unsigned long *order)
 {
 	phys_addr_t *p = to_va(mc->head & PAGE_MASK);
-	if (!mc->nr_pages)
+	if (!mc->nr_pages) {
 		return NULL;
+	}
 	*order = FIELD_GET(~PAGE_MASK, mc->head);
 	mc->head = *p;
 	mc->nr_pages--;
@@ -178,8 +179,9 @@ static inline int __topup_hyp_memcache(struct kvm_hyp_memcache *mc,
 {
 	while (mc->nr_pages < min_pages) {
 		phys_addr_t *p = alloc_fn(arg, order);
-		if (!p)
+		if (!p) {
 			return -ENOMEM;
+		}
 		push_hyp_memcache(mc, p, to_pa, order);
 	}
 	return 0;

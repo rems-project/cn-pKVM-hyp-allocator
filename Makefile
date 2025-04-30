@@ -5,11 +5,11 @@ INCLUDES= -Isrc -Iinclude
 
 # KM version
 INCLUDES= -I$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Isrc -Iinclude
-CPP=cc -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__
+CPP=clang-19 -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__
 
 # Fulminate
 RUNTIME_PREFIX= $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
-RUNTIME_INCLUDES= -Isrc -Iinclude
+# RUNTIME_INCLUDES= -Isrc -Iinclude
 # RUNTIME_CPP=clang-19 -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__x86_64__ -D__GNUC__="5" -D__cerb__ 
 # RUNTIME_CPP=clang-19 -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__ 
 
@@ -35,9 +35,11 @@ cn-verify: src/alloc.c
 
 .PHONY: cn-instrument
 cn-instrument: src/alloc.c
-	$(CPP) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/main.c > main.pp.c
+	clang-19 -std=c11 -E -P -CC -isystem/Users/rinibanerjee/.opam/4.14.0/lib/cerberus-lib/runtime/libc/include/ -Werror -Wno-builtin-macro-redefined -D__cerb__  -undef -fkeep-system-includes  -Isrc -Iinclude  -DSTANDALONE -DNO_STATEMENT_EXPRS src/main.c > main.pp.c
+	clang-19 -std=c11 -E -P -CC -isystem/Users/rinibanerjee/.opam/4.14.0/lib/cerberus-lib/runtime/libc/include/ -Werror -Wno-builtin-macro-redefined -D__cerb__  -undef -fkeep-system-includes  -Isrc -Iinclude  -DSTANDALONE -DNO_STATEMENT_EXPRS src/alloc.c > alloc.pp.c
 	cn instrument main.pp.c
-	cc -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include/ main.pp.exec.c main.pp.cn.c
+	cn instrument alloc.pp.c
+	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include/ main.pp.exec.c main.pp.cn.c
 
 
 .PHONY: clean
