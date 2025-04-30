@@ -1,8 +1,9 @@
 #include <stdlib.h>
 // #include <stdio.h>
 #include <assert.h>
-
-#include "alloc.c"
+#include <alloc.h>
+// #include <fulminate.h>
+// #include "alloc.c"
 
 phys_addr_t ident_to_pa(void *addr)
 {
@@ -20,8 +21,9 @@ int dummy_memcache(struct kvm_hyp_memcache *mc, u64 min_pages)
 		phys_addr_t *p = aligned_alloc(PAGE_SIZE, PAGE_SIZE);
 		memset(p, 0, PAGE_SIZE);
 
-		if (!p)
+		if (!p) {
 			return -ENOMEM;
+		}
 		push_hyp_memcache(mc, p, ident_to_pa, 0);
 		// printf("  \x1b[32mPUSHED: %p -- head: %p\x1b[0m\n", p, (void*)mc->head);
 	}
@@ -117,13 +119,15 @@ int main(void)
 
 	// printf("HYP_ALLOC_INIT\n");
 	ret = hyp_alloc_init(NR_PAGES*PAGE_SIZE);
-	if(ret)
+	if(ret) {
 		fatal("hyp_alloc_init() failed", ret);
+	}
 
 	
 	ret = dummy_memcache(&host_mc, NR_PAGES);
-	if (ret)
+	if (ret) {
 		fatal("dummy_memcache() failed", ret);
+	}
 
 	// printf("HYP_ALLOC_REFILL\n");
 	hyp_alloc_refill(&host_mc);
