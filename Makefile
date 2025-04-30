@@ -10,7 +10,8 @@ CPP=cc -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef 
 # Fulminate
 RUNTIME_PREFIX= $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
 RUNTIME_INCLUDES= -Isrc -Iinclude
-RUNTIME_CPP=clang-19 -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__cerb__ 
+# RUNTIME_CPP=clang-19 -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__x86_64__ -D__GNUC__="5" -D__cerb__ 
+RUNTIME_CPP=clang-19 -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__cerb__ 
 
 tmp-alloc.c: src/alloc.c
 	$(CPP) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c > tmp-alloc.c
@@ -34,7 +35,7 @@ cn-verify: src/alloc.c
 
 .PHONY: cn-instrument
 cn-instrument: src/alloc.c
-	$(RUNTIME_CPP) -DSTANDALONE -DNO_STATEMENT_EXPRS $(RUNTIME_INCLUDES) src/main.c > main.pp.c
+	$(RUNTIME_CPP) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/main.c > main.pp.c
 	cn instrument main.pp.c
 	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include/ main.pp.exec.c main.pp.cn.c
 
