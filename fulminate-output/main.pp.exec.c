@@ -1244,7 +1244,7 @@ c_add_to_ghost_state((uintptr_t) &p, sizeof(unsigned long long*), get_cn_stack_d
 cn_pointer* p_addr_cn = convert_to_cn_pointer((&p));
 
  if (!CN_LOAD(CN_LOAD(mc)->nr_pages)) {
-  { __cn_ret = __cerbvar_NULL; 
+  { __cn_ret = NULL; 
 c_remove_from_ghost_state((uintptr_t) &p, sizeof(unsigned long long*));
 goto __cn_epilogue; }
  }

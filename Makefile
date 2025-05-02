@@ -39,7 +39,7 @@ cn-instrument: src/alloc.c
 	clang-19 -std=c11 -E -P -CC -isystem/Users/rinibanerjee/.opam/4.14.0/lib/cerberus-lib/runtime/libc/include/ -Werror -Wno-builtin-macro-redefined -D__cerb__  -undef -fkeep-system-includes  -Isrc -Iinclude  -DSTANDALONE -DNO_STATEMENT_EXPRS src/alloc.c > alloc.pp.c
 	cn instrument main.pp.c
 	cn instrument alloc.pp.c
-	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include/ main.pp.exec.c main.pp.cn.c
+	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include/ main.pp.exec.c main.pp.cn.c alloc.pp.exec.c alloc.pp.cn.c
 
 
 .PHONY: clean
