@@ -1244,7 +1244,7 @@ c_add_to_ghost_state((uintptr_t) &p, sizeof(unsigned long long*), get_cn_stack_d
 cn_pointer* p_addr_cn = convert_to_cn_pointer((&p));
 
  if (!CN_LOAD(CN_LOAD(mc)->nr_pages)) {
-  { __cn_ret = __cerbvar_NULL; 
+  { __cn_ret = NULL; 
 c_remove_from_ghost_state((uintptr_t) &p, sizeof(unsigned long long*));
 goto __cn_epilogue; }
  }
@@ -1811,7 +1811,7 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
   cn_pointer* allocator_addr_cn = convert_to_cn_pointer((&allocator));
   
         { __cn_ret = list_is_last(&CN_LOAD((chunk))->node, &CN_LOAD((allocator))->chunks) ?
-                __cerbvar_NULL : ((typeof(*(chunk)) *)((unsigned char *)CN_LOAD((CN_LOAD((chunk))->node.next)) + (0UL - offsetof(typeof(*(chunk)), node)))); goto __cn_epilogue; }
+                NULL : ((typeof(*(chunk)) *)((unsigned char *)CN_LOAD((CN_LOAD((chunk))->node.next)) + (0UL - offsetof(typeof(*(chunk)), node)))); goto __cn_epilogue; }
 
 /* EXECUTABLE CN POSTCONDITION */
 __cn_epilogue:
@@ -1911,7 +1911,7 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
   cn_pointer* allocator_addr_cn = convert_to_cn_pointer((&allocator));
   
         { __cn_ret = list_is_first(&CN_LOAD((chunk))->node, &CN_LOAD((allocator))->chunks) ?
-                __cerbvar_NULL : ((typeof(*(chunk)) *)((unsigned char *)CN_LOAD((CN_LOAD((chunk))->node.prev)) + (0UL - offsetof(typeof(*(chunk)), node)))); goto __cn_epilogue; }
+                NULL : ((typeof(*(chunk)) *)((unsigned char *)CN_LOAD((CN_LOAD((chunk))->node.prev)) + (0UL - offsetof(typeof(*(chunk)), node)))); goto __cn_epilogue; }
 
 /* EXECUTABLE CN POSTCONDITION */
 __cn_epilogue:
@@ -3863,7 +3863,7 @@ static struct chunk_hdr *my_chunk_get_next(struct chunk_hdr *chunk, struct hyp_a
   cn_pointer* allocator_addr_cn = convert_to_cn_pointer((&allocator));
   
         struct chunk_hdr * next = list_is_last(&CN_LOAD((chunk))->node, &CN_LOAD((allocator))->chunks) ?
-                __cerbvar_NULL : ((typeof(*(chunk)) *)((unsigned char *)CN_LOAD((CN_LOAD((chunk))->node.next)) + (0UL - offsetof(typeof(*(chunk)), node))));
+                NULL : ((typeof(*(chunk)) *)((unsigned char *)CN_LOAD((CN_LOAD((chunk))->node.next)) + (0UL - offsetof(typeof(*(chunk)), node))));
 c_add_to_ghost_state((uintptr_t) &next, sizeof(struct chunk_hdr*), get_cn_stack_depth());
 
 
@@ -4250,7 +4250,7 @@ c_add_to_ghost_state((uintptr_t) &expected_mapping, sizeof(size_t), get_cn_stack
 
 cn_pointer* expected_mapping_addr_cn = convert_to_cn_pointer((&expected_mapping));
 
-        struct chunk_hdr *new_chunk = __cerbvar_NULL;
+        struct chunk_hdr *new_chunk = NULL;
 c_add_to_ghost_state((uintptr_t) &new_chunk, sizeof(struct chunk_hdr*), get_cn_stack_depth());
 
 
@@ -4521,7 +4521,7 @@ cn_pointer* ret_addr_cn = convert_to_cn_pointer((&ret));
 c_remove_from_ghost_state((uintptr_t) &ret, sizeof(signed int));
 goto __cn_epilogue; }
         }
-        { __cn_ret = chunk_install((struct chunk_hdr *)CN_LOAD(CN_LOAD(allocator)->start), CN_LOAD(size), __cerbvar_NULL, CN_LOAD(allocator)); 
+        { __cn_ret = chunk_install((struct chunk_hdr *)CN_LOAD(CN_LOAD(allocator)->start), CN_LOAD(size), NULL, CN_LOAD(allocator)); 
 c_remove_from_ghost_state((uintptr_t) &ret, sizeof(signed int));
 goto __cn_epilogue; }
 
@@ -4585,7 +4585,7 @@ ensures
   c_add_to_ghost_state((uintptr_t) &size, sizeof(size_t), get_cn_stack_depth());
   cn_pointer* size_addr_cn = convert_to_cn_pointer((&size));
   
-        struct chunk_hdr *chunk, *best_chunk = __cerbvar_NULL;
+        struct chunk_hdr *chunk, *best_chunk = NULL;
 c_add_to_ghost_state((uintptr_t) &chunk, sizeof(struct chunk_hdr*), get_cn_stack_depth());
 
 
@@ -4845,7 +4845,7 @@ end:
         if (!CN_LOAD(ret)) {
                 memset(((void *)(&CN_LOAD((chunk))->data)), 0, CN_LOAD(size));
         }
-        { __cn_ret = CN_LOAD(ret) ? __cerbvar_NULL : ((void *)(&CN_LOAD((chunk))->data)); 
+        { __cn_ret = CN_LOAD(ret) ? NULL : ((void *)(&CN_LOAD((chunk))->data)); 
 c_remove_from_ghost_state((uintptr_t) &allocator, sizeof(struct hyp_allocator*));
 
 
