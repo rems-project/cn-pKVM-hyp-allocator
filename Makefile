@@ -37,10 +37,9 @@ cn-verify: src/alloc.c
 .PHONY: cn-instrument
 cn-instrument: src/alloc.c
 	$(RUNTIME_CPP) src/main.c > main.pp.c
-	$(RUNTIME_CPP) src/alloc.c > alloc.pp.c
 	cn instrument main.pp.c
-	cn instrument alloc.pp.c
-	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include/ main.pp.exec.c main.pp.cn.c alloc.pp.exec.c alloc.pp.cn.c
+	cat fulminate2.h main.pp.exec.c > main.pp.exec2.c 
+	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include/ main.pp.exec2.c main.pp.cn.c
 
 
 .PHONY: clean
