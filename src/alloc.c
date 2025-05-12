@@ -8,6 +8,7 @@
 #include <prelude.h>
 #include <alloc.h>
 #include <fulminate.h>
+#include "shim.c"
 extern unsigned long hyp_nr_cpus;
 #else
 #include <nvhe/alloc.h>

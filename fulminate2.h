@@ -1,1 +1,2 @@
-#define __cerbvar_NULL NULL
+#define __cerbvar_NULL 0
+#include <assert.h>
