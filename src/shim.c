@@ -1,5 +1,5 @@
 // TODO(doc): there is some code copied from pKVM (add licence notice)
-#include <stdio.h>
+// #include <stdio.h>
 
 #include <prelude.h>
 
@@ -98,14 +98,14 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 
 void pkvm_remove_mappings(void *from, void *to)
 {
-	log_function_args("from: %p, to: %p", from, to);
-	printf("\x1b[31mTODO\x1b[0m\n");
+	// log_function_args("from: %p, to: %p", from, to);
+	// printf("\x1b[31mTODO\x1b[0m\n");
 }
 
 
 int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 {
-	log_function_args("<TODO>pfn: %"PRIx64", nr_pages: %"PRIu64, pfn, nr_pages);
+	// log_function_args("<TODO>pfn: %"PRIx64", nr_pages: %"PRIu64, pfn, nr_pages);
 	return 0; // TODO
 }
 

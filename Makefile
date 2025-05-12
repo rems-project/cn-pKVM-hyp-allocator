@@ -12,7 +12,7 @@ RUNTIME_PREFIX= $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
 # RUNTIME_INCLUDES= -Isrc -Iinclude
 # RUNTIME_CPP=clang-19 -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__x86_64__ -D__GNUC__="5" -D__cerb__ 
 # RUNTIME_CPP=clang-19 -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__ 
-RUNTIME_CPP=clang-19 -std=c11 -E -P -CC -isystem$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Werror -Wno-builtin-macro-redefined -D__cerb__  -undef -fkeep-system-includes  -Isrc -Iinclude  -DSTANDALONE -DNO_STATEMENT_EXPRS
+RUNTIME_CPP=clang-19 -std=gnu11 -E -P -CC -isystem$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Werror -Wno-builtin-macro-redefined -D__cerb__  -undef -fkeep-system-includes  -Isrc -Iinclude  -DSTANDALONE -DNO_STATEMENT_EXPRS
 
 tmp-alloc.c: src/alloc.c
 	$(CPP) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c > tmp-alloc.c
@@ -39,7 +39,8 @@ cn-instrument: src/alloc.c
 	$(RUNTIME_CPP) src/main.c > main.pp.c
 	cn instrument main.pp.c
 	cat fulminate2.h main.pp.exec.c > main.pp.exec2.c 
-	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include/ main.pp.exec2.c main.pp.cn.c
+	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -D__cerb__   -DSTANDALONE -DNO_STATEMENT_EXPRS main.pp.exec2.c
+	clang-19 -I$(RUNTME_PREFIX)/include -Isrc -Iinclude -o  main.pp.exec2.o $(RUNTIME_PREFIX)/libcn.a  
 
 
 .PHONY: clean
