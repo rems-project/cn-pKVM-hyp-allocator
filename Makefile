@@ -38,9 +38,10 @@ cn-verify: src/alloc.c
 cn-instrument: src/alloc.c
 	$(RUNTIME_CPP) src/main.c > main.pp.c
 	cn instrument main.pp.c
-	cat fulminate2.h main.pp.exec.c > main.pp.exec2.c 
-	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -D__cerb__   -DSTANDALONE -DNO_STATEMENT_EXPRS main.pp.exec2.c
-	clang-19 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -o  main.pp.exec2.o $(RUNTIME_PREFIX)/libcn.a  
+# cat fulminate2.h main.pp.exec.c > main.pp.exec2.c 
+	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__   -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h main.pp.exec.c
+	clang-19 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -o main.exe $(RUNTIME_PREFIX)/libcn_exec.a main.pp.exec.o
+	./main.exe
 
 
 .PHONY: clean
