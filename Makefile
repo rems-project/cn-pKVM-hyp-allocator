@@ -40,7 +40,7 @@ cn-instrument: src/alloc.c
 	cn instrument main.pp.c
 	cat fulminate2.h main.pp.exec.c > main.pp.exec2.c 
 	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -D__cerb__   -DSTANDALONE -DNO_STATEMENT_EXPRS main.pp.exec2.c
-	clang-19 -I$(RUNTME_PREFIX)/include -Isrc -Iinclude -o  main.pp.exec2.o $(RUNTIME_PREFIX)/libcn.a  
+	clang-19 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -o  main.pp.exec2.o $(RUNTIME_PREFIX)/libcn.a  
 
 
 .PHONY: clean
