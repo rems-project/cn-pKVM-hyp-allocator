@@ -458,33 +458,27 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 */
 
 /*@
-    trusted;
     requires
-        take H_pre = Cn_hyp_allocator(allocator);
-
-        // chunk is currently not in the chunk list
-        !Is_chunk_some(lookup(chunk, H_pre.hdrs));
-        take C = Own_chunk_hdr(chunk);
-
-        // prev must be in the chunk list
-        match (lookup(prev, H_pre.hdrs))
-        {
-        Chunk_none {} => { false }
-        Chunk_some { hdr:Prev } => {
-                // check if chunk is at the right place in the allocator memory
-                match (next_chunk(prev, H_pre.hdrs)) {
-                Chunk_none {} => {
-                        // prev is the last chunk
-                        chunk_list_insert_aux(H_pre.ha, chunk, C, prev, H_pre.ha.start + (u64)H_pre.ha.size)
-                }
-                Chunk_some { hdr:Next_Chunk } => {
-                        chunk_list_insert_aux(H_pre.ha, chunk, C, prev, (u64)Next_Chunk.header_address)
-                }
-                }
-        }
-        };
+        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
+        let lseg_pre = HA_pre.lseg;
+        take Chunk = Own_chunk_hdr(chunk);
     ensures
-        take A_post = Cn_hyp_allocator(allocator);
+        take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
+        let lseg_post = HA_post.lseg;
+        lseg_pre.before == lseg_post.before;
+        // chunk does not care hash update
+        lseg_post.chunk == lseg_pre.chunk;
+        match (lseg_post.after) {
+                Chunk_nil {} => {
+                        false
+                }
+                Chunk_cons {hd:hdr, tl:tl} => {
+                        tl == lseg_pre.after
+                        && Chunk.alloc_size == hdr.alloc_size
+                        && (u64)chunk == hdr.header_address
+                        && Chunk.mapped_size == hdr.mapped_size
+                }
+        };
 @*/
 {
         // HK: non-rust ownership type part
@@ -504,9 +498,9 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         //   - prev must be in the chunk list from the precondition
         //   - that implies we have the ownership of prev
 
+        /*@ split_case ptr_eq(prev->node.next,HA_pre.ha.head); @*/
         list_add(&chunk->node, &prev->node);
 
-        // /*@ unfold lookup(prev, H_pre.hdrs); @*/
         chunk_hash_update(prev);
         chunk_hash_update(__chunk_next(chunk, allocator));
         chunk_hash_update(chunk);
