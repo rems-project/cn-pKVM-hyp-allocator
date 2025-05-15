@@ -180,19 +180,21 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
         }
 }
 
-predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last, datatype cn_chunk_hdrs accum)
-{
-        if (ptr_eq(p,last)) {
-                return accum;
-        } else {
-                let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node)));
-                take cn_hdr = Cn_chunk_hdr(header_address, ha);
-                assert(ptr_eq(cn_hdr.Node.prev, prev));
-                let c = Chunk_cons { hd: cn_hdr.Hdr, tl: accum };
-                take res = Cn_chunk_hdrs_rev(cn_hdr.Node.next, p, ha, last, c);
-                return res;
-        }
-}
+// this kind of predicate makes CN buggy, so we avoid this
+// see: https://github.com/rems-project/cn/issues/115
+// predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last, datatype cn_chunk_hdrs accum)
+// {
+//         if (ptr_eq(p,last)) {
+//                 return accum;
+//         } else {
+//                 let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node)));
+//                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
+//                 assert(ptr_eq(cn_hdr.Node.prev, prev));
+//                 let c = Chunk_cons { hd: cn_hdr.Hdr, tl: accum };
+//                 take res = Cn_chunk_hdrs_rev(cn_hdr.Node.next, p, ha, last, c);
+//                 return res;
+//         }
+// }
 
 function (pointer) HeadOrValue(datatype cn_chunk_hdrs hdrs, pointer value)
 {
@@ -217,7 +219,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
 
-  take hdrs1 = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, chunk, Chunk_nil {});
+  take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, chunk);
   let prev = HeadOrValue(hdrs1, ha.head);
   take T = Cn_chunk_hdrs_non_last(chunk, prev, ha, ha.head);
   let lseg = {before: hdrs1, chunk: T.hd, after: T.tl};

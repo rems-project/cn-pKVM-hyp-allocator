@@ -1232,6 +1232,7 @@ predicate (boolean) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre,s
 }
 @*/
 
+
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@ requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
