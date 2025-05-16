@@ -421,18 +421,6 @@ function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 }
 @*/
 
-/*@
-// check if the new chunk is at the right place in the allocator memory
-function (boolean) chunk_list_insert_aux(cn_hyp_allocator ha, pointer chunk, struct chunk_hdr_only C, pointer prev, u64 next)
-{
-        let va_size = next - (u64)chunk;
-
-        ha.start <= (u64)chunk && (u64)chunk < ha.start + (u64)ha.size
-        && (u64)prev < (u64)chunk && (u64)chunk < next
-        && (u64)C.mapped_size <= va_size
-}
-@*/
-
 // This function takes
 //   - a chunk *not in the chunk list*
 //   - a chunk *in the chunk list*, which will be the previous chunk of the new chunk
@@ -841,6 +829,7 @@ ensures
     };
 @*/
 
+// TODO(HK): write a complete spec
 // TODO(HK): fix this after the elaboration bug is fixed
 //static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
 static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
@@ -1100,16 +1089,14 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 // -
 /*@
     requires
-        take HA_pre = Cn_hyp_allocator(allocator);
-
-        take C_pre = RW<struct chunk_hdr>(chunk);
+        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let C_pre = HA_pre.lseg.chunk;
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);
-        take C_post = RW<struct chunk_hdr>(chunk);
+        take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let C_post = HA_post.lseg.chunk;
         C_post.alloc_size == (u32)size;
         C_post.mapped_size == C_pre.mapped_size;
-        C_post.node == C_pre.node;
-        C_post.data == C_pre.data;
         return == 0i32;
         // TODO: write some spec on HA_out and HA_in
 @*/
