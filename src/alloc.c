@@ -836,29 +836,22 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                          struct hyp_allocator *allocator)
 /*@
         requires
-                take A_pre = Cn_hyp_allocator_only(allocator);
-                take C_pre = Cn_chunk_hdr(chunk, A_pre);
-                let Node = C_pre.Node;
-                let next_node = Node.next;
-                let next_chunk = my_container_of_chunk_hdr(next_node);
-                take Next_pre = Cn_chunk_hdr(next_chunk, A_pre);
-                ptr_eq(Next_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
-                let cond = (u64)Cn_chunk_unmapped_size(C_pre.Hdr) >= map_size;
+                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let C_pre = HA_pre.lseg.chunk;
         ensures
-                take A_post = Cn_hyp_allocator_only(allocator);
-                take C_post = Cn_chunk_hdr(chunk, A_post);
-                take Next_post = Cn_chunk_hdr(next_chunk, A_post);
-                A_post == A_pre;
-                Next_post == Next_pre;
-                C_post.Hdr.alloc_size == C_pre.Hdr.alloc_size;
-                C_post.Hdr.va_size == C_pre.Hdr.va_size;
-                C_post.Hdr.header_address == C_pre.Hdr.header_address;
+                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let C_post = HA_post.lseg.chunk;
+
+                C_post.alloc_size == C_pre.alloc_size;
+                C_post.va_size == C_pre.va_size;
+                C_post.header_address == C_pre.header_address;
+
+                let cond = (u64)C_pre.va_size >= map_size;
                 !cond implies return == -EINVAL();
                 return == 0i32 implies
-                C_post.Hdr.mapped_size == (C_pre.Hdr.mapped_size + (u32)map_size);
+                C_post.mapped_size == (C_pre.mapped_size + (u32)map_size);
                 return != 0i32 implies
-                C_post.Hdr.mapped_size == C_pre.Hdr.mapped_size;
-                //cond implies C_post.mapped_size == (C_pre.mapped_size + map_size);
+                C_post.mapped_size == C_pre.mapped_size;
 @*/
 {
         int ret;
