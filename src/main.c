@@ -128,7 +128,7 @@ int main(void)
 	ret = dummy_memcache(&host_mc, NR_PAGES);
 	if (ret) {
 		fatal("dummy_memcache() failed", ret);
-	}
+	} 
 
 	// printf("HYP_ALLOC_REFILL\n");
 	hyp_alloc_refill(&host_mc);

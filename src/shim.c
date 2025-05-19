@@ -48,6 +48,11 @@ static u64 __hyp_vmemmap;
 
 // int create_hyp_mapping(phys_addr_t addr, size_t size)
 void shim_create_hyp_mapping(size_t size)
+/*@
+	accesses __io_map_base;
+	accesses __hyp_vmemmap;
+	ensures take V = each (u64 i; i < size) {Owned<char>(array_shift<char>((pointer) __io_map_base, i))};
+ @*/
 {
 	__io_map_base = (u64)cn_aligned_alloc(PAGE_SIZE, size);
 	__hyp_vmemmap = __io_map_base + size;
