@@ -137,9 +137,9 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 
 /*@
 // Own_chunk just owns the chunk header and the mapped part of the chunk
-predicate (struct chunk_hdr) Own_chunk_hdr(pointer header_address)
+predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
 {
-        take cn_hdr = RW<struct chunk_hdr>(header_address);
+        take cn_hdr = RW<struct chunk_hdr_only>(header_address);
         assert(cn_hdr.alloc_size <= cn_hdr.mapped_size);
         return cn_hdr;
 }
@@ -195,6 +195,9 @@ predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl}) Cn_chunk_hdrs_non_last(
         take cn_hdr = Cn_chunk_hdr(header_address, ha);
         assert(ptr_eq(cn_hdr.Node.prev, prev));
         take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
+        // HK: I think this assertion is not needed, if CN handles NULL "properly"
+        // c.f. https://github.com/rems-project/cn/issues/135
+        assert(!is_null(cn_hdr.Node.next));
         // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
         return {hd: cn_hdr.Hdr, tl: tl};
 }

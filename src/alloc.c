@@ -216,6 +216,7 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 };
 @*/
 {
+        ///*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         return list_is_last(&(chunk)->node, &(allocator)->chunks) ?
                 NULL : list_next_entry(chunk, node);
 }
