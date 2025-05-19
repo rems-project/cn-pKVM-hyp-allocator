@@ -251,25 +251,32 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                                                struct hyp_allocator *allocator)
 /*@
         requires
-                take A_pre = Cn_hyp_allocator_only(allocator);
-                take B_pre = Cn_chunk_hdr(chunk, A_pre);
-                let Node = B_pre.Node;
-                let next_node = Node.next;
-                let next_chunk = my_container_of_chunk_hdr(next_node);
-                take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
-                ptr_eq(C_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
+                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let B_pre = HA_pre.lseg.chunk;
+                let After_pre = HA_pre.lseg.after;
         ensures
-                take A_post = Cn_hyp_allocator_only(allocator);
-                take B_post = Cn_chunk_hdr(chunk, A_post);
-                take C_post = Cn_chunk_hdr(next_chunk, A_post);
-                Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies is_null(return);
-                !Cn_list_is_last(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies ptr_eq(return, next_chunk);
-                A_post == A_pre;
-                B_post == B_pre;
-                C_post == C_pre;
+                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let B_post = HA_post.lseg.chunk;
+                HA_post == HA_pre;
+
+                match After_pre {
+                        Chunk_nil {} => {
+                                is_null(return)
+                        }
+                        Chunk_cons {hd:hdr, tl:tl} => {
+                                ptr_eq(return, (pointer)hdr.header_address)
+                        }
+                };
 @*/
 {
         struct chunk_hdr *next = __chunk_next(chunk, allocator);
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node),
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         chunk_hash_validate(next);
         return next;
 }
@@ -599,14 +606,14 @@ function (boolean) chunk_install_sanity_check(pointer prev_p, pointer chunk_p, s
 
 datatype chunk_hdr_option {
   ChunkHdr_none {},
-  ChunkHdr_some { struct chunk_hdr hdr }
+  ChunkHdr_some { struct chunk_hdr_only hdr }
 }
 
 predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condition)
 {
         if (condition)
         {
-                take v = RW<struct chunk_hdr>(chunk);
+                take v = RW<struct chunk_hdr_only>(chunk);
                 return ChunkHdr_some { hdr: v };
         }
         else
