@@ -1797,6 +1797,12 @@ int hyp_alloc_refill(struct kvm_hyp_memcache *host_mc)
 }
 
 int hyp_alloc_init(size_t size)
+/*@
+	accesses __io_map_base;
+	accesses __hyp_vmemmap;
+        requires take HA1 = Owned<struct hyp_allocator>(&hyp_allocator);
+        ensures take HA2 = Owned<struct hyp_allocator>(&hyp_allocator);
+@*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
         int ret;

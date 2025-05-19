@@ -59,6 +59,10 @@ void shim_create_hyp_mapping(size_t size)
 }
 
 static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
+/*@
+	accesses __io_map_base;
+	accesses __hyp_vmemmap;
+@*/
 {
 	unsigned long cur;
 
@@ -89,6 +93,12 @@ static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
  * Return: 0 on success or negative error code on failure.
  */
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
+/*@
+	accesses __io_map_base;
+	accesses __hyp_vmemmap;
+	requires take v1 = Owned<unsigned long>(haddr);
+	ensures take v2 = Owned<unsigned long>(haddr);
+@*/
 {
 	unsigned long addr;
 	int ret;
