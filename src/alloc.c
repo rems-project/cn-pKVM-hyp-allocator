@@ -338,27 +338,27 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                                                 struct hyp_allocator *allocator)
 /*@
         requires
-                take A_pre = Cn_hyp_allocator_only(allocator);
-                take B_pre = Cn_chunk_hdr(chunk, A_pre);
-                let Hdr = B_pre.Hdr;
-                let Node = B_pre.Node;
-                let next_node = Node.next;
-                let next_chunk = my_container_of_chunk_hdr(next_node);
-                take C_pre = Cn_chunk_hdr(next_chunk, A_pre);
-                ptr_eq(C_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
+                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let ha = HA_pre.ha;
+                let C = HA_pre.lseg.chunk;
+                let After_pre = HA_pre.lseg.after;
         ensures
-                take A_post = Cn_hyp_allocator_only(allocator);
-                take B_post = Cn_chunk_hdr(chunk, A_post);
-                take C_post = Cn_chunk_hdr(next_chunk, A_post);
-                A_pre == A_post;
-                B_pre == B_post;
-                C_pre == C_post;
-                return == (u64)Cn_chunk_unmapped_size(Hdr);
+                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                HA_post == HA_pre;
+                return == (u64)C.va_size;
 @*/
 {
         struct chunk_hdr *next = chunk_get_next(chunk, allocator);
         unsigned long allocator_end = (allocator)->start +
                                       (allocator)->size;
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node),
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         return next ? (unsigned long)next - chunk_unmapped_region(chunk) :
                 allocator_end - chunk_unmapped_region(chunk);
 }
