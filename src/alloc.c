@@ -51,6 +51,7 @@ struct chunk_hdr {
         struct list_head        node;
         u32                     hash;
         char                    data __aligned(8);
+        /* CN: Fix this so that the sizeof works as expected */
 };
 // HK: having char data at the end of the struct is very annoying
 // If we write RW<struct chunk_hdr>, a single byte of the data is going to be owned
@@ -430,6 +431,36 @@ function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
         hdr.va_size - hdr.mapped_size
 }
 @*/
+
+/*@
+predicate (struct hyp_allocator) My_alloc(pointer p)
+{
+        take a = RW<struct hyp_allocator>(p);
+        return a;
+}
+predicate (struct chunk_hdr) My_Own_chunk_hdr(pointer p)
+{
+        take c = RW<struct chunk_hdr>(p);
+        return c;
+}
+@*/
+
+void debug(struct chunk_hdr *chunk,
+                                     struct chunk_hdr *prev,
+                                     struct hyp_allocator *allocator)
+/*@
+    requires
+        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
+        //take ha = Cn_hyp_allocator_only(allocator);
+        //take H = My_alloc(allocator);
+        take Chunk = My_Own_chunk_hdr(chunk);
+        //take Chunk = RW<struct chunk_hdr>(chunk);
+@*/
+{
+       /*@ assert(member_shift<struct chunk_hdr>(chunk, node)
+                   != member_shift<struct hyp_allocator>(allocator, chunks)); @*/
+}
+
 
 // This function takes
 //   - a chunk *not in the chunk list*
