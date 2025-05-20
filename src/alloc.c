@@ -65,7 +65,7 @@ struct chunk_hdr_only {
 
 // Auxiliary functions for chunk_hdr
 /*@
-function (boolean) hash_change_only (struct chunk_hdr pre, struct chunk_hdr post)
+function (boolean) hash_change_only (struct chunk_hdr_only pre, struct chunk_hdr_only post)
 {
     pre.alloc_size == post.alloc_size &&
     pre.mapped_size == post.mapped_size &&
@@ -123,9 +123,9 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 static inline void chunk_hash_update(struct chunk_hdr *chunk)
 /*@
     requires
-        take C_pre = RW<struct chunk_hdr>(chunk);
+        take C_pre = Own_chunk_hdr(chunk);
     ensures
-        take C_post = RW<struct chunk_hdr>(chunk);
+        take C_post = Own_chunk_hdr(chunk);
         hash_change_only(C_pre, C_post);
 @*/
 {
@@ -331,24 +331,6 @@ function (u64) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
     (u64)chunk_p + (u64)chunk.mapped_size
 }
 @*/
-
-void sanity_focus(struct chunk_hdr *chunk,
-                  struct hyp_allocator *allocator)
-/*@
-requires
-//take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-!is_null(chunk);
-let x = member_shift<struct chunk_hdr>(chunk, node);
-let header_address = array_shift<char>(x, -(offsetof(chunk_hdr, node)) );
-take H = RW<struct chunk_hdr>(header_address);
-ensures
-//take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-take H2 = RW<struct chunk_hdr>(chunk);
-@*/
-{
-        struct list_head x = chunk->node;
-        u32 y = chunk->hash;
-}
 
 
 // TODO(HK): C_pre should replaced with cn_chunk_hdr_option to handle the
@@ -857,28 +839,34 @@ ensures
     };
 @*/
 
-// TODO(HK): write a complete spec
 // TODO(HK): fix this after the elaboration bug is fixed
 //static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
+// HK: It takes a lot of time to prove this spec (more than 8 minutes on my machine)
 static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                          struct hyp_allocator *allocator)
 /*@
         requires
+                !is_null(chunk);
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
                 let C_pre = HA_pre.lseg.chunk;
         ensures
                 take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let C_post = HA_post.lseg.chunk;
+                HA_post.ha == HA_pre.ha;
+                HA_post.lseg.before == HA_pre.lseg.before;
+                HA_post.lseg.after == HA_pre.lseg.after;
 
+                let C_post = HA_post.lseg.chunk;
                 C_post.alloc_size == C_pre.alloc_size;
                 C_post.va_size == C_pre.va_size;
                 C_post.header_address == C_pre.header_address;
 
-                let cond = (u64)C_pre.va_size >= map_size;
-                !cond implies return == -EINVAL();
-                return == 0i32 implies
+                let cond = (u64)C_pre.va_size - (u64)C_pre.mapped_size < map_size;
+                cond implies return == -EINVAL();
+
+                (!cond && return == 0i32) implies
                 C_post.mapped_size == (C_pre.mapped_size + (u32)map_size);
-                return != 0i32 implies
+
+                (!cond && return != 0i32) implies
                 C_post.mapped_size == C_pre.mapped_size;
 @*/
 {
@@ -887,16 +875,20 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         if (chunk_unmapped_size(chunk, allocator) < map_size)
                 return -EINVAL;
 
-        // TODO(HK): this function returns a "new memory ownership", so we have
-        // to handle this
         ret = hyp_allocator_map(allocator, chunk_unmapped_region(chunk),
                                 map_size);
         if (ret)
                 return ret;
 
-        /*@ apply ConcatArray(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)chunk->mapped_size - Cn_chunk_hdr_size(), (u64)map_size); @*/
-
         chunk->mapped_size += map_size;
+        /*@ split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node),
+                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node)->next,
+                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         chunk_hash_update(chunk);
 
         return 0;
@@ -1135,7 +1127,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 expected_mapping = new_chunk_addr + chunk_hdr_size() -
                                         (unsigned long)chunk_data(chunk);
         }
-        // TODO: memcache part. We ignore this for now (HK).
         missing_map = chunk_needs_mapping(chunk, expected_mapping);
         if (missing_map) {
                 ret = chunk_inc_map(chunk, missing_map, allocator);
