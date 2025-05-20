@@ -457,9 +457,15 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 
 /*@
     requires
+        !is_null(chunk);
+        !is_null(prev);
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
         let lseg_pre = HA_pre.lseg;
-        take Chunk = Own_chunk_hdr(chunk);
+        //take Chunk = RW<struct chunk_hdr_only>(chunk);
+        // The following two lines are morally equivalent, but only the first one
+        // is accepted by CN. (WHY??)
+        take Chunk = RW<struct chunk_hdr_only>(chunk);
+        //take Chunk = Own_chunk_hdr(chunk);
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
         let lseg_post = HA_post.lseg;
@@ -496,7 +502,14 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         //   - prev must be in the chunk list from the precondition
         //   - that implies we have the ownership of prev
 
-        /*@ split_case ptr_eq(prev->node.next,HA_pre.ha.head); @*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(prev, node),
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(prev, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)->next));@*/
         list_add(&chunk->node, &prev->node);
 
         chunk_hash_update(prev);
@@ -630,6 +643,7 @@ predicate (cn_hyp_allocator) ChunkInstallPre(pointer chunk, u64 size, pointer pr
 {
         if (is_null(prev))
         {
+        assert(!is_null(chunk));
         take a_in=Cn_hyp_allocator(allocator);
         assert(a_in.hdrs==Chunk_nil{});
         return a_in.ha;
@@ -648,6 +662,7 @@ predicate (boolean) ChunkInstallPost(pointer chunk, u64 size, pointer prev, poin
 {
         if (is_null(prev))
         {
+        assert(!is_null(chunk));
         take HA_post =Cn_hyp_allocator_focusing_on(allocator, chunk);
         let allocator_end = (u64)ha_pre.start + (u64)ha_pre.size;
         let first_chunk = {
@@ -659,11 +674,22 @@ predicate (boolean) ChunkInstallPost(pointer chunk, u64 size, pointer prev, poin
         assert(HA_post.lseg.after == Chunk_nil {});
         assert(HA_post.lseg.chunk == first_chunk);
         assert(HA_post.lseg.before == Chunk_nil {} );
+        assert(HA_post.ha == ha_pre);
         return true;
         }
         else
         {
-                //todo
+                // todo
+//                let C = {
+//                        header_address: (u64)chunk,
+//                        mapped_size: (u32)prev_mapped_size,
+//                        alloc_size: (u32) size,
+//                        va_size: (u32) (allocator_end - (u64)chunk)
+//                };
+//                take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
+//                assert(ha_pre.ha == HA_post.ha);
+//                assert(HA_post.lseg.after == ChunkHdr_some { hdr: chunk, tl: ha_pre.lseg.after });
+//
                 return true;
         }
 }
@@ -1107,11 +1133,12 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        HA_pre.ha == HA_post.ha;
+        HA_post.lseg.before == HA_pre.lseg.before;
         let C_post = HA_post.lseg.chunk;
         C_post.alloc_size == (u32)size;
         C_post.mapped_size == C_pre.mapped_size;
         return == 0i32;
-        // TODO: write some spec on HA_out and HA_in
 @*/
 {
         unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);

@@ -140,7 +140,6 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
 {
         take cn_hdr = RW<struct chunk_hdr_only>(header_address);
-        assert(cn_hdr.alloc_size <= cn_hdr.mapped_size);
         return cn_hdr;
 }
 // Cn_chunk_hdr validates the locations of the chunk header and its next are
@@ -148,6 +147,7 @@ predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
 {
         take hdr = Own_chunk_hdr(header_address);
+        assert(hdr.alloc_size <= hdr.mapped_size);
 
         let end = ha.start + (u64)ha.size;
         let va_size = (Cn_list_is_last(hdr.node, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
