@@ -332,12 +332,32 @@ function (u64) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
 }
 @*/
 
+void sanity_focus(struct chunk_hdr *chunk,
+                  struct hyp_allocator *allocator)
+/*@
+requires
+//take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+!is_null(chunk);
+let x = member_shift<struct chunk_hdr>(chunk, node);
+let header_address = array_shift<char>(x, -(offsetof(chunk_hdr, node)) );
+take H = RW<struct chunk_hdr>(header_address);
+ensures
+//take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+take H2 = RW<struct chunk_hdr>(chunk);
+@*/
+{
+        struct list_head x = chunk->node;
+        u32 y = chunk->hash;
+}
+
+
 // TODO(HK): C_pre should replaced with cn_chunk_hdr_option to handle the
 // last chunk case
 static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                                                 struct hyp_allocator *allocator)
 /*@
         requires
+                !is_null(chunk);
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
                 let ha = HA_pre.ha;
                 let C = HA_pre.lseg.chunk;
@@ -345,7 +365,7 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
         ensures
                 take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
                 HA_post == HA_pre;
-                return == (u64)C.va_size;
+                return == (u64)C.va_size - (u64)C.mapped_size;
 @*/
 {
         struct chunk_hdr *next = chunk_get_next(chunk, allocator);
