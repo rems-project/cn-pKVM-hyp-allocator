@@ -651,7 +651,6 @@ predicate (cn_hyp_allocator) ChunkInstallPre(pointer chunk, u64 size, pointer pr
 {
         if (is_null(prev))
         {
-        assert(!is_null(chunk));
         take a_in=Cn_hyp_allocator(allocator);
         assert(a_in.hdrs==Chunk_nil{});
         return a_in.ha;
@@ -725,6 +724,17 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         /* First chunk, first allocation */
         if (!prev) {
+                /*@ split_case(ptr_eq(
+                        member_shift<struct chunk_hdr>(chunk, node),
+                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ split_case(ptr_eq(
+                        member_shift<struct chunk_hdr>(chunk, node)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+                /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+                /*@
+                    split_case(is_null(prev));
+                @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: non-rust ownership type part
                 // See the comments in chunk_list_insert
