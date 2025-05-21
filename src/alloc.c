@@ -787,11 +787,11 @@ static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
 /*@
         requires
-                take C_pre = RW<struct chunk_hdr>(chunk);
+                take C_pre = RW<struct chunk_hdr_only>(chunk);
                 let mapping_needs = Cn_chunk_size(size);
                 let mapping_missing = PAGE_ALIGN(mapping_needs - (u64)C_pre.mapped_size);
         ensures
-                take C_post = RW<struct chunk_hdr>(chunk);
+                take C_post = RW<struct chunk_hdr_only>(chunk);
                 C_pre == C_post;
                 let res = (mapping_needs <= (u64)C_pre.mapped_size) ?
                            0u64 : mapping_missing;
@@ -1133,6 +1133,17 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
 
         return addr + chunk_size(0UL) < chunk_end;
 }
+/*@
+function (boolean) chunk_recycle_aux(datatype cn_chunk_hdrs pre, datatype cn_chunk_hdrs post, cn_chunk_hdr next_chunk )
+{
+        match (post) {
+                Chunk_nil {} => { false }
+                Chunk_cons { hd: chunk, tl: tl } => {
+                        tl == pre && chunk == next_chunk
+                }
+        }
+}
+@*/
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
@@ -1140,6 +1151,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 // -
 /*@
     requires
+        !is_null(chunk);
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
     ensures
@@ -1148,9 +1160,25 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         HA_pre.ha == HA_post.ha;
         HA_post.lseg.before == HA_pre.lseg.before;
         let C_post = HA_post.lseg.chunk;
-        C_post.alloc_size == (u32)size;
-        C_post.mapped_size == C_pre.mapped_size;
-        return == 0i32;
+        let new_chunk_addr = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
+        let chunk_va_size_post = new_chunk_addr - C_post.header_address;
+        let new_chunk = {
+                header_address: new_chunk_addr,
+                mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
+                alloc_size: (u32)size,
+                va_size: (u32)(C_pre.va_size - C_pre.mapped_size)
+        };
+
+        return == 0i32 implies (
+                C_post.header_address == C_pre.header_address
+                && C_post.mapped_size == C_pre.mapped_size
+                && C_post.alloc_size == (u32)size
+                && (u64)C_post.va_size == chunk_va_size_post
+                && chunk_recycle_aux(HA_pre.lseg.after, HA_post.lseg.after, new_chunk_addr)
+        );
+        return != 0i32 implies C_post == C_pre;
+        return != 0i32 implies HA_post.lseg.after == HA_pre.lseg.after;
+
 @*/
 {
         unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);
@@ -1159,14 +1187,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         int ret;
 
         new_chunk_addr = chunk_addr_fixup(new_chunk_addr);
-        /*@ split_case(ptr_eq(
-                    member_shift<struct chunk_hdr>(chunk, node),
-                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ split_case(ptr_eq(
-                    member_shift<struct chunk_hdr>(chunk, node)->next,
-                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         if (chunk_can_split(chunk, new_chunk_addr, allocator)) {
                 new_chunk = (struct chunk_hdr *)new_chunk_addr;
                 // HK: when we can split the chunk,
