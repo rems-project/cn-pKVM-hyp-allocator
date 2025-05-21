@@ -432,42 +432,6 @@ function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 }
 @*/
 
-/*@
-predicate (struct hyp_allocator) My_alloc(pointer p)
-{
-        take a = RW<struct hyp_allocator>(p);
-        return a;
-}
-predicate (struct chunk_hdr) My_Own_chunk_hdr(pointer p)
-{
-        take c = RW<struct chunk_hdr>(p);
-        return c;
-}
-//predicate ({cn_hyp_allocator ha, cn_lseg lseg}) My_focus( pointer p, pointer chunk) { // p points to a struct hyp_allocator
-predicate ({struct hyp_allocator ha}) My_focus( pointer p) { // p points to a struct hyp_allocator
-        take ha = My_alloc(p);
-
-        //take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, chunk);
-        return( {ha:ha} );
-        // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
-      }
-@*/
-
-void debug(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
-/*@
-    requires
-        take HA_pre = My_focus(allocator);
-        take Chunk = My_Own_chunk_hdr(chunk);
-        //take Chunk = RW<struct chunk_hdr_only>(chunk);
-    ensures
-        take HA_post = My_focus(allocator);
-        take Chunk_post = RW<struct chunk_hdr_only>(chunk);
-@*/
-{
-       /*@ assert(member_shift<struct chunk_hdr>(chunk, node)
-                   != member_shift<struct hyp_allocator>(allocator, chunks)); @*/
-}
-
 
 // This function takes
 //   - a chunk *not in the chunk list*
@@ -690,6 +654,7 @@ predicate (cn_hyp_allocator) ChunkInstallPre(pointer chunk, u64 size, pointer pr
         if (is_null(prev))
         {
         take a_in=Cn_hyp_allocator(allocator);
+        take Chunk = Own_chunk_hdr(chunk);
         assert(a_in.hdrs==Chunk_nil{});
         return a_in.ha;
         }
@@ -762,20 +727,14 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         /* First chunk, first allocation */
         if (!prev) {
-                /*@ split_case(ptr_eq(
-                        member_shift<struct chunk_hdr>(chunk, node),
-                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                /*@ split_case(ptr_eq(
-                        member_shift<struct chunk_hdr>(chunk, node)->next,
-                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
-                /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
                 /*@
                     split_case(is_null(prev));
                 @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: non-rust ownership type part
                 // See the comments in chunk_list_insert
+                // HK: Currently we encounter the CN issue #148,
+                // so we cannot go further with the spec.
                 list_add(&chunk->node, &allocator->chunks);
                 chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
                 chunk->alloc_size = size;
