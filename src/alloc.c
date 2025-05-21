@@ -650,58 +650,91 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
 
 /*@
 // provably rewrite this by using lseg
-predicate (cn_hyp_allocator) ChunkInstallPre(pointer chunk, u64 size, pointer prev, pointer allocator)
+predicate ({cn_hyp_allocator ha, cn_lseg lseg, struct chunk_hdr_only chunk}) ChunkInstallPre(pointer chunk, u64 size, pointer prev, pointer allocator)
 {
         if (is_null(prev))
         {
-        take a_in=Cn_hyp_allocator(allocator);
-        take Chunk = Own_chunk_hdr(chunk);
-        assert(a_in.hdrs==Chunk_nil{});
-        return a_in.ha;
+                take ha = Cn_hyp_allocator_only(allocator);
+                take a_in=Cn_hyp_allocator(allocator);
+                take Chunk = Own_chunk_hdr(chunk);
+                assert(a_in.hdrs==Chunk_nil{});
+                let dummy = {
+                        header_address: 0u64,
+                        mapped_size: 0u32,
+                        alloc_size: 0u32,
+                        va_size: 0u32
+                };
+                return {ha: a_in.ha, lseg: {before: Chunk_nil {}, chunk: dummy, after: Chunk_nil {} }, chunk: Chunk};
         }
         else
         {
-        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
-        take Chunk = Own_chunk_hdr(chunk);
-        let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
-        // chunk is located in the allocator's memory
-        assert(HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end);
-        return HA_pre.ha;
+                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
+                take Chunk = Own_chunk_hdr(chunk);
+                let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
+                // chunk is located in the allocator's memory
+                assert(HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end);
+                return {ha: HA_pre.ha, lseg: HA_pre.lseg, chunk: Chunk};
         }
 }
-predicate (boolean) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer allocator, cn_hyp_allocator ha_pre)
+predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer allocator, cn_hyp_allocator ha, cn_lseg lseg, struct chunk_hdr_only C_pre, i32 ret)
 {
         if (is_null(prev))
         {
-        assert(!is_null(chunk));
-        take HA_post =Cn_hyp_allocator_focusing_on(allocator, chunk);
-        let allocator_end = (u64)ha_pre.start + (u64)ha_pre.size;
-        let first_chunk = {
-                header_address: (u64)chunk,
-                mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
-                alloc_size: (u32) size,
-                va_size: (u32) (allocator_end - (u64)chunk)
-        };
-        assert(HA_post.lseg.after == Chunk_nil {});
-        assert(HA_post.lseg.chunk == first_chunk);
-        assert(HA_post.lseg.before == Chunk_nil {} );
-        assert(HA_post.ha == ha_pre);
-        return true;
+                assert(!is_null(chunk));
+                take HA_post =Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let allocator_end = (u64)ha.start + (u64)ha.size;
+                let first_chunk = {
+                        header_address: (u64)chunk,
+                        mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
+                        alloc_size: (u32) size,
+                        va_size: (u32) (allocator_end - (u64)chunk)
+                };
+                assert(HA_post.lseg.after == Chunk_nil {});
+                assert(HA_post.lseg.chunk == first_chunk);
+                assert(HA_post.lseg.before == Chunk_nil {} );
+                assert(HA_post.ha == ha);
+                assert(ret == 0i32);
+                return;
         }
         else
         {
-  //              let prev_mapped_size =
-  //              let C = {
-  //                      header_address: (u64)chunk,
-  //                      mapped_size: (u32)prev_mapped_size,
-  //                      alloc_size: (u32) size,
-  //                      va_size: (u32) (allocator_end - (u64)chunk)
-  //              };
-  //              take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
-  //              assert(ha_pre.ha == HA_post.ha);
-  //              assert(HA_post.lseg.after == ChunkHdr_some { hdr: C, tl: ha_pre.lseg.after });
-//
-                return true;
+                take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
+                assert(HA_post.ha == ha);
+                assert(HA_post.lseg.before == lseg.before);
+
+                assert(!is_null(chunk));
+
+                let P_pre = lseg.chunk;
+                let P_post = HA_post.lseg.chunk;
+
+                let prev_u = (u64)prev + (u64)P_pre.mapped_size;
+                let prev_cd = (u64)prev + (u64)offsetof(chunk_hdr, data);
+
+
+                let cond = prev_u < (u64)chunk;
+                let cond2 = (u64)prev_cd + (u64)P_pre.alloc_size > (u64)chunk;
+
+                assert(cond implies ret == -EINVAL());
+                assert(cond2 implies ret == -EINVAL());
+
+                let prev_mapped_size = P_pre.mapped_size;
+                let prev_va_size = (u32)((u64)chunk - (u64)prev);
+                assert(P_post == {
+                        header_address: (u64)prev,
+                        mapped_size: prev_va_size,
+                        alloc_size: (u32)P_post.alloc_size,
+                        va_size: prev_va_size
+                });
+
+                let C_post = {
+                        header_address: (u64)chunk,
+                        mapped_size: prev_mapped_size - P_post.mapped_size,
+                        alloc_size: (u32)size,
+                        va_size: (u32)((u64)P_pre.va_size - (u64)P_post.va_size)
+                };
+                assert(!cond && !cond2 implies ret == 0i32);
+                assert(!cond && !cond2 implies lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
+                return;
         }
 }
 @*/
@@ -720,7 +753,7 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
     requires
         take Pre = ChunkInstallPre(chunk, size, prev, allocator);
     ensures
-        take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre);
+        take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre.ha, Pre.lseg, Pre.chunk, return);
 @*/
 
 {
