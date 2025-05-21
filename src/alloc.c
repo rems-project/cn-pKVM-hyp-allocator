@@ -904,10 +904,10 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                 let cond = (u64)C_pre.va_size - (u64)C_pre.mapped_size < map_size;
                 cond implies return == -EINVAL();
 
-                (!cond && return == 0i32) implies
+                (return == 0i32) implies
                 C_post.mapped_size == (C_pre.mapped_size + (u32)map_size);
 
-                (!cond && return != 0i32) implies
+                (return != 0i32) implies
                 C_post.mapped_size == C_pre.mapped_size;
 @*/
 {
