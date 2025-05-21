@@ -443,18 +443,25 @@ predicate (struct chunk_hdr) My_Own_chunk_hdr(pointer p)
         take c = RW<struct chunk_hdr>(p);
         return c;
 }
+//predicate ({cn_hyp_allocator ha, cn_lseg lseg}) My_focus( pointer p, pointer chunk) { // p points to a struct hyp_allocator
+predicate ({struct hyp_allocator ha}) My_focus( pointer p) { // p points to a struct hyp_allocator
+        take ha = My_alloc(p);
+
+        //take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, chunk);
+        return( {ha:ha} );
+        // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
+      }
 @*/
 
-void debug(struct chunk_hdr *chunk,
-                                     struct chunk_hdr *prev,
-                                     struct hyp_allocator *allocator)
+void debug(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 /*@
     requires
-        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
-        //take ha = Cn_hyp_allocator_only(allocator);
-        //take H = My_alloc(allocator);
+        take HA_pre = My_focus(allocator);
         take Chunk = My_Own_chunk_hdr(chunk);
-        //take Chunk = RW<struct chunk_hdr>(chunk);
+        //take Chunk = RW<struct chunk_hdr_only>(chunk);
+    ensures
+        take HA_post = My_focus(allocator);
+        take Chunk_post = RW<struct chunk_hdr_only>(chunk);
 @*/
 {
        /*@ assert(member_shift<struct chunk_hdr>(chunk, node)
