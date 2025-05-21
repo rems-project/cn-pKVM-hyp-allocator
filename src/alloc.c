@@ -1094,32 +1094,22 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
         |--------------^
 */
 /*@
-    requires
-        take A_pre = Cn_hyp_allocator_only(allocator);
-        take B_pre = Cn_chunk_hdr(chunk, A_pre);
-        let node_ptr = member_shift<struct chunk_hdr>(chunk, node);
-        let C_pre = B_pre.Hdr;
-        let Node = B_pre.Node;
-        let next_node = Node.next;
-        let next_chunk = my_container_of_chunk_hdr(next_node);
-        take D_pre = Cn_chunk_hdr(next_chunk, A_pre);
-        ptr_eq(D_pre.Node.prev, member_shift<struct chunk_hdr>(chunk, node));
-    ensures
-        take A_post = Cn_hyp_allocator_only(allocator);
-        take B_post = Cn_chunk_hdr(chunk, A_post);
-        take D_post = Cn_chunk_hdr(next_chunk, A_post);
-        let chunk_end = (u64)chunk + (u64)C_pre.mapped_size +
-                (u64)Cn_chunk_unmapped_size(C_pre);
-
-        Cn_list_is_last(Node, A_post.head)
-        implies return == 0u8;
-        !Cn_list_is_last(Node, A_post.head)
-        implies return == (((addr + Cn_chunk_size(0u64)) < chunk_end) ? 1u8 : 0u8);
-        A_pre == A_post;
-        B_pre == B_post;
-        D_pre == D_post;
-        // HK: To prove the above, we require an invariant stating that
-        // all sizes are less than 2^32 to avoid integer overflow.
+        requires
+                !is_null(chunk);
+                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let C = HA_pre.lseg.chunk;
+        ensures
+                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                HA_post == HA_pre;
+                let chunk_end = C.header_address + (u64)C.va_size;
+                match (HA_post.lseg.after) {
+                        Chunk_nil {} => {
+                                return == 0u8
+                        }
+                        Chunk_cons {hd:hdr, tl:tl} => {
+                                return == (((addr + Cn_chunk_size(0u64)) < chunk_end) ? 1u8 : 0u8)
+                        }
+                };
 @*/
 {
         unsigned long chunk_end;
@@ -1162,6 +1152,14 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         int ret;
 
         new_chunk_addr = chunk_addr_fixup(new_chunk_addr);
+        /*@ split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node),
+                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node)->next,
+                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         if (chunk_can_split(chunk, new_chunk_addr, allocator)) {
                 new_chunk = (struct chunk_hdr *)new_chunk_addr;
                 // HK: when we can split the chunk,
