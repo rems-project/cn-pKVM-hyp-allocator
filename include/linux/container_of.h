@@ -5,10 +5,7 @@
 #ifndef _LINUX_CONTAINER_OF_H
 #define _LINUX_CONTAINER_OF_H
 
-// DUMMY
-#ifndef static_assert
-#define static_assert(X,Y)
-#endif
+#include <assert.h>
 
 /**
  * container_of - cast a member of a structure out to the containing structure
