@@ -972,16 +972,23 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
         return reclaimable;
 }
 
+/*@
+function (u64) Cn_chunk_addr_fixup(u64 addr)
+{
+
+        // let min_chunk_size = Cn_chunk_size(0u64);
+        // let page = PAGE_ALIGN_DOWN(addr);
+        // let delta = addr - page;
+        // let res = delta == 0u64 ? addr :
+        //         (delta < min_chunk_size ? (page + min_chunk_size) : addr);
+        (addr - PAGE_ALIGN_DOWN(addr)) == 0u64 ? addr :
+                ((addr - PAGE_ALIGN_DOWN(addr)) < Cn_chunk_size(0u64) ? (PAGE_ALIGN_DOWN(addr) + Cn_chunk_size(0u64)) : addr)
+}
+@*/
+
 static unsigned long chunk_addr_fixup(unsigned long addr)
 /*@
-    requires
-        let min_chunk_size = Cn_chunk_size(0u64);
-        let page = PAGE_ALIGN_DOWN(addr);
-        let delta = addr - page;
-        let res = delta == 0u64 ? addr :
-                (delta < min_chunk_size ? (page + min_chunk_size) : addr);
-    ensures
-        return == res;
+    ensures return == Cn_chunk_addr_fixup(addr);
 @*/
 {
         unsigned long min_chunk_size = chunk_size(0UL);
