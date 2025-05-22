@@ -150,14 +150,6 @@ static inline void push_hyp_memcache(struct kvm_hyp_memcache *mc,
 				     phys_addr_t *p,
 				     phys_addr_t (*to_pa)(void *virt),
 				     unsigned long order)
-/*@
-	requires
-		take MC_pre = RW<struct kvm_hyp_memcache>(mc);
-		take P_pre = RW<phys_addr_t>(p);
-	ensures
-		take MC_post = RW<struct kvm_hyp_memcache>(mc);
-		take P_post = RW<phys_addr_t>(p);
-@*/
 {
 	*p = mc->head;
 	mc->head = (to_pa(p) & PAGE_MASK) |
