@@ -118,7 +118,7 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
     }
 
         if (len) {
-                hash ^= hash_32(*(u32 *)data, 32);       
+                hash ^= hash_32(*(u32 *)data, 32);
         }
 
         return hash;
@@ -1059,7 +1059,7 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
         if (delta < min_chunk_size) {
                 return page + min_chunk_size;
         }
-                
+
 
         return addr;
 }
@@ -1408,6 +1408,45 @@ predicate (boolean) GetFreeChunk(pointer allocator, u64 size, pointer result, {c
 }
 @*/
 
+/*@
+function [rec] (cn_chunk_hdr_option) GetChunk(datatype cn_chunk_hdrs hdrs, pointer chunk)
+{
+        match (hdrs) {
+                Chunk_nil {} => { Chunk_none {} }
+                Chunk_cons { hd: chunk_hdr, tl: tl } => {
+                        if (chunk_hdr.header_address == (u64)chunk) {
+                                Chunk_some { hdr: chunk_hdr }
+                        }
+                        else {
+                                GetChunk(tl, chunk)
+                        }
+                }
+        }
+}
+function (boolean) GetFreeChunkInvAux(datatype cn_chunk_hdrs hdrs, pointer chunk, pointer best_chunk, u64 best_available_size)
+{
+        match (GetChunk(hdrs, chunk)) {
+                Chunk_none {} => { is_null(best_chunk) }
+                Chunk_some { hdr: chunk_hdr } => {
+                        best_available_size == (u64)chunk_hdr.va_size
+                }
+        }
+
+}
+predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, u64 best_available_size, u64 size)
+{
+        if (ptr_eq(chunk, member_shift<struct hyp_allocator>(allocator, chunks))) {
+                return;
+        } else {
+                take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let lseg = HA.lseg;
+                assert(best_available_size >= size);
+                assert(GetFreeChunkInvAux(lseg.before, chunk, best_chunk, best_available_size));
+                return;
+        }
+}
+@*/
+
 static struct chunk_hdr *
 get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // should the spec of this characterise "best", or just ensure that this returns a legit chunk?  We guess the latter is sufficient for functional correctness and we'll do that
@@ -1448,6 +1487,7 @@ ensures
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
                 {size} unchanged;
+                take I = GetFreeChunkInv(allocator, chunk, best_chunk, best_available_size, size);
                 //take Fst = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, Chunk_nil{});
         @*/
         {
@@ -1513,7 +1553,6 @@ predicate void MaybeCn_char_array(pointer p, u64 size)
 
 void *hyp_alloc(size_t size)
 /*@
-        requires true;
         // TODO: allocator (global variable) ownership
         ensures take U = MaybeCn_char_array(return, size);
 @*/
@@ -1813,7 +1852,7 @@ int hyp_alloc_init(size_t size)
         if (size > U32_MAX) {
                 return -EINVAL;
         }
-                
+
 
         ret = pkvm_alloc_private_va_range(size, &allocator->start);
         if (ret) {
