@@ -130,6 +130,9 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
                 start: ha.start,
                 size:  ha.size
         };
+        assert(!is_null(cn_hyp.head));
+        assert(!is_null(cn_hyp.first));
+        assert(!is_null(cn_hyp.last));
         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
         return cn_hyp;
 }
@@ -207,6 +210,7 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
 {
         if (ptr_eq(p,last)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
+                assert(ha.last == prev);
                 return Chunk_nil {};
         } else {
                 take T = Cn_chunk_hdrs_non_last(p, prev, ha, last);

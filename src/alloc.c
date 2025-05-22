@@ -1447,6 +1447,31 @@ predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_
 }
 @*/
 
+// /*@
+// lemma HypAllocator2Inv(pointer allocator)
+//         requires
+//                 take HA = Cn_hyp_allocator(allocator);
+//         ensures
+//                 GetFreeChunkInv(allocator, ^)
+//
+// @*/
+
+// HK: for debugging the invariant spec
+void first_chunk(struct hyp_allocator *allocator)
+/*@
+        requires
+                take HA = Cn_hyp_allocator(allocator);
+                let C = HA.ha.first;
+        ensures
+                take HA_post = GetFreeChunkInv(allocator, C, NULL, 0u64, 0u64);
+@*/
+{
+        /*@ split_case(
+                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )); @*/
+}
+
 static struct chunk_hdr *
 get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // should the spec of this characterise "best", or just ensure that this returns a legit chunk?  We guess the latter is sufficient for functional correctness and we'll do that
@@ -1484,6 +1509,11 @@ ensures
         //   take Best = Chunk_hdr(best_chunk);
         //   take
         // }
+        // HK: Unfolding GetFreeChunkInv for the loop entry
+        /*@ split_case(
+                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )); @*/
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
                 {size} unchanged;
