@@ -317,9 +317,9 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
 static inline struct chunk_hdr* chunk_get(void *addr)
 /*@
         requires
-                take C_pre = RW<struct chunk_hdr>(addr);
+                take C_pre = RW<struct chunk_hdr_only>(addr);
         ensures
-                take C_post = RW<struct chunk_hdr>(addr);
+                take C_post = RW<struct chunk_hdr_only>(addr);
                 C_pre == C_post;
                 ptr_eq(return, addr);
 @*/
@@ -1678,6 +1678,14 @@ void *hyp_alloc_account(size_t size, struct kvm *host_kvm)
 #endif /* STANDALONE */
 
 void hyp_free(void *addr)
+/*@
+        requires
+                !is_null(addr);
+                let header_address = (u64)addr - Cn_chunk_hdr_size();
+                take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator, (pointer)header_address);
+        ensures
+                take HA_post = Cn_hyp_allocator(&hyp_allocator);
+@*/
 {
         struct chunk_hdr *chunk, *prev_chunk, *next_chunk;
         struct hyp_allocator *allocator = &hyp_allocator;
