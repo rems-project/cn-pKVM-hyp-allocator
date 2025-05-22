@@ -296,7 +296,7 @@ ensures
 predicate (void) FirstChunk(pointer first_chunk, datatype cn_chunk_hdrs hdrs, u32 size)
 {
         if (hdrs == Chunk_nil {}) {
-                take U = RW<struct chunk_hdr_only>(first_chunk);
+                take U = Own_chunk_hdr(first_chunk);
                 take Arr = each(u32 i; i <= (u32)sizeof<struct chunk_hdr_only> && i < size){
                         W<char>(array_shift<char>(first_chunk, i))
                 };

@@ -654,6 +654,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, struct chunk_hdr_only chunk}) Chu
 {
         if (is_null(prev))
         {
+                assert(!is_null(chunk));
                 take a_in=Cn_hyp_allocator(allocator);
                 take Chunk = Own_chunk_hdr(chunk);
                 assert(a_in.hdrs==Chunk_nil{});
