@@ -293,11 +293,24 @@ ensures
         let lseg2 = {before: before, chunk: chunk, after: after};
         C2 == {ha: ha, hdrs: ConcatChunkList(before, Chunk_cons {hd: chunk, tl: after})};
 
+predicate (void) FirstChunk(pointer first_chunk, datatype cn_chunk_hdrs hdrs, u32 size)
+{
+        if (hdrs == Chunk_nil {}) {
+                take U = RW<struct chunk_hdr_only>(first_chunk);
+                take Arr = each(u32 i; i <= (u32)sizeof<struct chunk_hdr_only> && i < size){
+                        W<char>(array_shift<char>(first_chunk, i))
+                };
+                return;
+        } else {
+                return;
+        }
+}
 predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
   take ha = Cn_hyp_allocator_only(p);
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);
+  take U = FirstChunk((pointer)ha.start, hdrs, ha.size);
   return( {ha:ha, hdrs:hdrs} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }

@@ -569,13 +569,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
-/*@
-        trusted;
-        requires
-                true;
-        ensures
-                true;
-@*/
 {
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
         unsigned long va_end = va + size;
@@ -1360,10 +1353,13 @@ predicate (boolean) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre,s
 
 
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
-/*@ requires take a_in=Cn_hyp_allocator(allocator);
+/*@
+    requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
+    take MC = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
+    take MC_post = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
     X;
 @*/
 {
@@ -1375,6 +1371,8 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
                 return ret;
         }
 
+        /*@ split_case(a_in.hdrs==Chunk_nil{}); @*/
+        /*@ split_case(is_null(NULL)); @*/
         return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
 }
 
