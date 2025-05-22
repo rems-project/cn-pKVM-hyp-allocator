@@ -1551,10 +1551,16 @@ predicate void MaybeCn_char_array(pointer p, u64 size)
 }
 @*/
 
-void *hyp_alloc(size_t size)
+// HK: To avoid "mismatched types" error
+//void *hyp_alloc(size_t size)
+void *hyp_alloc(unsigned long size)
 /*@
-        // TODO: allocator (global variable) ownership
-        ensures take U = MaybeCn_char_array(return, size);
+        accesses hyp_allocator_errno;
+        requires
+                take HA_pre = Cn_hyp_allocator(&hyp_allocator);
+        ensures
+                take U = MaybeCn_char_array(return, size);
+                take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
