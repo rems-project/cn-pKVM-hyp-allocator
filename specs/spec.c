@@ -294,15 +294,18 @@ ensures
         C2 == {ha: ha, hdrs: ConcatChunkList(before, Chunk_cons {hd: chunk, tl: after})};
 
 
-predicate (struct chunk_hdr_only) FirstChunk(pointer first_chunk,u32 size)
+predicate (struct chunk_hdr_only) FirstChunk(pointer first_chunk, u32 ha_size, u64 alloc_size)
 {
         // HK:This is actually wrong in terms of pa-based ownership.
         // Even though you have the va-ownership of the va region [start, start+size), you do not have the right to access the memory, as they are not mapped physically for now.
         // I will fix this later when I start to consider memcache things.
         assert(first_chunk != NULL);
+        assert(alloc_size != 0u64);
         take U = Own_chunk_hdr(first_chunk);
         let chunk_data = array_shift<unsigned char>(first_chunk, Cn_chunk_hdr_size());
-        take Arr = Cn_char_array(chunk_data, (u64)size - Cn_chunk_hdr_size());
+        take Arr = Cn_char_array(chunk_data, (u64)alloc_size);
+        let remaining = array_shift<unsigned char>(chunk_data, alloc_size);
+        take Remaining = Cn_char_array(remaining, (u64)ha_size - Cn_chunk_hdr_size() - alloc_size);
         return U;
 }
 predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator

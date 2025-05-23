@@ -705,8 +705,15 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, struct chunk_hdr_only chunk}) Chu
         {
                 assert(!is_null(chunk));
                 take a_in=Cn_hyp_allocator(allocator);
-                take Chunk = Own_chunk_hdr(chunk);
                 assert(a_in.hdrs==Chunk_nil{});
+
+                take Chunk = Own_chunk_hdr(chunk);
+                assert(size != 0u64);
+                // needs the ownership of the remaining
+                let chunk_data = array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + size);
+                let remaining = (u64)a_in.ha.size - Cn_chunk_hdr_size() - size;
+                take Arr = Cn_char_array(chunk_data, remaining);
+
                 let dummy = {
                         header_address: 0u64,
                         mapped_size: 0u32,
@@ -1408,7 +1415,7 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
         take a_out=Cn_hyp_allocator(allocator);
         assert(a_out.ha == ha_pre);
         assert(a_out.hdrs == Chunk_nil {});
-        take C = FirstChunk((pointer)a_out.ha.start, a_out.ha.size);
+        take C = FirstChunk((pointer)a_out.ha.start, a_out.ha.size, size);
         return;
     }
 }
@@ -1419,7 +1426,8 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
     (u64)a_in.ha.size >= size;
-    take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size);
+    size >= MIN_ALLOC(); // `hyp_alloc` ensures this.
+    take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size, size);
     // needed for fulminate for now
     take MC = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
     ensures
@@ -1644,10 +1652,10 @@ predicate void MaybeCn_char_array(pointer p, u64 size)
 }
 @*/
 /*@
-predicate (void) FirstAllocation(pointer start, u32 size, boolean cond)
+predicate (void) FirstAllocation(pointer start, u32 size, u64 alloc_size, boolean cond)
 {
         if (cond) {
-                take C = FirstChunk(start, size);
+                take C = FirstChunk(start, size, alloc_size);
                 return;
         } else {
                 return;
@@ -1662,7 +1670,7 @@ void *hyp_alloc(unsigned long size)
         accesses hyp_allocator_errno;
         requires
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
-                take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, HA_pre.hdrs == Chunk_nil {});
+                take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, cn_ALIGN(size, MIN_ALLOC()), HA_pre.hdrs == Chunk_nil {});
         ensures
                 take U = MaybeCn_char_array(return, size);
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);

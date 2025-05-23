@@ -86,6 +86,9 @@ do {									\
 function (i32) EINVAL() {
 	22i32
 }
+function (u64) cn_ALIGN(u64 x, u64 a) {
+	(x + (a - 1u64)) & ~(a - 1u64)
+}
 @*/
 
 #include <linux/bitfield.h>
