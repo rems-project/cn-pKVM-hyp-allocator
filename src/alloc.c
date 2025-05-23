@@ -1384,6 +1384,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@
     requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
+    take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size);
     take MC = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
@@ -1606,6 +1607,17 @@ predicate void MaybeCn_char_array(pointer p, u64 size)
         }
 }
 @*/
+/*@
+predicate (void) FirstAllocation(pointer start, u32 size, boolean cond)
+{
+        if (cond) {
+                take C = FirstChunk(start, size);
+                return;
+        } else {
+                return;
+        }
+}
+@*/
 
 // HK: To avoid "mismatched types" error
 //void *hyp_alloc(size_t size)
@@ -1614,6 +1626,7 @@ void *hyp_alloc(unsigned long size)
         accesses hyp_allocator_errno;
         requires
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
+                take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, HA_pre.hdrs == Chunk_nil {});
         ensures
                 take U = MaybeCn_char_array(return, size);
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
