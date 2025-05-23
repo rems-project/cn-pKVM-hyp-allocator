@@ -17,13 +17,9 @@ void* ident_to_va(phys_addr_t addr)
 
 
 int dummy_memcache(struct kvm_hyp_memcache *mc, u64 min_pages)
-/*@
-	requires take MC1 = Owned<struct kvm_hyp_memcache>(mc);
-	ensures take MC2 = Owned<struct kvm_hyp_memcache>(mc);
-@*/
 {
 	while (mc->nr_pages < min_pages) {
-		phys_addr_t *p = aligned_alloc(PAGE_SIZE, PAGE_SIZE);
+		phys_addr_t *p = cn_aligned_alloc(PAGE_SIZE, PAGE_SIZE);
 		memset(p, 0, PAGE_SIZE);
 
 		if (!p) {
@@ -128,11 +124,11 @@ int main(void)
 		fatal("hyp_alloc_init() failed", ret);
 	}
 
-	
+
 	ret = dummy_memcache(&host_mc, NR_PAGES);
 	if (ret) {
 		fatal("dummy_memcache() failed", ret);
-	} 
+	}
 
 	// printf("HYP_ALLOC_REFILL\n");
 	hyp_alloc_refill(&host_mc);
