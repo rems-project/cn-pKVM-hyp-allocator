@@ -1423,17 +1423,14 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
 
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@
+    accesses hyp_allocator_mc;
     requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
     (u64)a_in.ha.size >= size;
     size >= MIN_ALLOC(); // `hyp_alloc` ensures this.
     take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size, size);
-    // needed for fulminate for now
-    take MC = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
-    // needed for fulminate for now
-    take MC_post = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
 @*/
 {
         int ret;
@@ -1667,7 +1664,7 @@ predicate (void) FirstAllocation(pointer start, u32 size, u64 alloc_size, boolea
 //void *hyp_alloc(size_t size)
 void *hyp_alloc(unsigned long size)
 /*@
-        accesses hyp_allocator_errno;
+        accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
                 take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, cn_ALIGN(size, MIN_ALLOC()), HA_pre.hdrs == Chunk_nil {});
