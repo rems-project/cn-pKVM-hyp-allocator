@@ -1360,40 +1360,49 @@ unmap:
 //         }
 //
 // }
-predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre,size_t size, i32 ret)
+predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, size_t size, i32 ret)
 {
     if (ret == 0i32) {
         let start = (pointer)ha_pre.start;
-        take a_out=Cn_hyp_allocator_focusing_on(allocator, start);
-        // ownership to be returned to the client
+        take HA_post =Cn_hyp_allocator_focusing_on(allocator, start);
+        let allocator_end = (u64)HA_post.ha.start + (u64)HA_post.ha.size;
+        let first_chunk = {
+                header_address: (u64)start,
+                mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
+                alloc_size: (u32) size,
+                va_size: (u32) (allocator_end - (u64)start)
+        };
+        assert(HA_post.lseg.after == Chunk_nil {});
+        assert(HA_post.lseg.chunk == first_chunk);
+        assert(HA_post.lseg.before == Chunk_nil {} );
+        assert(HA_post.ha == ha_pre);
+
+        // the chunk allocated to the client
         let chunk_data = array_shift<unsigned char>(start, Cn_chunk_hdr_size());
-        take D = Cn_char_array(chunk_data, (u64)a_out.lseg.chunk.alloc_size);
-        assert(a_out.lseg.before == Chunk_nil {});
-        assert(a_out.lseg.chunk.header_address == (u64)start);
-        assert((u64)a_out.lseg.chunk.alloc_size > size);
-        assert(a_out.lseg.after == Chunk_nil{});
+        take Arr = Cn_char_array(chunk_data, size);
+
         return;
     } else {
         take a_out=Cn_hyp_allocator(allocator);
         assert(a_out.ha == ha_pre);
         assert(a_out.hdrs == Chunk_nil {});
+        take C = FirstChunk((pointer)a_out.ha.start, a_out.ha.size);
         return;
     }
 }
 @*/
-
 
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@
     requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
     take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size);
+    // needed for fulminate for now
     take MC = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
+    // needed for fulminate for now
     take MC_post = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
-    // the case where hyp_allocator_map fails
-    take D = FirstAllocation((pointer)a_in.ha.start, a_in.ha.size, return != 0i32);
 @*/
 {
         int ret;
