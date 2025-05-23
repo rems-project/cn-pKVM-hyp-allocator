@@ -1360,7 +1360,7 @@ unmap:
 //         }
 //
 // }
-predicate (boolean) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre,size_t size, i32 ret)
+predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre,size_t size, i32 ret)
 {
     if (ret == 0i32) {
         let start = (pointer)ha_pre.start;
@@ -1368,13 +1368,16 @@ predicate (boolean) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre,s
         // ownership to be returned to the client
         let chunk_data = array_shift<unsigned char>(start, Cn_chunk_hdr_size());
         take D = Cn_char_array(chunk_data, (u64)a_out.lseg.chunk.alloc_size);
-        return a_out.lseg.before == Chunk_nil {}
-            && a_out.lseg.chunk.header_address == (u64)start
-            && (u64)a_out.lseg.chunk.alloc_size > size
-            && a_out.lseg.after == Chunk_nil{};
+        assert(a_out.lseg.before == Chunk_nil {});
+        assert(a_out.lseg.chunk.header_address == (u64)start);
+        assert((u64)a_out.lseg.chunk.alloc_size > size);
+        assert(a_out.lseg.after == Chunk_nil{});
+        return;
     } else {
         take a_out=Cn_hyp_allocator(allocator);
-        return a_out.ha == ha_pre && a_out.hdrs == Chunk_nil {};
+        assert(a_out.ha == ha_pre);
+        assert(a_out.hdrs == Chunk_nil {});
+        return;
     }
 }
 @*/
@@ -1389,7 +1392,8 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
     take MC_post = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
-    X;
+    // the case where hyp_allocator_map fails
+    take D = FirstAllocation((pointer)a_in.ha.start, a_in.ha.size, return != 0i32);
 @*/
 {
         int ret;
