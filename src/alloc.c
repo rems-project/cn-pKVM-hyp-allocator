@@ -39,7 +39,14 @@ static DEFINE_PER_CPU(int, hyp_allocator_errno);
 static DEFINE_PER_CPU(struct kvm_hyp_memcache, hyp_allocator_mc);
 static DEFINE_PER_CPU(u8, hyp_allocator_missing_donations);
 
-/* HK: Why explicit padding?
+static struct hyp_allocator {
+        struct list_head        chunks;
+        unsigned long           start;
+        u32                     size;
+        hyp_spinlock_t          lock;
+} hyp_allocator;
+
+/* HK: Why "explicit padding"?
 
 First, the original `chunk_hdr`'s data access is a bit unusual: the `data` field
 is located at the end of the struct and is only one byte in size.
@@ -61,15 +68,6 @@ there will be a 4-byte overlap between the header and the data.
 That’s why I added 4 bytes of explicit padding to the struct.
 I’m not sure if this is the best solution, but it works for now.
 */
-
-static struct hyp_allocator {
-        struct list_head        chunks;
-        unsigned long           start;
-        u32                     size;
-        hyp_spinlock_t          lock;
-        /* CN */ u32            explicit_padding;
-} hyp_allocator;
-
 struct chunk_hdr {
         u32                     alloc_size;
         u32                     mapped_size;
@@ -87,6 +85,7 @@ struct chunk_hdr_only {
         u32                     mapped_size;
         struct list_head        node;
         u32                     hash;
+        /* CN */ u32            explicit_padding;
 };
 
 // Auxiliary functions for chunk_hdr
