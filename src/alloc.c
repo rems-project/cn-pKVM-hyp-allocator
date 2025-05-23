@@ -39,12 +39,35 @@ static DEFINE_PER_CPU(int, hyp_allocator_errno);
 static DEFINE_PER_CPU(struct kvm_hyp_memcache, hyp_allocator_mc);
 static DEFINE_PER_CPU(u8, hyp_allocator_missing_donations);
 
+/* HK: Why explicit padding?
+
+First, the original `chunk_hdr`'s data access is a bit unusual: the `data` field
+is located at the end of the struct and is only one byte in size.
+In `pkvm-hyp-allocator`, the macro `chunk_data` is used to access this field.
+However, if you use `struct chunk_hdr` to represent ownership, you
+unintentionally also own the first byte of the data.
+
+Note that changing `char data` to `char data[]` doesn’t work, because CN does not
+support this kind of array.
+
+To avoid this, I introduced `chunk_hdr_only`, which omits the `data` field.
+
+Then we encounter a second issue: padding.
+The size of `chunk_hdr` up to (but not including) `data` is 4 + 4 + 8 + 8 + 4 =
+28 bytes.  Some tool (Cerberus?) implicitly adds 4 bytes of padding to align the
+total size to 32 bytes. As a result, if you directly use `struct chunk_hdr_only`,
+there will be a 4-byte overlap between the header and the data.
+
+That’s why I added 4 bytes of explicit padding to the struct.
+I’m not sure if this is the best solution, but it works for now.
+*/
 
 static struct hyp_allocator {
         struct list_head        chunks;
         unsigned long           start;
         u32                     size;
         hyp_spinlock_t          lock;
+        /* CN */ u32            explicit_padding;
 } hyp_allocator;
 
 struct chunk_hdr {
@@ -52,8 +75,8 @@ struct chunk_hdr {
         u32                     mapped_size;
         struct list_head        node;
         u32                     hash;
+        /* CN */ u32            explicit_padding;
         char                    data __aligned(8);
-        /* CN: Fix this so that the sizeof works as expected */
 };
 // HK: having char data at the end of the struct is very annoying
 // If we write RW<struct chunk_hdr>, a single byte of the data is going to be owned
@@ -1396,6 +1419,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@
     requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
+    (u64)a_in.ha.size >= size;
     take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size);
     // needed for fulminate for now
     take MC = RW<struct kvm_hyp_memcache>(&hyp_allocator_mc);
