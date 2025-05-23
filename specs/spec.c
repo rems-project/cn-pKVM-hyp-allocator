@@ -295,6 +295,9 @@ ensures
 
 predicate (void) FirstChunk(pointer first_chunk, datatype cn_chunk_hdrs hdrs, u32 size)
 {
+        // HK:This is actually wrong in terms of pa-based ownership.
+        // Even though you have the va-ownership of the va region [start, start+size), you do not have the right to access the memory, as they are not mapped physically for now.
+        // I will fix this later when I start to consider memcache things.
         if (hdrs == Chunk_nil {}) {
                 take U = Own_chunk_hdr(first_chunk);
                 take Arr = each(u32 i; i <= (u32)sizeof<struct chunk_hdr_only> && i < size){
@@ -312,7 +315,6 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);
   take U = FirstChunk((pointer)ha.start, hdrs, ha.size);
   return( {ha:ha, hdrs:hdrs} );
-  // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
 
 function (boolean) Is_chunk_some(datatype cn_chunk_hdr_option maybe_hdr)
