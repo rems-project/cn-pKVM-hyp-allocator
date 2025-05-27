@@ -257,9 +257,9 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
 
-  take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, chunk);
-  let prev = HeadOrValue(hdrs1, ha.head);
   let chunk_node = member_shift<struct chunk_hdr_only>(chunk, node);
+  take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, chunk_node);
+  let prev = HeadOrValue(hdrs1, ha.head);
   take T = Cn_chunk_hdrs_non_last(chunk_node, prev, ha, ha.head);
   let lseg = {before: hdrs1, chunk: T.hd, after: T.tl};
   return( {ha:ha, lseg: lseg} );
