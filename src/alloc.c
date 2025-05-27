@@ -88,27 +88,53 @@ struct chunk_hdr_only {
         /* CN */ u32            explicit_padding;
 };
 
+
 // Auxiliary functions for chunk_hdr
 /*@
-function (boolean) hash_change_only (struct chunk_hdr_only pre, struct chunk_hdr_only post)
+datatype chunk_hdr_option {
+  ChunkHdr_none {},
+  ChunkHdr_some { struct chunk_hdr_only hdr }
+}
+
+function (boolean) bind_hash_change_only (datatype chunk_hdr_option pre, datatype chunk_hdr_option post)
 {
-    pre.alloc_size == post.alloc_size &&
-    pre.mapped_size == post.mapped_size &&
-    pre.node == post.node
+        match (pre) {
+                ChunkHdr_none {} => {
+                        match (post) {
+                                ChunkHdr_none {} => {
+                                        true
+                                }
+                                ChunkHdr_some {hdr: hdr} => {
+                                        false
+                                }
+                        }
+                }
+                ChunkHdr_some {hdr: hdr1} => {
+                        match (post) {
+                                ChunkHdr_none {} => {
+                                        false
+                                }
+                                ChunkHdr_some {hdr: hdr2} => {
+                                        hdr1.alloc_size == hdr2.alloc_size &&
+                                        hdr1.mapped_size == hdr2.mapped_size &&
+                                        hdr1.node == hdr2.node
+                                }
+                        }
+                }
+        }
 }
 @*/
-
 
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     trusted;
     requires
-        take C_pre = RW<struct chunk_hdr>(chunk);
+        take C_pre = Own_chunk_hdr(chunk);
         // take C_pre = each(u64 i; 0u64 <= i && sizeof<unsigned long long> * i < (u64)offsetof(chunk_hdr, hash)) {
         //         RW<unsigned long long>(array_shift<unsigned long long>(chunk, i))
         // };
     ensures
-        take C_post = RW<struct chunk_hdr>(chunk);
+        take C_post = Own_chunk_hdr(chunk);
         //take C_post = each(u64 i; 0u64 <= i && sizeof<unsigned long long> *i < (u64)offsetof(chunk_hdr, hash)) {
         //        RW<unsigned long long>(array_shift<unsigned long long>(chunk, i))
         //};
@@ -149,10 +175,10 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 static inline void chunk_hash_update(struct chunk_hdr *chunk)
 /*@
     requires
-        take C_pre = Own_chunk_hdr(chunk);
+        take C_pre = MaybeChunkHdr(chunk, !is_null(chunk));
     ensures
-        take C_post = Own_chunk_hdr(chunk);
-        hash_change_only(C_pre, C_post);
+        take C_post = MaybeChunkHdr(chunk, !is_null(chunk));
+        bind_hash_change_only(C_pre, C_post);
 @*/
 {
         if (chunk) {
@@ -678,10 +704,6 @@ function (boolean) chunk_install_sanity_check(pointer prev_p, pointer chunk_p, s
            && !((u64)Cn_chunk_data(prev) + (u64)prev.alloc_size > (u64)chunk_p)
 }
 
-datatype chunk_hdr_option {
-  ChunkHdr_none {},
-  ChunkHdr_some { struct chunk_hdr_only hdr }
-}
 
 predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condition)
 {
