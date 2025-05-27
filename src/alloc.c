@@ -1503,7 +1503,7 @@ function (boolean) GetFreeChunkInvAux(datatype cn_chunk_hdrs hdrs, pointer chunk
 }
 predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, u64 best_available_size, u64 size)
 {
-        if (ptr_eq(chunk, member_shift<struct hyp_allocator>(allocator, chunks))) {
+        if (ptr_eq(member_shift<struct chunk_hdr_only>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
                 return;
         } else {
                 take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
