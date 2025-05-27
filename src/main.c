@@ -5,6 +5,8 @@
 
 #include "alloc.c"
 
+void* cn_unsafe_aligned_alloc(size_t align, size_t size);
+
 phys_addr_t ident_to_pa(void *addr)
 {
 	return (phys_addr_t)addr;
@@ -19,7 +21,7 @@ void* ident_to_va(phys_addr_t addr)
 int dummy_memcache(struct kvm_hyp_memcache *mc, u64 min_pages)
 {
 	while (mc->nr_pages < min_pages) {
-		phys_addr_t *p = cn_aligned_alloc(PAGE_SIZE, PAGE_SIZE);
+		phys_addr_t *p = cn_unsafe_aligned_alloc(PAGE_SIZE, PAGE_SIZE);
 		memset(p, 0, PAGE_SIZE);
 
 		if (!p) {
