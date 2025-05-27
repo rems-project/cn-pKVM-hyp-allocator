@@ -28,6 +28,12 @@ jobs:
           sudo apt-get install -y \
             build-essential libgmp-dev pkg-config z3 opam git make wget unzip
 
+      - name: Clone CN repository
+        uses: actions/checkout@v4
+        with:
+          repository: rems-project/cn
+          path: cn
+
       - name: Restore OPAM cache
         id: cache-opam
         uses: actions/cache@v4
@@ -40,14 +46,11 @@ jobs:
       - name: Initialize OPAM & Install CN
         shell: bash
         run: |
-          if [ "${{ steps.cache-opam.outputs.cache-hit }}" != "true" ]; then
-            opam init --yes --compiler=${{ matrix.ocaml }}
-            eval $(opam env)
-            opam install --yes --deps-only ./cn.opam ocamlformat.0.27.0
-            make install
-          else
-            eval $(opam env)
-          fi
+          opam init --yes --compiler=${{ matrix.ocaml }}
+          eval $(opam env)
+          cd cn
+          opam install --yes --deps-only ./cn.opam ocamlformat.0.27.0
+          make install
 
       - name: Save OPAM cache
         if: steps.cache-opam.outputs.cache-hit != 'true'
