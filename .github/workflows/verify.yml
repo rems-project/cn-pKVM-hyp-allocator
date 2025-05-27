@@ -63,6 +63,7 @@ jobs:
 
       - name: Verify setup_first_chunk
         run: |
+          opam switch ${{ matrix.version }}
           make cn-verify ONLY=setup_first_chunk | tee cn-verify.log
           if grep -q '\[1/1\]: setup_first_chunk -- pass' cn-verify.log; then
             exit 0
