@@ -1,0 +1,69 @@
+name: CN verify check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - ci
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup-cn:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        ocaml: [5.2.0]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential libgmp-dev pkg-config z3 opam git make wget unzip
+
+      - name: Restore OPAM cache
+        id: cache-opam
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.opam
+            ~/.cache/opam
+          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml }}-cn-${{ hashFiles('cn.opam') }}
+
+      - name: Initialize OPAM & Install CN
+        shell: bash
+        run: |
+          if [ "${{ steps.cache-opam.outputs.cache-hit }}" != "true" ]; then
+            opam init --yes --compiler=${{ matrix.ocaml }}
+            eval $(opam env)
+            opam install --yes --deps-only ./cn.opam ocamlformat.0.27.0
+            make install
+          else
+            eval $(opam env)
+          fi
+
+      - name: Save OPAM cache
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.opam
+            ~/.cache/opam
+          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml }}-cn-${{ hashFiles('cn.opam') }}
+
+      - name: Verify setup_first_chunk
+        run: |
+          make cn-verify ONLY=setup_first_chunk | tee cn-verify.log
+          if grep -q '\[1/1\]: setup_first_chunk -- pass' cn-verify.log; then
+            exit 0
+          else
+            exit 1
+          fi
+
