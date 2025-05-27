@@ -14,15 +14,21 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-22.04
+
     strategy:
+      fail-fast: false
       matrix:
         ocaml: [5.2.0]
+        targets:
+          - chunk_unmapped_size
+          - setup_first_chunk
+          - chunk_inc_map
 
     steps:
       - name: Checkout main repository
         uses: actions/checkout@v4
 
-      - name: Checkout CN repository
+      - name: Checkout CN tool repository
         uses: actions/checkout@v4
         with:
           repository: rems-project/cn
@@ -61,16 +67,14 @@ jobs:
             ~/.cache/opam
           key: ${{ runner.os }}-ocaml-${{ matrix.ocaml }}-cn-${{ hashFiles('cn/cn.opam') }}
 
-      - name: Verify setup_first_chunk
+      - name: Verify ${{ matrix.targets }}
         shell: bash
         run: |
-          # switch to the compiler we just initialized
           opam switch "${{ matrix.ocaml }}"
           eval $(opam env)
 
-          # run verify in the ROOT of your repo (where your Makefile.cn-verify lives)
-          make ONLY=setup_first_chunk cn-verify | tee cn-verify.log
+          echo "=== Testing function: ${{ matrix.targets }} ==="
+          make ONLY=${{ matrix.targets }} cn-verify | tee verify-${{ matrix.targets }}.log
 
-          # fail if the test didn’t pass
-          grep -q '\[1/1\]: setup_first_chunk -- pass' cn-verify.log
+          grep -q "${{ matrix.targets }} -- pass" verify-${{ matrix.targets }}.log
 
