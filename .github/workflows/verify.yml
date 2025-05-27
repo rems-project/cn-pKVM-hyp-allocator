@@ -12,27 +12,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup-cn:
+  verify:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
         ocaml: [5.2.0]
 
     steps:
-      - name: Checkout repository
+      - name: Checkout main repository
         uses: actions/checkout@v4
+
+      - name: Checkout CN repository
+        uses: actions/checkout@v4
+        with:
+          repository: rems-project/cn
+          path: cn
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential libgmp-dev pkg-config z3 opam git make wget unzip
-
-      - name: Clone CN repository
-        uses: actions/checkout@v4
-        with:
-          repository: rems-project/cn
-          path: cn
 
       - name: Restore OPAM cache
         id: cache-opam
@@ -41,9 +41,9 @@ jobs:
           path: |
             ~/.opam
             ~/.cache/opam
-          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml }}-cn-${{ hashFiles('cn.opam') }}
+          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml }}-cn-${{ hashFiles('cn/cn.opam') }}
 
-      - name: Initialize OPAM & Install CN
+      - name: Initialize OPAM & install CN
         shell: bash
         run: |
           opam init --yes --compiler=${{ matrix.ocaml }}
@@ -59,16 +59,18 @@ jobs:
           path: |
             ~/.opam
             ~/.cache/opam
-          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml }}-cn-${{ hashFiles('cn.opam') }}
+          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml }}-cn-${{ hashFiles('cn/cn.opam') }}
 
       - name: Verify setup_first_chunk
+        shell: bash
         run: |
-          opam switch ${{ matrix.version }}
-          eval $(opam env --switch=${{ matrix.version }})
-          make cn-verify ONLY=setup_first_chunk | tee cn-verify.log
-          if grep -q '\[1/1\]: setup_first_chunk -- pass' cn-verify.log; then
-            exit 0
-          else
-            exit 1
-          fi
+          # switch to the compiler we just initialized
+          opam switch "${{ matrix.ocaml }}"
+          eval $(opam env)
+
+          # run verify in the ROOT of your repo (where your Makefile.cn-verify lives)
+          make ONLY=setup_first_chunk cn-verify | tee cn-verify.log
+
+          # fail if the test didn’t pass
+          grep -q '\[1/1\]: setup_first_chunk -- pass' cn-verify.log
 
