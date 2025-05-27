@@ -127,8 +127,8 @@ function (boolean) bind_hash_change_only (datatype chunk_hdr_option pre, datatyp
 
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
-    trusted;
     requires
+        !is_null(chunk);
         take C_pre = Own_chunk_hdr(chunk);
         // take C_pre = each(u64 i; 0u64 <= i && sizeof<unsigned long long> * i < (u64)offsetof(chunk_hdr, hash)) {
         //         RW<unsigned long long>(array_shift<unsigned long long>(chunk, i))
@@ -152,7 +152,7 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
     /*@
         inv
         let L = (u64)offsetof(chunk_hdr, hash);
-        take C = RW<struct chunk_hdr>(chunk);
+        take C = Own_chunk_hdr(chunk);
         len <= L;
         (u64)data + len == (u64)chunk + L;
         {chunk} unchanged;
