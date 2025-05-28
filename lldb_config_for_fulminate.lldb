@@ -1,0 +1,4 @@
+target create "./main.exe"
+b exit
+run
+bt
