@@ -1705,10 +1705,11 @@ void *hyp_alloc(unsigned long size)
 /*@
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
+                let actual_size = cn_ALIGN(size, MIN_ALLOC());
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
-                take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, cn_ALIGN(size, MIN_ALLOC()), HA_pre.hdrs == Chunk_nil {});
+                take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {});
         ensures
-                take U = MaybeCn_char_array(return, size);
+                take U = MaybeCn_char_array(return, actual_size);
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
 {
