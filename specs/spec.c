@@ -210,7 +210,10 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
 {
         if (ptr_eq(p,last)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
-                assert(ha.last == prev);
+                // I think this is incorrect, because now that we use this predicate
+                // for list segments, `last` no longer necesarily refers to
+                // the last element of the hyp_allocator.
+                // assert(ha.last == prev);
                 return Chunk_nil {};
         } else {
                 take T = Cn_chunk_hdrs_non_last(p, prev, ha, last);

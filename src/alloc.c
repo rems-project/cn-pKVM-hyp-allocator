@@ -773,7 +773,14 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 assert(HA_post.lseg.after == Chunk_nil {});
                 assert(HA_post.lseg.chunk == first_chunk);
                 assert(HA_post.lseg.before == Chunk_nil {} );
-                assert(HA_post.ha == ha);
+                let ha_post = {
+                        head: ha.head,
+                        size: ha.size,
+                        start: ha.start,
+                        first: member_shift<struct chunk_hdr_only>(chunk, node),
+                        last: member_shift<struct chunk_hdr_only>(chunk, node)
+                };
+                assert(HA_post.ha == ha_post);
                 assert(ret == 0i32);
                 return;
         }
