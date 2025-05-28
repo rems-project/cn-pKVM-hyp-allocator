@@ -1436,7 +1436,14 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
         assert(HA_post.lseg.after == Chunk_nil {});
         assert(HA_post.lseg.chunk == first_chunk);
         assert(HA_post.lseg.before == Chunk_nil {} );
-        assert(HA_post.ha == ha_pre);
+        let ha_post = {
+                head: ha_pre.head,
+                size: ha_pre.size,
+                start: ha_pre.start,
+                first: member_shift<struct chunk_hdr_only>(start, node),
+                last: member_shift<struct chunk_hdr_only>(start, node)
+        };
+        assert(HA_post.ha == ha_post);
 
         // the chunk allocated to the client
         let chunk_data = array_shift<unsigned char>(start, Cn_chunk_hdr_size());
