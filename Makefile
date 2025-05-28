@@ -36,6 +36,7 @@ cn-verify: src/alloc.c
 
 .PHONY: cn-instrument
 cn-instrument: src/alloc.c
+	cn --version | sed -n 's/^git-\([0-9a-f]\{9\}\).*/\1/p' > .cn_version
 	$(RUNTIME_CPP) src/main.c > main.pp.c
 	cn instrument main.pp.c
 	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__   -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h main.pp.exec.c
