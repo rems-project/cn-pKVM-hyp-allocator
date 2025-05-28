@@ -125,6 +125,8 @@ function (boolean) bind_hash_change_only (datatype chunk_hdr_option pre, datatyp
 }
 @*/
 
+// HK: This requires CN to have a normal conjunction in addition to the
+// separating conjunction.
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     requires
@@ -153,6 +155,7 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         inv
         let L = (u64)offsetof(chunk_hdr, hash);
         take C = Own_chunk_hdr(chunk);
+        (u64)chunk <= (u64)data;
         len <= L;
         (u64)data + len == (u64)chunk + L;
         {chunk} unchanged;

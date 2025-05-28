@@ -1,4 +1,5 @@
 target create "./main.exe"
+command script import lldb_lib.py
 b exit
 run
 bt
