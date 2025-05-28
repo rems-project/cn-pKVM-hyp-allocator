@@ -42,6 +42,10 @@ cn-instrument: src/alloc.c
 	clang-19 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -o main.exe $(RUNTIME_PREFIX)/libcn_exec.a main.pp.exec.o
 	./main.exe
 
+.PHONY: cn-test
+cn-test: src/alloc.c
+	cn test --no-run --output-dir=_test/ src/alloc.c -Isrc -Iinclude -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -d1
+	CPPFLAGS="-std=c2x -include ../fulminate2.h $(CPPFLAGS)" ./_test/run_tests.sh
 
 .PHONY: clean
 clean:
