@@ -395,10 +395,10 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
 static inline struct chunk_hdr* chunk_get(void *addr)
 /*@
         requires
-                take C_pre = RW<struct chunk_hdr_only>(addr);
+                take C_pre = MaybeChunkHdr(addr, !is_null(addr));
         ensures
-                take C_post = RW<struct chunk_hdr_only>(addr);
-                C_pre == C_post;
+                take C_post = MaybeChunkHdr(addr, !is_null(addr));
+                C_post == C_pre;
                 ptr_eq(return, addr);
 @*/
 {
