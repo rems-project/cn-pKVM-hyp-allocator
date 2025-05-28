@@ -23,3 +23,11 @@ Then to build:
 ```
 
 This produces a test executable at `_build/src/main`.
+
+
+## Fulminate reproduction notes
+
+Commit messages that start with `[fulminate]` indicate that the issue fixed by the patch was discovered by **Fulminate**.
+I am currently working on the following version of CN, updating it as needed.
+
+- **CN commit**: `79d17bb63ca1b70725326ad6bed24fc40deee61c`
