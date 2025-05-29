@@ -51,7 +51,7 @@ void shim_create_hyp_mapping(size_t size)
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
-	ensures take V = each (u64 i; i < size) {Owned<char>(array_shift<char>((pointer) __io_map_base, i))};
+	ensures take V = each (u64 i; i < size) {RW<char>(array_shift<char>((pointer) __io_map_base, i))};
  @*/
 {
 	__io_map_base = (u64)cn_aligned_alloc(PAGE_SIZE, size);
@@ -96,8 +96,8 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
-	requires take v1 = Owned<unsigned long>(haddr);
-	ensures take v2 = Owned<unsigned long>(haddr);
+	requires take v1 = RW<unsigned long>(haddr);
+	ensures take v2 = RW<unsigned long>(haddr);
 @*/
 {
 	unsigned long addr;

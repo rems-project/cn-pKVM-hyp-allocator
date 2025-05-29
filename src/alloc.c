@@ -306,7 +306,7 @@ predicate(void) ChunkPrevPost(pointer chunk, pointer allocator, pointer ret, cn_
                 take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
                 assert(HA_pre == HA.ha);
                 assert(HA.lseg == pre);
-                assert(ret == NULL);
+                assert(is_null(ret));
                 return;
         } else {
                 take HA = Cn_hyp_allocator_focusing_on(allocator, ret);
@@ -549,8 +549,9 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         //take Chunk = RW<struct chunk_hdr_only>(chunk);
         // The following two lines are morally equivalent, but only the first one
         // is accepted by CN. (WHY??)
-        take Chunk = RW<struct chunk_hdr_only>(chunk);
-        //take Chunk = Own_chunk_hdr(chunk);
+        // -> CN issue #148
+        //take Chunk = RW<struct chunk_hdr_only>(chunk);
+        take Chunk = Own_chunk_hdr(chunk);
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
         let lseg_post = HA_post.lseg;
@@ -914,11 +915,11 @@ static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
 /*@
         requires
-                take C_pre = RW<struct chunk_hdr_only>(chunk);
+                take C_pre = Own_chunk_hdr(chunk);
                 let mapping_needs = Cn_chunk_size(size);
                 let mapping_missing = PAGE_ALIGN(mapping_needs - (u64)C_pre.mapped_size);
         ensures
-                take C_post = RW<struct chunk_hdr_only>(chunk);
+                take C_post = Own_chunk_hdr(chunk);
                 C_pre == C_post;
                 let res = (mapping_needs <= (u64)C_pre.mapped_size) ?
                            0u64 : mapping_missing;
@@ -2003,8 +2004,8 @@ int hyp_alloc_init(size_t size)
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
-        requires take HA1 = Owned<struct hyp_allocator>(&hyp_allocator);
-        ensures take HA2 = Owned<struct hyp_allocator>(&hyp_allocator);
+        requires take HA1 = RW<struct hyp_allocator>(&hyp_allocator);
+        ensures take HA2 = RW<struct hyp_allocator>(&hyp_allocator);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;

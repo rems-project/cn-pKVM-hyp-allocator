@@ -302,7 +302,7 @@ predicate (struct chunk_hdr_only) FirstChunk(pointer first_chunk, u32 ha_size, u
         // HK:This is actually wrong in terms of pa-based ownership.
         // Even though you have the va-ownership of the va region [start, start+size), you do not have the right to access the memory, as they are not mapped physically for now.
         // I will fix this later when I start to consider memcache things.
-        assert(first_chunk != NULL);
+        assert(!is_null(first_chunk));
         assert(alloc_size != 0u64);
         take U = Own_chunk_hdr(first_chunk);
         let chunk_data = array_shift<unsigned char>(first_chunk, Cn_chunk_hdr_size());
