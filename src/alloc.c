@@ -1500,18 +1500,19 @@ lemma ListSeg (pointer allocator, pointer result)
         HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};
 
 
-predicate (boolean) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
+predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
 {
         if (ptr_eq(result, NULL)) {
                 take HA_out = Cn_hyp_allocator(allocator);
-                return HA_in == HA_out;
+                assert(HA_in == HA_out);
+                return;
         } else {
                 take HA_out = Cn_hyp_allocator_focusing_on(allocator, result);
                 let lseg = HA_out.lseg;
 
-                return
-                is_free_chunk(lseg.chunk, (u32)size)
-                && {ha: HA_out.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})} == HA_in;
+                assert(is_free_chunk(lseg.chunk, (u32)size)
+                && {ha: HA_out.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})} == HA_in);
+                return;
         }
 }
 @*/
@@ -1533,7 +1534,7 @@ function [rec] (cn_chunk_hdr_option) GetChunk(datatype cn_chunk_hdrs hdrs, point
 }
 function (boolean) GetFreeChunkInvAux(datatype cn_chunk_hdrs hdrs, pointer chunk, pointer best_chunk, u64 best_available_size)
 {
-        match (GetChunk(hdrs, chunk)) {
+        match (GetChunk(hdrs, best_chunk)) {
                 Chunk_none {} => { is_null(best_chunk) }
                 Chunk_some { hdr: chunk_hdr } => {
                         best_available_size == (u64)chunk_hdr.va_size
@@ -1541,44 +1542,22 @@ function (boolean) GetFreeChunkInvAux(datatype cn_chunk_hdrs hdrs, pointer chunk
         }
 
 }
+
+
 predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, u64 best_available_size, u64 size)
 {
         if (ptr_eq(member_shift<struct chunk_hdr_only>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
+                take HA = Cn_hyp_allocator(allocator);
                 return;
         } else {
                 take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
                 let lseg = HA.lseg;
-                assert(best_available_size >= size);
-                assert(GetFreeChunkInvAux(lseg.before, chunk, best_chunk, best_available_size));
+                assert(is_null(best_chunk) ||
+                        GetFreeChunkInvAux(lseg.before, chunk, best_chunk, best_available_size));
                 return;
         }
 }
 @*/
-
-// /*@
-// lemma HypAllocator2Inv(pointer allocator)
-//         requires
-//                 take HA = Cn_hyp_allocator(allocator);
-//         ensures
-//                 GetFreeChunkInv(allocator, ^)
-//
-// @*/
-
-// HK: for debugging the invariant spec
-void first_chunk(struct hyp_allocator *allocator)
-/*@
-        requires
-                take HA = Cn_hyp_allocator(allocator);
-                let C = HA.ha.first;
-        ensures
-                take HA_post = GetFreeChunkInv(allocator, C, NULL, 0u64, 0u64);
-@*/
-{
-        /*@ split_case(
-                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                        member_shift<struct hyp_allocator>(allocator, chunks)
-                )); @*/
-}
 
 static struct chunk_hdr *
 get_free_chunk(struct hyp_allocator *allocator, size_t size)
@@ -1588,9 +1567,7 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // (should CN support enforced per-type naming conventions?)
 /*@
 requires take HA_in = Cn_hyp_allocator(allocator);
-ensures
-        take res = GetFreeChunk(allocator, size, return, HA_in);
-        res;
+ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
 @*/

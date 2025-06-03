@@ -149,6 +149,7 @@ predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
 // in the hyp_allocator's address space
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
 {
+        assert(!is_null(header_address));
         take hdr = Own_chunk_hdr(header_address);
         assert(hdr.alloc_size <= hdr.mapped_size);
 
@@ -194,6 +195,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
 }
 predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl}) Cn_chunk_hdrs_non_last(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
 {
+        assert(!is_null(p));
         let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
         take cn_hdr = Cn_chunk_hdr(header_address, ha);
         assert(ptr_eq(cn_hdr.Node.prev, prev));
