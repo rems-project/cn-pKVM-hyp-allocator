@@ -1603,9 +1603,11 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         /*@ inv {allocator} unchanged;
                 {size} unchanged;
                 take I = GetFreeChunkInv(allocator, chunk, best_chunk, best_available_size, size);
+                !is_null(chunk);
                 //take Fst = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, Chunk_nil{});
         @*/
         {
+                /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 size_t available_size = chunk->mapped_size +
                                         chunk_unmapped_size(chunk, allocator);
                 if (chunk_is_used(chunk)) {
