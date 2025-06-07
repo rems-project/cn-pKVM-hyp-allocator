@@ -288,16 +288,20 @@ function [rec] (datatype cn_chunk_hdrs) ConcatChunkList(datatype cn_chunk_hdrs b
         }
 }
 
-lemma LSegsToList(cn_hyp_allocator ha, datatype cn_chunk_hdrs before, cn_chunk_hdr chunk, datatype cn_chunk_hdrs after, pointer p, pointer chunkp)
-requires
-        take C = Cn_hyp_allocator_focusing_on(p, chunkp);
-        let lseg = {before: before, chunk: chunk, after: after};
-        C == {ha:ha, lseg: lseg};
-ensures
-        take C2 = Cn_hyp_allocator(p);
-        let lseg2 = {before: before, chunk: chunk, after: after};
-        C2 == {ha: ha, hdrs: ConcatChunkList(before, Chunk_cons {hd: chunk, tl: after})};
+lemma ListSeg (pointer allocator, pointer result)
+        requires
+            take HA1 = Cn_hyp_allocator_focusing_on(allocator, result);
+        ensures
+            take HA2 = Cn_hyp_allocator(allocator);
+            HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};
 
+lemma ListSegAfterNull (pointer allocator, pointer result)
+        requires
+            take HA1 = Cn_hyp_allocator_focusing_on(allocator, result);
+            
+        ensures
+            take HA2 = Cn_hyp_allocator(allocator);
+            HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};
 
 predicate (struct chunk_hdr_only) FirstChunk(pointer first_chunk, u32 ha_size, u64 alloc_size)
 {

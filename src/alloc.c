@@ -1491,13 +1491,6 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 //         FreeChunk_none {},
 //         FreeChunk_some { cn_hyp_allocator ha, cn_free_chunk free_chunk}
 // }
-lemma ListSeg (pointer allocator, pointer result)
-    requires
-        take HA1 = Cn_hyp_allocator_focusing_on(allocator, result);
-    ensures
-        take HA2 = Cn_hyp_allocator(allocator);
-        let lseg = HA1.lseg;
-        HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};
 
 
 predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
@@ -1559,8 +1552,26 @@ predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_
 }
 @*/
 
-static struct chunk_hdr *
-get_free_chunk(struct hyp_allocator *allocator, size_t size)
+void sanity_lseg_empty(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
+/*@
+    requires
+        take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let lseg = C.lseg;
+        // let next_chunk_node = *member_shift<struct chunk_hdr>(chunk, node);
+        // let next_chunk = array_shift<char>(next_chunk_node, -offsetof(chunk_hdr, node));
+        // ptr_eq(next_chunk, member_shift<struct hyp_allocator>(allocator, chunks));
+        lseg.after == Chunk_nil {};
+    ensures
+        take C2 = Cn_hyp_allocator(allocator);
+@*/
+{
+        /*@
+        apply ListSeg(allocator, chunk);
+        @*/
+
+}
+
+static struct chunk_hdr *get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // should the spec of this characterise "best", or just ensure that this returns a legit chunk?  We guess the latter is sufficient for functional correctness and we'll do that
 // should the spec of this pull out the ownership of that chunk, or just identify the chunk?  We guess the context will sometimes have to mess with neighbouring chunks, so we'll do the pulling out there, not here
 // what variable name to use for the result of Cn_hyp_allocator?
@@ -1608,6 +1619,9 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         @*/
         {
                 /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node)->next,
+                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 size_t available_size = chunk->mapped_size +
                                         chunk_unmapped_size(chunk, allocator);
                 if (chunk_is_used(chunk)) {
@@ -1630,6 +1644,11 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
                 best_chunk = chunk;
                 best_available_size = available_size;
+                /*@ apply ListSeg(allocator, chunk); @*/
+                /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node)->next,
+                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         }
 
         return chunk_get(best_chunk);
