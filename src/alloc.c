@@ -557,7 +557,9 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         let lseg_post = HA_post.lseg;
         lseg_pre.before == lseg_post.before;
         // chunk does not care hash update
-        lseg_post.chunk == lseg_pre.chunk;
+        lseg_post.chunk.alloc_size == lseg_pre.chunk.alloc_size;
+        lseg_post.chunk.mapped_size == lseg_pre.chunk.mapped_size;
+        lseg_post.chunk.header_address == lseg_pre.chunk.header_address;
         match (lseg_post.after) {
                 Chunk_nil {} => {
                         false

@@ -246,7 +246,7 @@ function (pointer) HeadOrValue(datatype cn_chunk_hdrs hdrs, pointer value)
                 value
         }
         Chunk_cons {hd:hdr, tl:tl} => {
-                (pointer)hdr.header_address
+                array_shift<char>((pointer)hdr.header_address, (offsetof(chunk_hdr_only, node)) )
         }
         }
 }
