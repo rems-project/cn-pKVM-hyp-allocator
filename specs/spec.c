@@ -291,6 +291,7 @@ function [rec] (datatype cn_chunk_hdrs) ConcatChunkList(datatype cn_chunk_hdrs b
 lemma ListSeg (pointer allocator, pointer result)
         requires
             take HA1 = Cn_hyp_allocator_focusing_on(allocator, result);
+            let lseg = HA1.lseg;
         ensures
             take HA2 = Cn_hyp_allocator(allocator);
             HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};
@@ -298,7 +299,7 @@ lemma ListSeg (pointer allocator, pointer result)
 lemma ListSegAfterNull (pointer allocator, pointer result)
         requires
             take HA1 = Cn_hyp_allocator_focusing_on(allocator, result);
-            
+            let lseg = HA1.lseg;
         ensures
             take HA2 = Cn_hyp_allocator(allocator);
             HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};

@@ -646,6 +646,12 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 
 static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
+/*@
+        // requires
+        //         take HA_pre = Cn_hyp_allocator_only(allocator);
+        // ensures
+        //         take HA_post = Cn_hyp_allocator_only(allocator);
+@*/
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
 {
@@ -1017,6 +1023,7 @@ ensures
 static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                          struct hyp_allocator *allocator)
 /*@
+        accesses hyp_allocator_mc;
         requires
                 !is_null(chunk);
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
@@ -1624,31 +1631,27 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                     member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 size_t available_size = chunk->mapped_size +
                                         chunk_unmapped_size(chunk, allocator);
-                if (chunk_is_used(chunk)) {
-                        continue;
-                }
+                // TODO: (HK) Changed the loop to the one without `continue` to make fulminate work
+                if (!(chunk_is_used(chunk) || chunk_size(size) > available_size)) {
+                        if (!best_chunk) {
+                                best_chunk = chunk;
+                        } else {
+                                if (best_available_size <= available_size) {
+                                        //continue;
+                                }
+                                else {
+                                     best_chunk = chunk;
+                                     best_available_size = available_size;
+                                     // /*@ apply ListSeg(allocator, chunk); @*/
+                                     // /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                                     // /*@ split_case(ptr_eq(
+                                     //     member_shift<struct chunk_hdr>(chunk, node)->next,
+                                     //     member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                                }
 
-                if (chunk_size(size) > available_size) {
-                        continue;
-                }
+                        }
 
-                if (!best_chunk) {
-                        best_chunk = chunk;
-                        // [BUG] HK: why best_available_size is not set here?
-                        continue;
                 }
-
-                if (best_available_size <= available_size) {
-                        continue;
-                }
-
-                best_chunk = chunk;
-                best_available_size = available_size;
-                /*@ apply ListSeg(allocator, chunk); @*/
-                /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                /*@ split_case(ptr_eq(
-                    member_shift<struct chunk_hdr>(chunk, node)->next,
-                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         }
 
         return chunk_get(best_chunk);
