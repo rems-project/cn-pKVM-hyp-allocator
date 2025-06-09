@@ -347,9 +347,10 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chu
 predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk}) Cn_chunk_hdrs_non_last_for_install(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last, pointer new_chunk)
 {
         assert(!is_null(p));
-        let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
+        let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) );
+        let header_address2 = array_shift<char>(new_chunk, -(offsetof(chunk_hdr_only, node)) );
 
-        take cn_hdr = Cn_chunk_hdr_for_install(header_address, new_chunk, ha);
+        take cn_hdr = Cn_chunk_hdr_for_install(header_address, header_address2, ha);
         assert(ptr_eq(cn_hdr.Node.prev, prev));
 
         take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);

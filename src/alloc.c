@@ -549,9 +549,9 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         let Prev_pre = lseg_pre.chunk;
         let Chunk = HA_pre.chunk;
 
-        //  [prev]    [+alloc_size]             [chunk]     [+va_size]
+        //  [prev]    [+alloc_size]             [chunk]     [+(old)va_size]
         //    ------- ------------------------- ----------- ----------
-        (u64)prev + (u64)Prev_pre.alloc_size <= (u64)chunk && (u64)chunk < (u64)prev + (u64)Prev_pre.va_size;
+        (u64)prev + Cn_chunk_hdr_size() +  (u64)Prev_pre.alloc_size <= (u64)chunk;
 
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
@@ -562,7 +562,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         lseg_post.chunk.alloc_size == lseg_pre.chunk.alloc_size;
         lseg_post.chunk.mapped_size == lseg_pre.chunk.mapped_size;
         lseg_post.chunk.header_address == lseg_pre.chunk.header_address;
-        take U = Cn_char_array(array_shift<unsigned char>((pointer)Chunk.header_address, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
+        take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
         match (lseg_post.after) {
                 Chunk_nil {} => {
                         false
@@ -570,11 +570,11 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 Chunk_cons {hd:hdr, tl:tl} => {
                         // Now we obtain the ownership of the chunk data separately
                         // since alloc_size can be greater than 0.
-                        // TODO: chunk.alloc_size == hdr.alloc_size
-                        // TODO: chunk.mapped_size == hdr.mapped_size
-                        // TODO: hdr.va_size + Prev_post.va_size == Prev_pre.va_size
                         tl == lseg_pre.after
                         && (u64)chunk == hdr.header_address
+                        && Chunk.alloc_size == hdr.alloc_size
+                        // TODO: chunk.mapped_size == hdr.mapped_size
+                        // TODO: hdr.va_size + Prev_post.va_size == Prev_pre.va_size
                 }
         };
 @*/
