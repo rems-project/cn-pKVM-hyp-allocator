@@ -1,4 +1,5 @@
 target create "./main.exe"
+settings set target.disable-aslr true
 command script import lldb_lib.py
 b exit
 run

@@ -46,7 +46,7 @@ cn-instrument: src/alloc.c
 # We currently need to debug the instrumented code directly.
 # This includes (a) inserting debug output, (b) setting breakpoints, etc.
 # Therefore, we separate the compilation pipeline below for manual intervention.
-.PHONY: cn-instrument
+.PHONY: cn-debug
 cn-debug: main.pp.c
 	clang-19 -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__   -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h main.pp.exec.c
 	clang-19 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -o main.exe $(RUNTIME_PREFIX)/libcn_exec.a main.pp.exec.o

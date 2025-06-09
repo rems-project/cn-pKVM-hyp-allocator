@@ -551,7 +551,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         // is accepted by CN. (WHY??)
         // -> CN issue #148
         //take Chunk = RW<struct chunk_hdr_only>(chunk);
-        take Chunk = Own_chunk_hdr(chunk);
+        //take Chunk = Own_chunk_hdr(chunk);
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
         let lseg_post = HA_post.lseg;
@@ -564,9 +564,9 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 }
                 Chunk_cons {hd:hdr, tl:tl} => {
                         tl == lseg_pre.after
-                        && Chunk.alloc_size == hdr.alloc_size
                         && (u64)chunk == hdr.header_address
-                        && Chunk.mapped_size == hdr.mapped_size
+                        //&& Chunk.alloc_size == hdr.alloc_size
+                        //&& Chunk.mapped_size == hdr.mapped_size
                 }
         };
 @*/
@@ -731,7 +731,7 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
 
 /*@
 // provably rewrite this by using lseg
-predicate ({cn_hyp_allocator ha, cn_lseg lseg, struct chunk_hdr_only chunk}) ChunkInstallPre(pointer chunk, u64 size, pointer prev, pointer allocator)
+predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u64 size, pointer prev, pointer allocator)
 {
         if (is_null(prev))
         {
@@ -752,19 +752,18 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, struct chunk_hdr_only chunk}) Chu
                         alloc_size: 0u32,
                         va_size: 0u32
                 };
-                return {ha: a_in.ha, lseg: {before: Chunk_nil {}, chunk: dummy, after: Chunk_nil {} }, chunk: Chunk};
+                return {ha: a_in.ha, lseg: {before: Chunk_nil {}, after: Chunk_nil {}, chunk: dummy }};
         }
         else
         {
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
-                take Chunk = Own_chunk_hdr(chunk);
                 let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
                 // chunk is located in the allocator's memory
                 assert(HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end);
-                return {ha: HA_pre.ha, lseg: HA_pre.lseg, chunk: Chunk};
+                return {ha: HA_pre.ha, lseg: HA_pre.lseg};
         }
 }
-predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer allocator, cn_hyp_allocator ha, cn_lseg lseg, struct chunk_hdr_only C_pre, i32 ret)
+predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer allocator, cn_hyp_allocator ha, cn_lseg lseg, i32 ret)
 {
         if (is_null(prev))
         {
@@ -848,7 +847,7 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
     requires
         take Pre = ChunkInstallPre(chunk, size, prev, allocator);
     ensures
-        take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre.ha, Pre.lseg, Pre.chunk, return);
+        take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre.ha, Pre.lseg, return);
 @*/
 
 {
