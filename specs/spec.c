@@ -77,7 +77,6 @@ struct chunk_hdr {
 };
 #endif
 
-
 /*@
 type_synonym va = u64
 
@@ -105,6 +104,11 @@ datatype cn_chunk_hdrs {
 datatype cn_chunk_hdr_option {
   Chunk_none {},
   Chunk_some { cn_chunk_hdr hdr }
+}
+
+datatype option_u64 {
+        Option_u64_none {},
+        Option_u64_some { u64 value }
 }
 
 @*/
@@ -145,19 +149,23 @@ predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
         take cn_hdr = RW<struct chunk_hdr_only>(header_address);
         return cn_hdr;
 }
-// Cn_chunk_hdr validates the locations of the chunk header and its next are
-// in the hyp_allocator's address space
-predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
+
+predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer header_address, cn_hyp_allocator ha, option_u64 va_size_opt, boolean check_node)
 {
+
         assert(!is_null(header_address));
         take hdr = Own_chunk_hdr(header_address);
         assert(hdr.alloc_size <= hdr.mapped_size);
 
         let end = ha.start + (u64)ha.size;
-        let va_size = (Cn_list_is_last(hdr.node, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address;
-        assert(va_size <= (u64)MAXu32());
-        assert((u64)hdr.node.next <= end);
+        assert(check_node implies (u64)hdr.node.next <= end);
 
+        let va_size = match (va_size_opt) {
+                Option_u64_none {} => {
+                        (Cn_list_is_last(hdr.node, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address
+                }
+                Option_u64_some {value: v} => { v }
+        };
         let cn_hdr = {
                 header_address : (u64) header_address,
                 alloc_size : hdr.alloc_size,
@@ -168,7 +176,6 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
 
         // own chunk data
         let chunk_data = array_shift<unsigned char>(header_address, Cn_chunk_hdr_size());
-
         let start = cn_hdr.alloc_size == 0u32 ? chunk_data :
                 array_shift<unsigned char>(chunk_data, cn_hdr.alloc_size);
         let size_owned_by_ha = cn_hdr.alloc_size == 0u32 ? ((u64) cn_hdr.va_size - Cn_chunk_hdr_size()) :
@@ -187,12 +194,23 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         // (otherwise, the chunk_unmapped_size function may return incorrect sizes)
         // unless this is not the last chunk
         assert(
-                (u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next
-                || (u64)hdr.node.next == (u64)ha.head
+                check_node implies
+                ((u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next
+                || (u64)hdr.node.next == (u64)ha.head)
         );
+
         return {Hdr: cn_hdr, Node: hdr.node};
 
 }
+
+// Cn_chunk_hdr validates the locations of the chunk header and its next are
+// in the hyp_allocator's address space
+predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
+{
+        take cn_hdr = Cn_chunk_hdr_inner(header_address, ha, Option_u64_none {}, true);
+        return cn_hdr;
+}
+
 predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl}) Cn_chunk_hdrs_non_last(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
 {
         assert(!is_null(p));
@@ -271,63 +289,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
 
-datatype option_u64 {
-        Option_u64_none {},
-        Option_u64_some { u64 value }
-}
 
-predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer header_address, cn_hyp_allocator ha, option_u64 va_size_opt, boolean check_node)
-{
-
-        assert(!is_null(header_address));
-        take hdr = Own_chunk_hdr(header_address);
-        assert(hdr.alloc_size <= hdr.mapped_size);
-
-        let end = ha.start + (u64)ha.size;
-        assert(check_node implies (u64)hdr.node.next <= end);
-
-        let va_size = match (va_size_opt) {
-                Option_u64_none {} => {
-                        (Cn_list_is_last(hdr.node, ha.head) ? end : (u64)my_container_of_chunk_hdr(hdr.node.next) ) - (u64)header_address
-                }
-                Option_u64_some {value: v} => { v }
-        };
-        let cn_hdr = {
-                header_address : (u64) header_address,
-                alloc_size : hdr.alloc_size,
-                mapped_size : hdr.mapped_size,
-                va_size: (u32)va_size
-        };
-        assert(cn_hdr.mapped_size <= cn_hdr.va_size);
-
-        // own chunk data
-        let chunk_data = array_shift<unsigned char>(header_address, Cn_chunk_hdr_size());
-        let start = cn_hdr.alloc_size == 0u32 ? chunk_data :
-                array_shift<unsigned char>(chunk_data, cn_hdr.alloc_size);
-        let size_owned_by_ha = cn_hdr.alloc_size == 0u32 ? ((u64) cn_hdr.va_size - Cn_chunk_hdr_size()) :
-                ((u64)cn_hdr.va_size -  Cn_chunk_hdr_size() - (u64)cn_hdr.alloc_size);
-        take A = Cn_char_array(start, size_owned_by_ha);
-
-        // check non-overlappingness
-        assert(cn_hdr.header_address >= ha.start);
-        let chunk_end = cn_hdr.header_address + (u64) cn_hdr.mapped_size;
-        assert(chunk_end <= end);
-        // HK: needed to ensure no-integer overflow?
-        assert(chunk_end >= cn_hdr.header_address);
-
-
-        // HK: the chunk lists must be sorted in address order.
-        // (otherwise, the chunk_unmapped_size function may return incorrect sizes)
-        // unless this is not the last chunk
-        assert(
-                check_node implies
-                ((u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next
-                || (u64)hdr.node.next == (u64)ha.head)
-        );
-
-        return {Hdr: cn_hdr, Node: hdr.node};
-
-}
 
 // chunk_install is a special case for the fundamental invariant for the chunk lists
 // as it temporarily breaks the invariant.
