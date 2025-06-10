@@ -119,8 +119,10 @@ void test4(void)
 	// dump_chunks();
 	//int *p = hyp_alloc(8 + PAGE_SIZE);
 	//assert(p);
-	for (i = 0; i < 10; i++) {
-		hyp_alloc(3 * i);
+
+	srand(2);
+	for (i = 0; i < 3; i++) {
+		hyp_alloc(rand() % (PAGE_SIZE * 2) + 1);
 	}
 }
 

@@ -1310,10 +1310,12 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 // remaining possible specifications
 // -
 /*@
+    accesses hyp_allocator_mc;
     requires
         !is_null(chunk);
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
+        size < (u64)HA_pre.ha.size;
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
@@ -1720,6 +1722,7 @@ void *hyp_alloc(unsigned long size)
 /*@
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
+                size > 0u64;
                 let actual_size = cn_ALIGN(size, MIN_ALLOC());
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
                 take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {});
