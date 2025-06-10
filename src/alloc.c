@@ -836,7 +836,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                         va_size: (u32)((u64)P_pre.va_size - (u64)P_post.va_size)
                 };
                 assert(!cond && !cond2 implies ret == 0i32);
-                assert(!cond && !cond2 implies lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
+                assert(!cond && !cond2 implies HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
                 return;
         }
 }
