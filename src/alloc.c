@@ -837,6 +837,10 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 };
                 assert(!cond && !cond2 implies ret == 0i32);
                 assert(!cond && !cond2 implies HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
+
+                // the buffer to be returned
+                take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size);
+
                 return;
         }
 }
