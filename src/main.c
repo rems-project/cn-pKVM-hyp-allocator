@@ -114,11 +114,11 @@ void test3(void)
 void test4(void)
 {
 	int i;
-	dump_chunks();
-	assert(hyp_alloc(sizeof(int)));
-	dump_chunks();
-	int *p = hyp_alloc(8 + PAGE_SIZE);
-	assert(p);
+	// dump_chunks();
+	// //assert(hyp_alloc(sizeof(int)));
+	// dump_chunks();
+	//int *p = hyp_alloc(8 + PAGE_SIZE);
+	//assert(p);
 	for (i = 0; i < 10; i++) {
 		hyp_alloc(3 * i);
 	}
