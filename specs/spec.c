@@ -310,9 +310,8 @@ predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk}) Cn_
 {
         assert(!is_null(p));
         let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) );
-        let header_address2 = array_shift<char>(new_chunk, -(offsetof(chunk_hdr_only, node)) );
 
-        take cn_hdr = Cn_chunk_hdr_for_install(header_address, header_address2, ha);
+        take cn_hdr = Cn_chunk_hdr_for_install(header_address, new_chunk, ha);
         assert(ptr_eq(cn_hdr.Node.prev, prev));
 
         take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
@@ -330,8 +329,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk}) Cn_hyp_alloc
   take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, chunk_node);
   let prev_ptr = HeadOrValue(hdrs1, ha.head);
 
-  let new_chunk_node = member_shift<struct chunk_hdr_only>(chunk, node);
-  take T = Cn_chunk_hdrs_non_last_for_install(chunk_node, prev_ptr, ha, ha.head, new_chunk_node);
+  take T = Cn_chunk_hdrs_non_last_for_install(chunk_node, prev_ptr, ha, ha.head, chunk);
 
   let lseg = {before: hdrs1, chunk: T.hd, after: T.tl};
   return( {ha:ha, lseg: lseg, chunk: T.chunk} );

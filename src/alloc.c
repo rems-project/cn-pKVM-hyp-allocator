@@ -552,6 +552,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         //  [prev]    [+alloc_size]             [chunk]     [+(old)va_size]
         //    ------- ------------------------- ----------- ----------
         (u64)prev + Cn_chunk_hdr_size() +  (u64)Prev_pre.alloc_size <= (u64)chunk;
+        take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
 
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
