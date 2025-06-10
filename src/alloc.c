@@ -802,7 +802,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
         else
         {
                 take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
-                assert(HA_post.ha == ha);
+                assert(HA_post.ha.size == ha.size && HA_post.ha.start == ha.start);
                 assert(HA_post.lseg.before == lseg.before);
 
                 assert(!is_null(chunk));
