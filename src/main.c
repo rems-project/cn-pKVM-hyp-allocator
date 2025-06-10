@@ -110,6 +110,20 @@ void test3(void)
 	// printf("==> %d\n", n);
 }
 
+// Specialized for hyp_alloc
+void test4(void)
+{
+	int i;
+	dump_chunks();
+	assert(hyp_alloc(sizeof(int)));
+	dump_chunks();
+	int *p = hyp_alloc(8 + PAGE_SIZE);
+	assert(p);
+	for (i = 0; i < 10; i++) {
+		hyp_alloc(3 * i);
+	}
+}
+
 
 void shim_create_hyp_mapping(size_t size);
 
@@ -135,5 +149,5 @@ int main(void)
 	// printf("HYP_ALLOC_REFILL\n");
 	hyp_alloc_refill(&host_mc);
 
-	test3();
+	test4();
 }

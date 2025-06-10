@@ -211,7 +211,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer heade
         return cn_hdr;
 }
 
-predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl}) Cn_chunk_hdrs_non_last(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
+predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, pointer prev}) Cn_chunk_hdrs_non_last(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
 {
         assert(!is_null(p));
         let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
@@ -222,11 +222,11 @@ predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl}) Cn_chunk_hdrs_non_last(
         // c.f. https://github.com/rems-project/cn/issues/135
         assert(!is_null(cn_hdr.Node.next));
         // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
-        return {hd: cn_hdr.Hdr, tl: tl};
+        return {hd: cn_hdr.Hdr, tl: tl.hdrs, prev: tl.prev};
 }
 // HK: prev is unused? what is for?
 // -> HK: important for sanity check of linked list (e.g. node->next->prev == node)
-predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
+predicate ({datatype cn_chunk_hdrs hdrs, pointer prev}) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
 {
         if (ptr_eq(p,last)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
@@ -234,10 +234,10 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
                 // for list segments, `last` no longer necesarily refers to
                 // the last element of the hyp_allocator.
                 // assert(ha.last == prev);
-                return Chunk_nil {};
+                return {hdrs: Chunk_nil {}, prev: prev};
         } else {
                 take T = Cn_chunk_hdrs_non_last(p, prev, ha, last);
-                return Chunk_cons { hd: T.hd, tl: T.tl };
+                return {hdrs: Chunk_cons { hd: T.hd, tl: T.tl }, prev: T.prev};
         }
 }
 
@@ -257,18 +257,6 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
 //         }
 // }
 
-function (pointer) HeadOrValue(datatype cn_chunk_hdrs hdrs, pointer value)
-{
-        match (hdrs) {
-        Chunk_nil {} => {
-                value
-        }
-        Chunk_cons {hd:hdr, tl:tl} => {
-                array_shift<char>((pointer)hdr.header_address, (offsetof(chunk_hdr_only, node)) )
-        }
-        }
-}
-
 type_synonym cn_lseg = {
         cn_chunk_hdrs before,
         cn_chunk_hdr chunk,
@@ -282,9 +270,9 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
 
   let chunk_node = member_shift<struct chunk_hdr_only>(chunk, node);
   take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, chunk_node);
-  let prev = HeadOrValue(hdrs1, ha.head);
+  let prev = hdrs1.prev;
   take T = Cn_chunk_hdrs_non_last(chunk_node, prev, ha, ha.head);
-  let lseg = {before: hdrs1, chunk: T.hd, after: T.tl};
+  let lseg = {before: hdrs1.hdrs, chunk: T.hd, after: T.tl};
   return( {ha:ha, lseg: lseg} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
@@ -306,7 +294,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chu
 
 }
 
-predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk}) Cn_chunk_hdrs_non_last_for_install(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last, pointer new_chunk)
+predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk, pointer prev}) Cn_chunk_hdrs_non_last_for_install(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last, pointer new_chunk)
 {
         assert(!is_null(p));
         let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) );
@@ -316,23 +304,23 @@ predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk}) Cn_
 
         take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
         assert(!is_null(cn_hdr.Node.next));
-        return {hd: cn_hdr.Hdr, tl: tl, chunk: cn_hdr.Chunk};
+        return {hd: cn_hdr.Hdr, tl: tl.hdrs, chunk: cn_hdr.Chunk, prev: tl.prev};
 }
 
 
-predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk) {
+predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk, pointer prev}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk) {
   take ha = Cn_hyp_allocator_only(p);
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
 
   let chunk_node = member_shift<struct chunk_hdr_only>(prev, node);
   take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, chunk_node);
-  let prev_ptr = HeadOrValue(hdrs1, ha.head);
+  let prev_ptr = hdrs1.prev;
 
   take T = Cn_chunk_hdrs_non_last_for_install(chunk_node, prev_ptr, ha, ha.head, chunk);
 
-  let lseg = {before: hdrs1, chunk: T.hd, after: T.tl};
-  return( {ha:ha, lseg: lseg, chunk: T.chunk} );
+  let lseg = {before: hdrs1.hdrs, chunk: T.hd, after: T.tl};
+  return( {ha:ha, lseg: lseg, chunk: T.chunk, prev: T.prev} );
 }
 
 
@@ -387,7 +375,7 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);
-  return( {ha:ha, hdrs:hdrs} );
+  return( {ha:ha, hdrs:hdrs.hdrs} );
 }
 
 function (boolean) Is_chunk_some(datatype cn_chunk_hdr_option maybe_hdr)
