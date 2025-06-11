@@ -121,9 +121,13 @@ void test4(void)
 	//assert(p);
 
 	srand(2);
-	for (i = 0; i < 3; i++) {
-		hyp_alloc(rand() % (PAGE_SIZE * 2) + 1);
-	}
+	int *p = hyp_alloc(rand() % (PAGE_SIZE * 2) + 1);
+	assert(p);
+	int *q = hyp_alloc(400);
+	assert(q);
+	hyp_free(q);
+
+
 }
 
 

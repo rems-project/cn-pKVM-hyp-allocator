@@ -1315,6 +1315,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         !is_null(chunk);
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
+        size > 0u64;
         size < (u64)HA_pre.ha.size;
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);
@@ -1822,6 +1823,8 @@ void hyp_free(void *addr)
                 !is_null(addr);
                 let header_address = (u64)addr - Cn_chunk_hdr_size();
                 take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator, (pointer)header_address);
+                let C = HA_pre.lseg.chunk;
+                take U = Cn_char_array(addr, (u64)C.alloc_size);
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
