@@ -121,14 +121,14 @@ void test4(void)
 	//assert(p);
 
 	srand(2);
-	int *p = hyp_alloc(rand() % (PAGE_SIZE * 2) + 1);
+	int *p = hyp_alloc(400);
 	assert(p);
 	int *q = hyp_alloc(400);
 	assert(q);
-	hyp_free(q);
+	hyp_free(p);
 	// should use chunk_recycle
-	int *r = hyp_alloc(300);
-	assert(q == r);
+	int *r = hyp_alloc(100);
+	assert(p == r);
 }
 
 

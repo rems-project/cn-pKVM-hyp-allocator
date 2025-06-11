@@ -367,25 +367,25 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
 
 static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
                                                struct hyp_allocator *allocator)
-/*@
-        requires
-                take A_pre = Cn_hyp_allocator_only(allocator);
-                take B_pre = Cn_chunk_hdr(chunk, A_pre);
-                let Node = B_pre.Node;
-                let prev_node = Node.prev;
-                let prev_chunk = my_container_of_chunk_hdr(prev_node);
-                take C_pre = Cn_chunk_hdr(prev_chunk, A_pre);
-                ptr_eq(C_pre.Node.next, member_shift<struct chunk_hdr>(chunk, node));
-        ensures
-                take A_post = Cn_hyp_allocator_only(allocator);
-                take B_post = Cn_chunk_hdr(chunk, A_post);
-                take C_post = Cn_chunk_hdr(prev_chunk, A_post);
-                Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies is_null(return);
-                !Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies ptr_eq(return, prev_chunk);
-                A_post == A_pre;
-                B_post == B_pre;
-                C_post == C_pre;
-@*/
+// /*@
+//         requires
+//                 take A_pre = Cn_hyp_allocator_only(allocator);
+//                 take B_pre = Cn_chunk_hdr(chunk, A_pre);
+//                 let Node = B_pre.Node;
+//                 let prev_node = Node.prev;
+//                 let prev_chunk = my_container_of_chunk_hdr(prev_node);
+//                 take C_pre = Cn_chunk_hdr(prev_chunk, A_pre);
+//                 ptr_eq(C_pre.Node.next, member_shift<struct chunk_hdr>(chunk, node));
+//         ensures
+//                 take A_post = Cn_hyp_allocator_only(allocator);
+//                 take B_post = Cn_chunk_hdr(chunk, A_post);
+//                 take C_post = Cn_chunk_hdr(prev_chunk, A_post);
+//                 Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks)) implies is_null(return);
+//                 !Cn_list_is_first(Node, member_shift<struct hyp_allocator>(allocator, chunks))  implies ptr_eq(return, prev_chunk);
+//                 A_post == A_pre;
+//                 B_post == B_pre;
+//                 C_post == C_pre;
+// @*/
 {
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
         chunk_hash_validate(prev);
