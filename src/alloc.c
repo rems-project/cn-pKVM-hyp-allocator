@@ -1257,7 +1257,7 @@ function (boolean) Cn_chunk_can_split(cn_lseg lseg, u64 addr)
                 // last chunk
                 Chunk_nil {} => { false }
                 Chunk_cons {hd:hdr, tl:tl} => {
-                        ((addr + Cn_chunk_size(0u64)) < hdr.header_address + (u64)hdr.va_size)
+                        ((addr + Cn_chunk_size(0u64)) < lseg.chunk.header_address + (u64)lseg.chunk.va_size)
                 }
         }
 }
@@ -1383,7 +1383,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         (return == 0i32 && !can_split) implies
                 C_post == {
                         header_address: C_pre.header_address,
-                        mapped_size: (u32)chunk_va_size_post,
+                        mapped_size: C_pre.mapped_size,
                         alloc_size: (u32)size,
                         va_size: C_pre.va_size
                 };

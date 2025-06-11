@@ -127,7 +127,7 @@ void test4(void)
 	assert(q);
 	hyp_free(p);
 	// should use chunk_recycle
-	int *r = hyp_alloc(100);
+	int *r = hyp_alloc(390);
 	assert(p == r);
 }
 
