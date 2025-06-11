@@ -930,19 +930,21 @@ static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 
         return 0;
 }
+/*@
+function (u64)Cn_chunk_needs_mapping(u64 mapped_size, u64 size)
+{
+        (Cn_chunk_size(size) <= mapped_size) ? 0u64 : PAGE_ALIGN(Cn_chunk_size(size) - mapped_size)
+}
+@*/
 
 static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
 /*@
         requires
                 take C_pre = Own_chunk_hdr(chunk);
-                let mapping_needs = Cn_chunk_size(size);
-                let mapping_missing = PAGE_ALIGN(mapping_needs - (u64)C_pre.mapped_size);
         ensures
                 take C_post = Own_chunk_hdr(chunk);
                 C_pre == C_post;
-                let res = (mapping_needs <= (u64)C_pre.mapped_size) ?
-                           0u64 : mapping_missing;
-                return == res;
+                return == Cn_chunk_needs_mapping((u64)C_post.mapped_size, size);
 @*/
 {
         // TODO: fix this. Due to the Cerberus elaboration bug, we cannot use
@@ -1309,10 +1311,36 @@ function (boolean) chunk_recycle_aux(datatype cn_chunk_hdrs pre, datatype cn_chu
 }
 @*/
 
+/*@
+function (u64) Cn_expected_mapping(pointer chunk, u64 size)
+{
+        Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size)) - (u64)chunk
+}
+@*/
+
+// 🤯
+static unsigned long brain_exploding_calculation(struct chunk_hdr *chunk, size_t size, struct hyp_allocator *allocator)
+/*@
+    requires
+        !is_null(chunk);
+        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+    ensures
+        take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        HA_pre.ha == HA_post.ha;
+        return == Cn_expected_mapping(chunk, size);
+@*/
+{
+        unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);
+        size_t missing_map, expected_mapping = size;
+
+        new_chunk_addr = chunk_addr_fixup(new_chunk_addr);
+        expected_mapping = new_chunk_addr + chunk_hdr_size() -
+                                (unsigned long)chunk_data(chunk);
+        return expected_mapping;
+}
+
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
-// remaining possible specifications
-// -
 /*@
     accesses hyp_allocator_mc;
     requires
@@ -1332,9 +1360,15 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
         let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr);
 
+        let expected_mapping = Cn_expected_mapping(chunk, size);
+        let needs_mapping = Cn_chunk_needs_mapping((u64)C_pre.mapped_size, expected_mapping);
+        let mapped = needs_mapping == 0u64
+                ? (u64)C_pre.mapped_size
+                : (u64)C_pre.mapped_size + needs_mapping;
+
         let new_chunk = {
                 header_address: new_chunk_addr,
-                mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(0u64)),
+                mapped_size: (u32)(mapped - chunk_va_size_post),
                 alloc_size: 0u32,
                 va_size: (u32)((u64)C_pre.va_size - chunk_va_size_post)
         };
@@ -1349,7 +1383,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         (return == 0i32 && !can_split) implies
                 C_post == {
                         header_address: C_pre.header_address,
-                        mapped_size: C_pre.mapped_size,
+                        mapped_size: (u32)chunk_va_size_post,
                         alloc_size: (u32)size,
                         va_size: C_pre.va_size
                 };
@@ -1368,6 +1402,12 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 new_chunk = (struct chunk_hdr *)new_chunk_addr;
                 // HK: when we can split the chunk,
                 // the va addresses of the header of the new chunk have to be mapped.
+                // HK: :exploding_head:
+                //   new_chunk_addr == chunk + chunk_hdr_size() + size + Δ;
+                //   chunk_data(chunk) == chunk + chunk_hdr_size();
+                // so,
+                //   expected_mapping == size + chunk_hdr_size() + Δ
+                // where Δ < 32, right?
                 expected_mapping = new_chunk_addr + chunk_hdr_size() -
                                         (unsigned long)chunk_data(chunk);
         }
@@ -1665,6 +1705,8 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 if (!(chunk_is_used(chunk) || chunk_size(size) > available_size)) {
                         if (!best_chunk) {
                                 best_chunk = chunk;
+                                // PATCH(HK): Similar to c42b25f27262ad3f37fdb80612189bf41a729c0d
+                                best_available_size = available_size;
                         } else {
                                 if (best_available_size <= available_size) {
                                         //continue;
