@@ -229,7 +229,10 @@ def cn_print_command(debugger, command, result, internal_dict):
             child = val.GetChildMemberWithName(PRIMITIVE_WRAPPERS[base])
             return child.GetValue()
 
-        if not (tname.startswith('cn_') or tname.startswith('Cn_')):
+        # Currently, we use the suffix '_record' to identify Cn structs.
+        # Obviously, there can be false positives and false negatives,
+        # and we should have a better logistics for this.
+        if not base.endswith('_record'):
             return val.GetValue()
 
         out = ['{']
