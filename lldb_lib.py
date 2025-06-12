@@ -186,10 +186,71 @@ def cn_pointer(debugger, command, result, internal_dict):
         print(f"cn_pointer at 0x{addr:x}: ptr = 0x{ptr_val:x}", file=result)
 
 
+# map our thunk types → the field name that holds the real primitive
+PRIMITIVE_WRAPPERS = {
+    'cn_bits_i8':    'val',
+    'cn_bits_i16':   'val',
+    'cn_bits_i32':   'val',
+    'cn_bits_i64':   'val',
+    'cn_bits_u8':    'val',
+    'cn_bits_u16':   'val',
+    'cn_bits_u32':   'val',
+    'cn_bits_u64':   'val',
+    'cn_integer':    'val',
+    'cn_bool':       'val',
+    'cn_alloc_id':   'val',
+    'cn_pointer':    'ptr'
+}
+
+
+def cn_print_command(debugger, command, result, internal_dict):
+    '''cn_print <expr> — recursively unwraps cn_* thunks and prints their inner values'''
+    target = debugger.GetSelectedTarget()
+    expr = command.strip()
+    if not expr:
+        result.PutCString("Usage: cn_print <expression>")
+        return
+
+    value = target.EvaluateExpression(expr)
+    if not value or value.GetError().Fail():
+        result.PutCString("Error evaluating expression: %s" % value.GetError())
+        return
+
+    def fmt(val, indent=0):
+        tname = val.GetType().GetDisplayTypeName()
+
+        tc = val.GetType().GetTypeClass()
+        if tc == lldb.eTypeClassEnumeration:
+            summary = val.GetSummary()
+            return summary if summary is not None else val.GetValue()
+
+        base = tname.split(' ')[0]
+        if base in PRIMITIVE_WRAPPERS:
+            child = val.GetChildMemberWithName(PRIMITIVE_WRAPPERS[base])
+            return child.GetValue()
+
+        if not (tname.startswith('cn_') or tname.startswith('Cn_')):
+            return val.GetValue()
+
+        out = ['{']
+        for i in range(val.GetNumChildren()):
+            child = val.GetChildAtIndex(i)
+            if not child.IsValid() or not child.GetName():
+                continue
+            field_name = child.GetName()
+            field_val = fmt(child, indent+2)
+            out.append(' '*(indent+2) + f'{field_name} = {field_val}')
+        out.append(' '*(indent) + '}')
+        return '\n'.join(out)
+
+    body = fmt(value)
+    result.PutCString(body)
+
+
 def __lldb_init_module(debugger, internal_dict):
     commands = [("print_chunk_list", "pcl"), ("hyp", "hyp"),
                 ("print_chunk_list", "print_chunk_list"),
-                ("cn_alloc", "cn_alloc"), ("cn_pointer", "cn_ptr")]
+                ("cn_alloc", "cn_alloc"), ("cn_pointer", "cn_ptr"), ("cn_print_command", "cn_print")]
     for cmd, alias in commands:
         debugger.HandleCommand(
             f'command script add -f lldb_lib.{cmd} {alias}')
