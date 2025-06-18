@@ -35,23 +35,21 @@ cn-verify-via-cpp: tmp-alloc.c
 cn-verify: src/alloc.c
 	cn verify --no-vip $(if $(OPT), $(OPT)) $(if $(ONLY),--only=$(ONLY)) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c
 
+main.pp.c: src/main.c src/alloc.c
+	$(RUNTIME_CPP) $< > $@
+
+main.pp.exec.c: main.pp.c
+	cn --version | sed -n 's/^git-\([0-9a-f]\{9\}\).*/\1/p' > .cn_version
+	cn instrument $<
+
+main.pp.exec.o: main.pp.exec.c
+	$(CC) -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__  -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h $<
+
+main.exe: main.pp.exec.o
+	$(CC) $^ -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -L $(RUNTIME_PREFIX) -lcn_exec -o $@
 
 .PHONY: cn-instrument
-cn-instrument: src/alloc.c
-	cn --version | sed -n 's/^git-\([0-9a-f]\{9\}\).*/\1/p' > .cn_version
-	$(RUNTIME_CPP) src/main.c > main.pp.c
-	cn instrument main.pp.c
-	$(CC) -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__   -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h main.pp.exec.c
-	$(CC) -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -o main.exe $(RUNTIME_PREFIX)/libcn_exec.a main.pp.exec.o
-	./main.exe || lldb -S lldb_config_for_fulminate.lldb
-
-# We currently need to debug the instrumented code directly.
-# This includes (a) inserting debug output, (b) setting breakpoints, etc.
-# Therefore, we separate the compilation pipeline below for manual intervention.
-.PHONY: cn-debug
-cn-debug: main.pp.c
-	$(CC) -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__   -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h main.pp.exec.c
-	$(CC) -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -o main.exe $(RUNTIME_PREFIX)/libcn_exec.a main.pp.exec.o
+cn-instrument: main.exe
 	./main.exe || lldb -S lldb_config_for_fulminate.lldb
 
 .PHONY: cn-test
@@ -63,6 +61,7 @@ cn-test: src/alloc.c
 clean:
 	rm -f tmp-alloc.c
 	rm -f *~
+	rm -f *.pp.c
 	rm -f *.exec.c
 	rm -f *.exec.o
 	rm -f *.exe
