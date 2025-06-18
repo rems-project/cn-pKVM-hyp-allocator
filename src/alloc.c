@@ -1339,6 +1339,20 @@ static unsigned long brain_exploding_calculation(struct chunk_hdr *chunk, size_t
         return expected_mapping;
 }
 
+
+/*@
+lemma SplitAndNewChunk(pointer p, u32 size1, u32 size2)
+requires
+        let size = (u64)size1 + (u64)size2 + Cn_chunk_hdr_size();
+        size < (u64)MAXu32();
+        take X = Cn_char_array(p, size);
+ensures
+        take Y = Cn_char_array(p, (u64)size1);
+        let chunk_addr = array_shift<char>(p, (u64)size1);
+        take C = Own_chunk_hdr(chunk_addr);
+        take Z = Cn_char_array(array_shift<char>(p, (u64)size1 + Cn_chunk_hdr_size()), (u64)size2);
+@*/
+
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
 /*@
@@ -1349,14 +1363,19 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         let C_pre = HA_pre.lseg.chunk;
         size > 0u64;
         size < (u64)HA_pre.ha.size;
+
+        let new_chunk_addr = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
+        let chunk_va_size_post = new_chunk_addr - (u64)chunk;
+        let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
+
+        let size1 = chunk_va_size_post - Cn_chunk_hdr_size();
+        let size2 = (u64)new_chunk_va_size - Cn_chunk_hdr_size();
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
         HA_pre.ha == HA_post.ha;
         HA_post.lseg.before == HA_pre.lseg.before;
         let C_post = HA_post.lseg.chunk;
-        let new_chunk_addr = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
-        let chunk_va_size_post = new_chunk_addr - C_post.header_address;
 
         let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr);
 
@@ -1370,7 +1389,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 header_address: new_chunk_addr,
                 mapped_size: (u32)(mapped - chunk_va_size_post),
                 alloc_size: 0u32,
-                va_size: (u32)((u64)C_pre.va_size - chunk_va_size_post)
+                va_size: new_chunk_va_size
         };
 
         (return == 0i32 && can_split) implies C_post.header_address == C_pre.header_address;
@@ -1423,6 +1442,10 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         chunk_hash_update(chunk);
 
         if (new_chunk) {
+                /*@
+                apply SplitAndNewChunk(chunk, (u32)size1, (u32)size2);
+                @*/
+
                 WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
         }
 
@@ -1760,6 +1783,8 @@ predicate void MaybeCn_char_array(pointer p, u64 size)
                 return;
         }
 }
+
+
 @*/
 /*@
 predicate (void) FirstAllocation(pointer start, u32 size, u64 alloc_size, boolean cond)
