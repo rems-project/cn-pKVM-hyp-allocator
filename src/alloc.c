@@ -1368,6 +1368,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         let chunk_va_size_post = new_chunk_addr - (u64)chunk;
         let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
 
+        // for lemma application
+        let base = array_shift<char>(chunk, Cn_chunk_hdr_size());
         let size1 = chunk_va_size_post - Cn_chunk_hdr_size();
         let size2 = (u64)new_chunk_va_size - Cn_chunk_hdr_size();
     ensures
@@ -1443,7 +1445,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
         if (new_chunk) {
                 /*@
-                apply SplitAndNewChunk(chunk, (u32)size1, (u32)size2);
+                apply SplitAndNewChunk(base, (u32)size1, (u32)size2);
                 @*/
 
                 WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
