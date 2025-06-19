@@ -802,7 +802,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
         else
         {
                 take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
-                assert(HA_post.ha.size == ha.size && HA_post.ha.start == ha.start);
+                assert(HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && HA_post.ha.head == ha.head);
                 assert(HA_post.lseg.before == lseg.before);
 
                 assert(!is_null(chunk));
@@ -1377,7 +1377,11 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-        HA_pre.ha == HA_post.ha;
+
+        HA_pre.ha.start == HA_post.ha.start;
+        HA_pre.ha.size == HA_post.ha.size;
+        HA_pre.ha.head == HA_post.ha.head ;
+
         HA_post.lseg.before == HA_pre.lseg.before;
         let C_post = HA_post.lseg.chunk;
 
