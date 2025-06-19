@@ -1346,9 +1346,9 @@ requires
 ensures
         take X1 = Cn_char_array(p, (u64)size1);
         let owned_by_ha = array_shift<char>(p, (u64)size1);
-        take X2 = Cn_char_array(owned_by_ha, (u64)size2);
-        let new_chunk = array_shift<char>(owned_by_ha, (u64)size2);
-        take X3 = Cn_char_array(new_chunk, (u64)size3);
+        take X2 = Cn_char_array(owned_by_ha, (u64)(size2 + size3));
+        //let new_chunk = array_shift<char>(owned_by_ha, (u64)size2);
+        //take X3 = Cn_char_array(new_chunk, (u64)size3);
 @*/
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
