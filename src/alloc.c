@@ -825,7 +825,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 assert(P_post == {
                         header_address: (u64)prev,
                         mapped_size: prev_va_size,
-                        alloc_size: (u32)P_post.alloc_size,
+                        alloc_size: (u32)P_pre.alloc_size,
                         va_size: prev_va_size
                 });
 
