@@ -10,7 +10,8 @@ INCLUDES= -I$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Isrc -
 CPP=$(CC) -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__
 
 # Fulminate
-RUNTIME_PREFIX= $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
+RUNTIME_PREFIX = $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
+RUNTIME_LIB = $(RUNTIME_PREFIX)
 # RUNTIME_INCLUDES= -Isrc -Iinclude
 # RUNTIME_CPP = $(CC) -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__x86_64__ -D__GNUC__="5" -D__cerb__ 
 # RUNTIME_CPP = $(CC) -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__ 
@@ -45,8 +46,8 @@ main.pp.exec.c: main.pp.c
 main.pp.exec.o: main.pp.exec.c
 	$(CC) -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h $<
 
-main.exe: main.pp.exec.o
-	$(CC) $^ -L $(RUNTIME_PREFIX) -lcn_exec -o $@
+main.exe: main.pp.exec.o $(RUNTIME_LIB)/libcn_exec.a
+	$(CC) $^ -L $(RUNTIME_LIB) -lcn_exec -o $@
 
 .PHONY: cn-instrument
 cn-instrument: main.exe

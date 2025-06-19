@@ -2,4 +2,10 @@
 /.cache
 /.vscode
 /tmp-alloc.c
+
 *.o
+*.exe
+*.pp.c
+*.exec.c
+
+compile_commands.json
