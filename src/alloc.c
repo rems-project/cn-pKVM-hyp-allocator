@@ -1363,9 +1363,11 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         let C_pre = HA_pre.lseg.chunk;
         size > 0u64;
         size < (u64)HA_pre.ha.size;
+        C_pre.alloc_size == 0u32;
 
-        let new_chunk_addr = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
-        let chunk_va_size_post = new_chunk_addr - (u64)chunk;
+        // suffix '_' is to avoid the name conflict due to Fulminate
+        let new_chunk_addr_ = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
+        let chunk_va_size_post = new_chunk_addr_ - (u64)chunk;
         let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
 
         // for lemma application
@@ -1379,7 +1381,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         HA_post.lseg.before == HA_pre.lseg.before;
         let C_post = HA_post.lseg.chunk;
 
-        let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr);
+        let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_);
 
         let expected_mapping = Cn_expected_mapping(chunk, size);
         let needs_mapping = Cn_chunk_needs_mapping((u64)C_pre.mapped_size, expected_mapping);
@@ -1388,7 +1390,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 : (u64)C_pre.mapped_size + needs_mapping;
 
         let new_chunk = {
-                header_address: new_chunk_addr,
+                header_address: new_chunk_addr_,
                 mapped_size: (u32)(mapped - chunk_va_size_post),
                 alloc_size: 0u32,
                 va_size: new_chunk_va_size
