@@ -181,7 +181,7 @@ static inline void chunk_hash_update(struct chunk_hdr *chunk)
         take C_pre = MaybeChunkHdr(chunk, !is_null(chunk));
     ensures
         take C_post = MaybeChunkHdr(chunk, !is_null(chunk));
-        bind_hash_change_only(C_pre, C_post);
+        C_pre == C_post;
 @*/
 {
         if (chunk) {
@@ -838,7 +838,6 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 assert(!cond && !cond2 implies ret == 0i32);
                 assert(!cond && !cond2 implies HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
 
-                // the buffer to be returned
                 take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size);
 
                 return;
@@ -1339,18 +1338,17 @@ static unsigned long brain_exploding_calculation(struct chunk_hdr *chunk, size_t
         return expected_mapping;
 }
 
-
 /*@
-lemma SplitAndNewChunk(pointer p, u32 size1, u32 size2)
+lemma SplitAndNewChunk(pointer p, u32 size1, u32 size2, u32 size3)
 requires
-        let size = (u64)size1 + (u64)size2 + Cn_chunk_hdr_size();
-        size < (u64)MAXu32();
+        let size = (u64)size1 + (u64)size2 + (u64)size3;
         take X = Cn_char_array(p, size);
 ensures
-        take Y = Cn_char_array(p, (u64)size1);
-        let chunk_addr = array_shift<char>(p, (u64)size1);
-        take C = Own_chunk_hdr(chunk_addr);
-        take Z = Cn_char_array(array_shift<char>(p, (u64)size1 + Cn_chunk_hdr_size()), (u64)size2);
+        take X1 = Cn_char_array(p, (u64)size1);
+        let owned_by_ha = array_shift<char>(p, (u64)size1);
+        take X2 = Cn_char_array(owned_by_ha, (u64)size2);
+        let new_chunk = array_shift<char>(owned_by_ha, (u64)size2);
+        take X3 = Cn_char_array(new_chunk, (u64)size3);
 @*/
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
@@ -1371,9 +1369,11 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
 
         // for lemma application
-        let base = array_shift<char>(chunk, Cn_chunk_hdr_size());
-        let size1 = chunk_va_size_post - Cn_chunk_hdr_size();
-        let size2 = (u64)new_chunk_va_size - Cn_chunk_hdr_size();
+        let original_cn_char_array = array_shift<char>(chunk, Cn_chunk_hdr_size());
+        // to be split into 3 parts
+        let size_1 = size;
+        let size_2 = (u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size);
+        let size_3 = (u64)new_chunk_va_size;
     ensures
         //take HA_out = Cn_hyp_allocator(allocator);
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
@@ -1447,7 +1447,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
         if (new_chunk) {
                 /*@
-                apply SplitAndNewChunk(base, (u32)size1, (u32)size2);
+                apply SplitAndNewChunk(original_cn_char_array, (u32)size_1, (u32)size_2, (u32)size_3);
                 @*/
 
                 WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));

@@ -175,8 +175,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         assert(cn_hdr.mapped_size <= cn_hdr.va_size);
 
         // own chunk data
-        let chunk_data = array_shift<unsigned char>(header_address, Cn_chunk_hdr_size());
-        let start = array_shift<unsigned char>(chunk_data, cn_hdr.alloc_size);
+        let start = array_shift<unsigned char>(header_address, Cn_chunk_hdr_size() + (u64)cn_hdr.alloc_size );
         let size_owned_by_ha = ((u64)cn_hdr.va_size -  Cn_chunk_hdr_size() - (u64)cn_hdr.alloc_size);
         take A = Cn_char_array(start, size_owned_by_ha);
 
