@@ -215,14 +215,16 @@ function (boolean) list_add_aux(struct list_head Next_post, struct list_head New
 	// can be aliased
 	match Next_pre_opt {
 		List_Head_None {} => {
-            ptr_eq(New_post.prev, head)
+            ptr_eq(Next_post.prev, new)
 	        && ptr_eq(New_post.next, next)
 	        && ptr_eq(New_post.prev, head)
 	        && ptr_eq(Head_post.next, new)
+		    && ptr_eq(Head_post.prev, new)
+		    && ptr_eq(Next_post.next, new)
 		}
 		// the case head != next
 		List_Head_Some { L: Next_pre } => {
-            ptr_eq(New_post.prev, head)
+            ptr_eq(Next_post.prev, new)
 	        && ptr_eq(New_post.next, next)
 	        && ptr_eq(New_post.prev, head)
 	        && ptr_eq(Head_post.next, new)
