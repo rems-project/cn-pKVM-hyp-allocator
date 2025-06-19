@@ -218,6 +218,7 @@ predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, pointer prev}) Cn_chunk_
         // HK: I think this assertion is not needed, if CN handles NULL "properly"
         // c.f. https://github.com/rems-project/cn/issues/135
         assert(!is_null(cn_hdr.Node.next));
+        assert(!is_null(cn_hdr.Node.prev));
         // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
         return {hd: cn_hdr.Hdr, tl: tl.hdrs, prev: tl.prev};
 }
@@ -301,6 +302,7 @@ predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk, poin
 
         take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
         assert(!is_null(cn_hdr.Node.next));
+        assert(!is_null(cn_hdr.Node.prev));
         return {hd: cn_hdr.Hdr, tl: tl.hdrs, chunk: cn_hdr.Chunk, prev: tl.prev};
 }
 

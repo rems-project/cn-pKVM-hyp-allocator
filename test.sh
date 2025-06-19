@@ -6,6 +6,8 @@ targets=(
   chunk_unmapped_size
   setup_first_chunk
   chunk_inc_map
+  list_add
+  __list_add
 )
 
 run_test() {

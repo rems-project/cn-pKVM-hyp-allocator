@@ -188,10 +188,10 @@ static inline void __list_add(struct list_head *new,
 		take Next_post_opt = CondListHead(next, !ptr_eq(head, next));
 		match Next_post_opt {
 			List_Head_None {} => {
-				list_add_aux(Head_post, New_post, Head_post, new, next, head)
+				list_add_aux(Head_post, New_post, Head_post, new, next, head, Next_pre_opt, New_pre, Head_pre)
 			}
 			List_Head_Some { L: Next_post } => {
-				list_add_aux(Next_post, New_post, Head_post, new, next, head)
+				list_add_aux(Next_post, New_post, Head_post, new, next, head, Next_pre_opt, New_pre, Head_pre)
 			}
 		};
 @*/
@@ -210,15 +210,26 @@ static inline void __list_add(struct list_head *new,
 }
 
 /*@
-function (boolean) list_add_aux(struct list_head Next_post, struct list_head New_post, struct list_head Head_post, pointer new, pointer next, pointer head)
+function (boolean) list_add_aux(struct list_head Next_post, struct list_head New_post, struct list_head Head_post, pointer new, pointer next, pointer head, datatype list_head_option Next_pre_opt, struct list_head New_pre, struct list_head Head_pre)
 {
-	// HK: this is not complete
-	// we have to handle the case for the first allocation where
-	// head == allocator->chunks and head->next == allocator->chunks
-	ptr_eq(Next_post.prev, new)
-	&& ptr_eq(New_post.next, next)
-	&& ptr_eq(New_post.prev, head)
-	&& ptr_eq(Head_post.next, new)
+	// can be aliased
+	match Next_pre_opt {
+		List_Head_None {} => {
+            ptr_eq(New_post.prev, head)
+	        && ptr_eq(New_post.next, next)
+	        && ptr_eq(New_post.prev, head)
+	        && ptr_eq(Head_post.next, new)
+		}
+		// the case head != next
+		List_Head_Some { L: Next_pre } => {
+            ptr_eq(New_post.prev, head)
+	        && ptr_eq(New_post.next, next)
+	        && ptr_eq(New_post.prev, head)
+	        && ptr_eq(Head_post.next, new)
+		    && ptr_eq(Head_post.prev, Head_pre.prev)
+		    && ptr_eq(Next_post.next, Next_pre.next)
+		}
+	}
 }
 @*/
 
@@ -238,10 +249,10 @@ static inline void list_add(struct list_head *new, struct list_head *head)
 		take Next_post_opt = CondListHead(next, !ptr_eq(head, next));
 		match Next_post_opt {
 			List_Head_None {} => {
-				list_add_aux(Head_post, New_post, Head_post, new, next, head)
+				list_add_aux(Head_post, New_post, Head_post, new, next, head, Next_pre_opt, New_pre, Head_pre)
 			}
 			List_Head_Some { L: Next_post } => {
-				list_add_aux(Next_post, New_post, Head_post, new, next, head)
+				list_add_aux(Next_post, New_post, Head_post, new, next, head, Next_pre_opt, New_pre, Head_pre)
 			}
 		};
 @*/
