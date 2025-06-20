@@ -96,6 +96,13 @@ type_synonym cn_hyp_allocator = {
         u32 size
 }
 
+type_synonym cn_hyp_allocator_core = {
+        pointer head,    // used for checking the last chunk
+        pointer first,
+        va start,
+        u32 size
+}
+
 datatype cn_chunk_hdrs {
   Chunk_nil {},
   Chunk_cons { cn_chunk_hdr hd, datatype cn_chunk_hdrs tl }
@@ -150,7 +157,7 @@ predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
         return cn_hdr;
 }
 
-predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer header_address, cn_hyp_allocator ha, option_u64 va_size_opt, boolean check_node)
+predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer header_address, cn_hyp_allocator_core ha, option_u64 va_size_opt, boolean check_node)
 {
 
         assert(!is_null(header_address));
@@ -158,7 +165,8 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         assert(hdr.alloc_size <= hdr.mapped_size);
 
         let end = ha.start + (u64)ha.size;
-        assert(check_node implies (u64)hdr.node.next <= end);
+        // The following does not hold, because the node.next can be ha.head.
+        // assert(check_node implies (u64)hdr.node.next <= end);
 
         let va_size = match (va_size_opt) {
                 Option_u64_none {} => {
@@ -202,13 +210,13 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
 
 // Cn_chunk_hdr validates the locations of the chunk header and its next are
 // in the hyp_allocator's address space
-predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator ha)
+predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator_core ha)
 {
         take cn_hdr = Cn_chunk_hdr_inner(header_address, ha, Option_u64_none {}, true);
         return cn_hdr;
 }
 
-predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, pointer prev}) Cn_chunk_hdrs_non_last(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
+predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, pointer prev}) Cn_chunk_hdrs_non_last(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last)
 {
         assert(!is_null(p));
         let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
@@ -224,7 +232,7 @@ predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, pointer prev}) Cn_chunk_
 }
 // HK: prev is unused? what is for?
 // -> HK: important for sanity check of linked list (e.g. node->next->prev == node)
-predicate ({datatype cn_chunk_hdrs hdrs, pointer prev}) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last)
+predicate ({datatype cn_chunk_hdrs hdrs, pointer prev}) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last)
 {
         if (ptr_eq(p,last)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
@@ -262,7 +270,8 @@ type_synonym cn_lseg = {
 }
 
 predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( pointer p, pointer chunk) { // p points to a struct hyp_allocator
-  take ha = Cn_hyp_allocator_only(p);
+  take ha_full = Cn_hyp_allocator_only(p);
+  let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
 
@@ -271,7 +280,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
   let prev = hdrs1.prev;
   take T = Cn_chunk_hdrs_non_last(chunk_node, prev, ha, ha.head);
   let lseg = {before: hdrs1.hdrs, chunk: T.hd, after: T.tl};
-  return( {ha:ha, lseg: lseg} );
+  return( {ha:ha_full, lseg: lseg} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
 
@@ -279,12 +288,13 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
 
 // chunk_install is a special case for the fundamental invariant for the chunk lists
 // as it temporarily breaks the invariant.
-predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chunk_hdr_for_install(pointer header_address, pointer chunk, cn_hyp_allocator ha)
+predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chunk_hdr_for_install(pointer header_address, pointer chunk, cn_hyp_allocator_core ha)
 {
+        let end = ha.start + (u64)ha.size;
         let va_size_1 = (u64)chunk - (u64)header_address;
         take P = Cn_chunk_hdr_inner(header_address, ha, Option_u64_some{value:va_size_1} , true);
 
-        let end = ha.start + (u64)ha.size;
+        assert((u64)chunk < end);
         let va_size_2 = (Cn_list_is_last(P.Node, ha.head) ? end : (u64)my_container_of_chunk_hdr(P.Node.next) ) - (u64)chunk;
 
         take C = Cn_chunk_hdr_inner(chunk, ha, Option_u64_some{value: va_size_2}, false);
@@ -292,7 +302,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chu
 
 }
 
-predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk, pointer prev}) Cn_chunk_hdrs_non_last_for_install(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last, pointer new_chunk)
+predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk, pointer prev}) Cn_chunk_hdrs_non_last_for_install(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last, pointer new_chunk)
 {
         assert(!is_null(p));
         let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) );
@@ -308,7 +318,8 @@ predicate ({cn_chunk_hdr hd, datatype cn_chunk_hdrs tl, cn_chunk_hdr chunk, poin
 
 
 predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk, pointer prev}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk) {
-  take ha = Cn_hyp_allocator_only(p);
+  take ha_full = Cn_hyp_allocator_only(p);
+  let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
 
@@ -319,7 +330,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk, pointer prev}
   take T = Cn_chunk_hdrs_non_last_for_install(chunk_node, prev_ptr, ha, ha.head, chunk);
 
   let lseg = {before: hdrs1.hdrs, chunk: T.hd, after: T.tl};
-  return( {ha:ha, lseg: lseg, chunk: T.chunk, prev: T.prev} );
+  return( {ha:ha_full, lseg: lseg, chunk: T.chunk, prev: T.prev} );
 }
 
 
@@ -370,11 +381,12 @@ predicate (struct chunk_hdr_only) FirstChunk(pointer first_chunk, u32 ha_size, u
         return U;
 }
 predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
-  take ha = Cn_hyp_allocator_only(p);
+  take ha_full = Cn_hyp_allocator_only(p);
+  let ha = {head: ha_full.head, first: ha_full.first, start: ha_full.start, size: ha_full.size};
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);
-  return( {ha:ha, hdrs:hdrs.hdrs} );
+  return( {ha:ha_full, hdrs:hdrs.hdrs} );
 }
 
 function (boolean) Is_chunk_some(datatype cn_chunk_hdr_option maybe_hdr)
