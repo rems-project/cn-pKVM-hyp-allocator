@@ -294,8 +294,9 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chu
         let va_size_1 = (u64)chunk - (u64)header_address;
         take P = Cn_chunk_hdr_inner(header_address, ha, Option_u64_some{value:va_size_1} , true);
 
-        assert((u64)chunk < end);
-        let va_size_2 = (Cn_list_is_last(P.Node, ha.head) ? end : (u64)my_container_of_chunk_hdr(P.Node.next) ) - (u64)chunk;
+        let next_chunk = (Cn_list_is_last(P.Node, ha.head) ? end : (u64)my_container_of_chunk_hdr(P.Node.next) );
+        assert((u64)chunk < next_chunk);
+        let va_size_2 =  next_chunk - (u64)chunk;
 
         take C = Cn_chunk_hdr_inner(chunk, ha, Option_u64_some{value: va_size_2}, false);
         return {Hdr: P.Hdr, Node: P.Node, Chunk: C.Hdr};
