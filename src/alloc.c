@@ -1314,6 +1314,35 @@ ensures
         //take X3 = Cn_char_array(new_chunk, (u64)size3);
 @*/
 
+void LemmaSplitAndNewChunk(
+        char *p, unsigned int size1, unsigned int size2
+)
+/*@
+requires
+        let size = (u64)size1 + (u64)size2;
+        take X = Cn_char_array(p, size);
+        let owned_by_ha = array_shift<char>(p, (u64)size1);
+ensures
+        take X1 = Cn_char_array(p, (u64)size1);
+        take X2 = Cn_char_array(owned_by_ha, (u64)size2);
+@*/
+{
+        unsigned long i;
+        for (i = 0; i < (unsigned long)size2; i++)
+
+        /*@
+        inv
+                take L0 = Cn_char_array(p, (u64)size1);
+                take L1 = Cn_char_array_with_offset(p, (u64)size2 - i, (u64)size1 + (u64)i);
+                take L2 = Cn_char_array(owned_by_ha, i);
+                {p} unchanged;
+        @*/
+        {
+                /*@ focus W<char>, i; @*/
+                /*@ focus W<char>, ((u64)size1 + i); @*/
+        }
+}
+
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
 /*@
@@ -1727,6 +1756,13 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 predicate void Cn_char_array(pointer p, u64 size)
 {
         take U = each(u64 i; i < size){
+                W<char>(array_shift<char>(p, i))
+        };
+        return;
+}
+predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
+{
+        take U = each(u64 i; offset <= i && i < offset + size){
                 W<char>(array_shift<char>(p, i))
         };
         return;
