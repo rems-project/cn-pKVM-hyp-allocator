@@ -1314,6 +1314,25 @@ ensures
         //take X3 = Cn_char_array(new_chunk, (u64)size3);
 @*/
 
+/*
+
+predicate void Cn_char_array(pointer p, u64 size)
+{
+        take U = each(u64 i; i < size){
+                W<char>(array_shift<char>(p, i))
+        };
+        return;
+}
+predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
+{
+        take U = each(u64 i; offset <= i && i < offset + size){
+                W<char>(array_shift<char>(p, i))
+        };
+        return;
+}
+
+*/
+
 void LemmaSplitAndNewChunk(
         char *p, unsigned int size1, unsigned int size2
 )
@@ -1329,13 +1348,15 @@ ensures
 {
         unsigned long i;
         for (i = 0; i < (unsigned long)size2; i++)
-
         /*@
         inv
                 take L0 = Cn_char_array(p, (u64)size1);
                 take L1 = Cn_char_array_with_offset(p, (u64)size2 - i, (u64)size1 + (u64)i);
                 take L2 = Cn_char_array(owned_by_ha, i);
                 {p} unchanged;
+                {size1} unchanged;
+                {size2} unchanged;
+                i <= (u64)size2;
         @*/
         {
                 /*@ focus W<char>, i; @*/
@@ -1446,7 +1467,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 apply SplitAndNewChunk(original_cn_char_array, (u32)size_1, (u32)size_2, (u32)size_3);
                 @*/
 
-                WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
+                    WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
         }
 
         return 0;
