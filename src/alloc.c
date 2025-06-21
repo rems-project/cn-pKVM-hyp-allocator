@@ -513,7 +513,47 @@ function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 {
         hdr.va_size - hdr.mapped_size
 }
+
+function [rec] (cn_chunk_hdrs) SnocHdr(cn_chunk_hdrs hdrs, cn_chunk_hdr hdr)
+{
+        match (hdrs) {
+                Chunk_nil {} => {
+                        Chunk_cons {hd:hdr, tl:Chunk_nil {}}
+                }
+                Chunk_cons {hd:hd, tl:tl} => {
+                        Chunk_cons {hd:hd, tl:SnocHdr(tl, hdr)}
+                }
+        }
+}
+
+
 @*/
+
+//void LemmaNextChunk(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
+/*@
+lemma LemmaNextChunk(pointer chunk, pointer allocator)
+    requires
+        take X = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        X.lseg.after != Chunk_nil{};
+        let next = match (X.lseg.after) {
+            Chunk_nil {} => {
+                // dummy
+                {hdr: X.lseg.chunk, tl: Chunk_nil {}}
+            }
+            Chunk_cons {hd:hdr, tl:tl} => {
+                {hdr: hdr, tl: tl}
+            }
+        };
+    ensures
+        take Y = Cn_hyp_allocator_focusing_on(allocator, (pointer)next.hdr.header_address);
+        Y.lseg.before == SnocHdr(Y.lseg.before, X.lseg.chunk);
+        Y.lseg.chunk == next.hdr;
+        Y.lseg.after == next.tl;
+        Y.ha == X.ha;
+@*/
+//{
+//
+//}
 
 
 // This function takes
