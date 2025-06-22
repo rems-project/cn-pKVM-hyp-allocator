@@ -929,6 +929,9 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 // See the comments in chunk_list_insert
                 // HK: Currently we encounter the CN issue #148,
                 // so we cannot go further with the spec.
+                /*@ split_case(ptr_eq(
+                        member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 list_add(&chunk->node, &allocator->chunks);
                 chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
                 chunk->alloc_size = size;
