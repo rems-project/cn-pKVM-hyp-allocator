@@ -8,6 +8,12 @@ targets=(
   chunk_inc_map
   list_add
   __list_add
+  chunk_get_next
+  chunk_can_split
+  chunk_hash_update
+  chunk_addr_fixup
+  chunk_get
+  __chunk_next
 )
 
 run_test() {
