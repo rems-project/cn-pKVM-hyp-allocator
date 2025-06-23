@@ -36,7 +36,7 @@ cn-verify-via-cpp: tmp-alloc.c
 cn-verify: src/alloc.c
 	cn verify --no-vip $(if $(OPT), $(OPT)) $(if $(ONLY),--only=$(ONLY)) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c
 
-main.pp.c: src/main.c src/alloc.c
+main.pp.c: src/main.c src/alloc.c specs/spec.c
 	$(RUNTIME_CPP) $< > $@
 
 main.pp.exec.c: main.pp.c
