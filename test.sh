@@ -14,6 +14,8 @@ targets=(
   chunk_addr_fixup
   chunk_get
   __chunk_next
+  chunk_get_prev
+  __chunk_prev
 )
 
 run_test() {
