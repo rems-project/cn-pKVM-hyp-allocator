@@ -668,7 +668,14 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)->next));@*/
         list_add(&chunk->node, &prev->node);
 
-        chunk_hash_update(prev);
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node),
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks)))
         /*CN*/ LemmaNextChunk(prev, allocator);
         chunk_hash_update(__chunk_next(chunk, allocator));
         chunk_hash_update(chunk);
@@ -1801,7 +1808,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                     member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 size_t available_size = chunk->mapped_size +
                                         chunk_unmapped_size(chunk, allocator);
-                                        
+
                 if (chunk_is_used(chunk)) {
                         continue;
                 }
@@ -1815,7 +1822,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                         // PATCH(HK): Similar to c42b25f27262ad3f37fdb80612189bf41a729c0d
                         best_available_size = available_size;
                         continue;
-                } 
+                }
 
                 if (best_available_size <= available_size) {
                         continue;
