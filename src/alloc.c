@@ -132,14 +132,8 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
     requires
         !is_null(chunk);
         take C_pre = Own_chunk_hdr(chunk);
-        // take C_pre = each(u64 i; 0u64 <= i && sizeof<unsigned long long> * i < (u64)offsetof(chunk_hdr, hash)) {
-        //         RW<unsigned long long>(array_shift<unsigned long long>(chunk, i))
-        // };
     ensures
         take C_post = Own_chunk_hdr(chunk);
-        //take C_post = each(u64 i; 0u64 <= i && sizeof<unsigned long long> *i < (u64)offsetof(chunk_hdr, hash)) {
-        //        RW<unsigned long long>(array_shift<unsigned long long>(chunk, i))
-        //};
         C_pre == C_post;
 @*/
 {
@@ -181,7 +175,7 @@ static inline void chunk_hash_update(struct chunk_hdr *chunk)
         take C_pre = MaybeChunkHdr(chunk, !is_null(chunk));
     ensures
         take C_post = MaybeChunkHdr(chunk, !is_null(chunk));
-        C_pre == C_post;
+        bind_hash_change_only(C_pre, C_post);
 @*/
 {
         if (chunk) {
