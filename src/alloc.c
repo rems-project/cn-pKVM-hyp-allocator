@@ -315,7 +315,7 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                                 is_null(return)
                         }
                         Chunk_cons {hd:hdr, tl:tl} => {
-                                (u64)return == hdr.header_address
+                                return == (pointer)hdr.header_address
                         }
                 };
 @*/
@@ -504,10 +504,11 @@ function [rec] (cn_chunk_hdrs) SnocHdr(cn_chunk_hdrs hdrs, cn_chunk_hdr hdr)
 
 @*/
 
-//void LemmaNextChunk(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
+void LemmaNextChunk(struct chunk_hdr *chunk,
+                    struct hyp_allocator *allocator)
 /*@
-lemma LemmaNextChunk(pointer chunk, pointer allocator)
     requires
+        !is_null(chunk);
         take X = Cn_hyp_allocator_focusing_on(allocator, chunk);
         X.lseg.after != Chunk_nil{};
         let next = match (X.lseg.after) {
@@ -521,25 +522,58 @@ lemma LemmaNextChunk(pointer chunk, pointer allocator)
         };
     ensures
         take Y = Cn_hyp_allocator_focusing_on(allocator, (pointer)next.hdr.header_address);
-        Y.lseg.before == SnocHdr(X.lseg.before, X.lseg.chunk);
+        Y.lseg.before == Chunk_cons{hd: X.lseg.chunk, tl: X.lseg.before};
         Y.lseg.chunk == next.hdr;
         Y.lseg.after == next.tl;
         Y.ha == X.ha;
-
-// lemma LemmaPrevChunk(pointer prev, pointer allocator, pointer chunk)
-//     requires
-//         take X = Cn_hyp_allocator_focusing_on(allocator, chunk);
-//
-//     ensures
-//         take Y = Cn_hyp_allocator_focusing_on(allocator, (pointer)prev);
-//         Y.lseg.before == SnocHdr(X.lseg.before, X.lseg.chunk);
-//         Y.lseg.chunk == next.hdr;
-//         Y.lseg.after == next.tl;
-//         Y.ha == X.ha;
 @*/
-//{
-//
-//}
+{
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node),
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+}
+
+
+void LemmaPrevChunk(struct chunk_hdr *chunk,
+                            struct hyp_allocator *allocator)
+/*@
+    requires
+        !is_null(chunk);
+        take X = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        X.lseg.before != Chunk_nil{};
+        let prev = match (X.lseg.before) {
+            Chunk_nil {} => {
+                // dummy
+                {hdr: X.lseg.chunk, tl: Chunk_nil {}}
+            }
+            Chunk_cons {hd:hdr, tl:tl} => {
+                {hdr: hdr, tl: tl}
+            }
+        };
+    ensures
+        take Y = Cn_hyp_allocator_focusing_on(allocator, (pointer)prev.hdr.header_address);
+        Y.lseg.after == Chunk_cons{hd: X.lseg.chunk, tl: X.lseg.after};
+        Y.lseg.chunk == prev.hdr;
+        Y.lseg.before == prev.tl;
+        Y.ha == X.ha;
+
+@*/
+{
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node),
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->prev));@*/
+
+}
 
 
 // This function takes
@@ -635,17 +669,10 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         list_add(&chunk->node, &prev->node);
 
         chunk_hash_update(prev);
-        // /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
-        // /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
-        // /*@ split_case(ptr_eq(
-        //         member_shift<struct chunk_hdr>(chunk, node),
-        //         member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        // /*@ split_case(ptr_eq(
-        //         member_shift<struct chunk_hdr>(chunk, node)->next,
-        //         member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ apply LemmaNextChunk(prev, allocator); @*/
+        /*CN*/ LemmaNextChunk(prev, allocator);
         chunk_hash_update(__chunk_next(chunk, allocator));
         chunk_hash_update(chunk);
+        /*CN*/ LemmaPrevChunk(chunk, allocator);
 }
 
 static inline void chunk_list_del(struct chunk_hdr *chunk,

@@ -221,10 +221,6 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator_core ha)
 {
         take cn_hdr = Cn_chunk_hdr_inner(header_address, ha, Option_u64_none {}, true);
-        // HK: I think this assertion is not needed, if CN handles NULL "properly"
-        // c.f. https://github.com/rems-project/cn/issues/135
-        assert(!is_null(cn_hdr.Node.next));
-        assert(!is_null(cn_hdr.Node.prev));
         return cn_hdr;
 }
 
@@ -245,6 +241,10 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
                 let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.prev, prev));
+                // HK: I think this assertion is not needed, if CN handles NULL "properly"
+                // c.f. https://github.com/rems-project/cn/issues/135
+                assert(!is_null(cn_hdr.Node.next));
+                assert(!is_null(cn_hdr.Node.prev));
                 take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
 
                 // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
@@ -262,6 +262,10 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer next, cn
                 let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.next, next));
+                // HK: I think this assertion is not needed, if CN handles NULL "properly"
+                // c.f. https://github.com/rems-project/cn/issues/135
+                assert(!is_null(cn_hdr.Node.next));
+                assert(!is_null(cn_hdr.Node.prev));
                 take tl = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, p, ha, first);
 
                 return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
@@ -298,6 +302,8 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
 
   // own this chunk
   take cn_hdr = Cn_chunk_hdr(chunk, ha);
+  assert(!is_null(cn_hdr.Node.next));
+  assert(!is_null(cn_hdr.Node.prev));
 
   // chunk must be a valid chunk in the allocator
   let chunk_node = member_shift<struct chunk_hdr_only>(chunk, node);
@@ -336,6 +342,8 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk}) Cn_hyp_alloc
 
   // own this chunk
   take cn_hdr = Cn_chunk_hdr_for_install(prev, chunk, ha);
+  assert(!is_null(cn_hdr.Node.next));
+  assert(!is_null(cn_hdr.Node.prev));
 
   // chunk must be a valid chunk in the allocator
   let chunk_node = member_shift<struct chunk_hdr_only>(prev, node);

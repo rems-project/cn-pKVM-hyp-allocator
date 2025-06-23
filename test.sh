@@ -16,6 +16,8 @@ targets=(
   __chunk_next
   chunk_get_prev
   __chunk_prev
+  LemmaNextChunk
+  LemmaPrevChunk
 )
 
 run_test() {
