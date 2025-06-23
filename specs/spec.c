@@ -147,6 +147,7 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
         assert(!is_null(cn_hyp.first));
         assert(!is_null(cn_hyp.last));
         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
+        assert(ha.start > 0u64);
         return cn_hyp;
 }
 @*/
@@ -205,6 +206,11 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
                 ((u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next
                 || (u64)hdr.node.next == (u64)ha.head)
         );
+        assert(
+                check_node implies
+                ((u64)hdr.node.prev < (u64)member_shift<struct chunk_hdr>(header_address, node)
+                || (u64)hdr.node.prev == (u64)ha.head)
+        );
 
         return {Hdr: cn_hdr, Node: hdr.node};
 
@@ -249,6 +255,7 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
 predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer next, cn_hyp_allocator_core ha,  pointer first)
 {
         if (ptr_eq(p,first)) {
+                assert(ha.start <= ha.start + (u64)ha.size);
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));
