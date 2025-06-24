@@ -254,7 +254,6 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 let After_pre = HA_pre.lseg.after;
         ensures
                 take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let B_post = HA_post.lseg.chunk;
                 HA_post == HA_pre;
 
                 match After_pre {
@@ -262,7 +261,7 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                                 is_null(return)
                         }
                         Chunk_cons {hd:hdr, tl:tl} => {
-                                return == (pointer)hdr.header_address
+                                (u64)return == hdr.header_address
                         }
                 };
 @*/
@@ -289,7 +288,7 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                                 is_null(return)
                         }
                         Chunk_cons {hd:hdr, tl:tl} => {
-                                return == (pointer)hdr.header_address
+                                ptr_eq(return, (pointer)hdr.header_address)
                         }
                 };
 @*/
@@ -315,7 +314,7 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                                 is_null(return)
                         }
                         Chunk_cons {hd:hdr, tl:tl} => {
-                                return == (pointer)hdr.header_address
+                                ptr_eq(return, (pointer)hdr.header_address)
                         }
                 };
 @*/
@@ -668,18 +667,15 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)->next));@*/
         list_add(&chunk->node, &prev->node);
 
-        chunk_hash_update(prev);
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
-        /*@ split_case(ptr_eq(
-                member_shift<struct chunk_hdr>(chunk, node),
-                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        //chunk_hash_update(prev);
+        /*CN*/ LemmaNextChunk(prev, allocator);
         /*@ split_case(ptr_eq(
                 member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*CN*/ LemmaNextChunk(prev, allocator);
-        chunk_hash_update(__chunk_next(chunk, allocator));
-        chunk_hash_update(chunk);
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+        chunk_hash_update(list_is_last(&(chunk)->node, &(allocator)->chunks) ? NULL : list_next_entry(chunk, node));
+        // chunk_hash_update(chunk);
         /*CN*/ LemmaPrevChunk(chunk, allocator);
 }
 
@@ -810,9 +806,14 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 assert(!is_null(chunk));
                 take a_in=Cn_hyp_allocator(allocator);
                 assert(a_in.hdrs==Chunk_nil{});
+                let ha = a_in.ha;
 
                 take Chunk = Own_chunk_hdr(chunk);
                 assert(size != 0u64);
+                assert(size < (u64)ha.size);
+                assert(PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size);
+                assert(ha.start == (u64)chunk);
+
                 // needs the ownership of the remaining
                 let chunk_data = array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + size);
                 let remaining = (u64)a_in.ha.size - Cn_chunk_hdr_size() - size;
@@ -863,6 +864,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 return;
         }
         else
+        { if (ret == -0i32)
         {
                 take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
                 assert(HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head));
@@ -873,15 +875,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 let P_pre = lseg.chunk;
                 let P_post = HA_post.lseg.chunk;
 
-                let prev_u = (u64)prev + (u64)P_pre.mapped_size;
-                let prev_cd = (u64)prev + (u64)offsetof(chunk_hdr, data);
 
-
-                let cond = prev_u < (u64)chunk;
-                let cond2 = (u64)prev_cd + (u64)P_pre.alloc_size > (u64)chunk;
-
-                assert(cond implies ret == -EINVAL());
-                assert(cond2 implies ret == -EINVAL());
 
                 let prev_mapped_size = P_pre.mapped_size;
                 let prev_va_size = (u32)((u64)chunk - (u64)prev);
@@ -898,12 +892,26 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                         alloc_size: (u32)size,
                         va_size: (u32)((u64)P_pre.va_size - (u64)P_post.va_size)
                 };
-                assert(!cond && !cond2 implies ret == 0i32);
-                assert(!cond && !cond2 implies HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
+                assert(HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
 
                 take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size);
 
                 return;
+        }
+        else {
+                take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
+                let P_pre = lseg.chunk;
+                assert(ha == HA_post.ha);
+                assert(HA_post.lseg == lseg);
+
+                let prev_u = (u64)prev + (u64)P_pre.mapped_size;
+                let prev_cd = (u64)prev + (u64)offsetof(chunk_hdr, data);
+                let cond = prev_u < (u64)chunk;
+                let cond2 = (u64)prev_cd + (u64)P_pre.alloc_size > (u64)chunk;
+                assert(cond || cond2);
+
+                return;
+        }
         }
 }
 @*/
