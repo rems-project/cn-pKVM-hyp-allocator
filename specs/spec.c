@@ -366,7 +366,7 @@ function [rec] (datatype cn_chunk_hdrs) ConcatChunkList(datatype cn_chunk_hdrs b
                 after
         }
         Chunk_cons {hd:hdr, tl:tl} => {
-                ConcatChunkList(tl, Chunk_cons {hd:hdr, tl: after})
+                Chunk_cons{hd: hdr, tl: ConcatChunkList(tl, after)}
         }
         }
 }

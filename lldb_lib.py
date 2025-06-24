@@ -250,10 +250,111 @@ def cn_print_command(debugger, command, result, internal_dict):
     result.PutCString(body)
 
 
+# print_chunkhdr.py
+
+
+def print_chunkhdr(debugger, command, result, internal_dict):
+    '''print_chunkhdr <expr> — pretty-print a cn_chunk_hdrs list of chunk headers'''
+
+    expr = command.strip()
+    if not expr:
+        result.PutCString("Usage: print_chunkhdr <expression>")
+        return
+
+    target = debugger.GetSelectedTarget()
+    val = target.EvaluateExpression(expr)
+    if not val.IsValid() or val.GetError().Fail():
+        result.PutCString("Error evaluating expression: %s" % val.GetError())
+        return
+
+    # If it's a pointer type, dereference once
+    if val.GetType().IsPointerType():
+        val = val.Dereference()
+        if not val.IsValid():
+            result.PutCString("Error: could not dereference pointer")
+            return
+
+    def get_tag_name(node):
+        tag = node.GetChildMemberWithName('tag')
+        if not tag.IsValid():
+            return None
+        # Try to interpret enum summary
+        summ = tag.GetSummary()
+        if summ:
+            text = summ.strip('"').strip("'")
+            if 'CHUNK_CONS' in text:
+                return 'CHUNK_CONS'
+            if 'CHUNK_NIL' in text:
+                return 'CHUNK_NIL'
+        # fallback to raw value
+        raw = tag.GetValue()
+        return raw
+
+    def unwrap_bits(val):
+        # unwrap cn_bits_u32, cn_bits_u64, etc.
+        tname = val.GetType().GetDisplayTypeName()
+        if tname.startswith('cn_bits_'):
+            # assume single child holds the primitive
+            if val.GetNumChildren() == 1:
+                child = val.GetChildAtIndex(0)
+                return child.GetValue()
+        return val.GetValue()
+
+    node = val
+    elems = []
+
+    while True:
+        tag_name = get_tag_name(node)
+        if tag_name is None:
+            result.PutCString("Error: no 'tag' field on %s" %
+                              node.GetType().GetName())
+            return
+        if tag_name == 'CHUNK_NIL':
+            break
+        if tag_name != 'CHUNK_CONS':
+            result.PutCString("Unexpected tag: %s" % tag_name)
+            return
+
+        u = node.GetChildMemberWithName('u')
+        cons_ptr = u.GetChildMemberWithName('chunk_cons')
+        if not cons_ptr.IsValid() or cons_ptr.GetValueAsUnsigned() == 0:
+            break
+
+        cons = cons_ptr.Dereference()
+        hd_ptr = cons.GetChildMemberWithName('hd')
+        if hd_ptr.IsValid() and hd_ptr.GetValueAsUnsigned() != 0:
+            hdr = hd_ptr.Dereference()
+            fields = []
+            for fld in ('alloc_size', 'header_address', 'mapped_size', 'va_size'):
+                c = hdr.GetChildMemberWithName(fld)
+                if c.IsValid():
+                    val_str = unwrap_bits(c)
+                    fields.append(f"{fld}={val_str}")
+            elems.append("{" + ", ".join(fields) + "}")
+        else:
+            elems.append("nil")
+
+        tl_ptr = cons.GetChildMemberWithName('tl')
+        if not tl_ptr.IsValid() or tl_ptr.GetValueAsUnsigned() == 0:
+            break
+        node = tl_ptr.Dereference()
+
+    # Pretty-print list
+    if not elems:
+        result.PutCString("[]")
+        return
+    lines = ['[']
+    for e in elems:
+        lines.append(f"  {e},")
+    lines[-1] = lines[-1].rstrip(',')  # remove trailing comma on last
+    lines.append(']')
+    result.PutCString("\n".join(lines))
+
+
 def __lldb_init_module(debugger, internal_dict):
     commands = [("print_chunk_list", "pcl"), ("hyp", "hyp"),
                 ("print_chunk_list", "print_chunk_list"),
-                ("cn_alloc", "cn_alloc"), ("cn_pointer", "cn_ptr"), ("cn_print_command", "cn_print")]
+                ("cn_alloc", "cn_alloc"), ("cn_pointer", "cn_ptr"), ("cn_print_command", "cn_print"), ("print_chunkhdr", "print_chunkhdr")]
     for cmd, alias in commands:
         debugger.HandleCommand(
             f'command script add -f lldb_lib.{cmd} {alias}')
