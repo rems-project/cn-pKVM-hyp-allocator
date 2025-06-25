@@ -670,7 +670,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)->next));@*/
         list_add(&chunk->node, &prev->node);
 
-        //chunk_hash_update(prev);
+        chunk_hash_update(prev);
         /*CN*/ LemmaNextChunk(prev, allocator);
         /*@ split_case(ptr_eq(
                 member_shift<struct chunk_hdr>(chunk, node)->next,
@@ -678,7 +678,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         chunk_hash_update(__chunk_next(chunk, allocator));
-        // chunk_hash_update(chunk);
+        chunk_hash_update(chunk);
         /*CN*/ LemmaPrevChunk(chunk, allocator);
 }
 
