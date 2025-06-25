@@ -251,16 +251,16 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
         requires
                 !is_null(chunk);
                 (u64)chunk & 0x7u64 == 0u64;
-                take C_pre = RW<struct chunk_hdr>(chunk);
+                take C_pre = RW<struct chunk_hdr_only>(chunk);
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(C_pre.node.next);
                 (u64)C_pre.node.next & 0x7u64 == 0u64;
         ensures
-                take C_post = RW<struct chunk_hdr>(chunk);
+                take C_post = RW<struct chunk_hdr_only>(chunk);
                 take A_post = RW<struct hyp_allocator>(allocator);
                 C_pre == C_post;
                 A_pre == A_post;
-                let cond = C_pre.node.next == member_shift<struct hyp_allocator>(allocator, chunks);
+                let cond = ptr_eq(C_pre.node.next, member_shift<struct hyp_allocator>(allocator, chunks));
                 if (cond) {
                         is_null(return)
                 } else {
@@ -322,7 +322,6 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 };
 @*/
 {
-        struct chunk_hdr *next = __chunk_next(chunk, allocator);
         /*@ split_case(ptr_eq(
                 member_shift<struct chunk_hdr>(chunk, node),
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
@@ -330,6 +329,7 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+        struct chunk_hdr *next = __chunk_next(chunk, allocator);
         chunk_hash_validate(next);
         return next;
 }
@@ -813,7 +813,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
 
                 take Chunk = Own_chunk_hdr(chunk);
                 assert(size != 0u64);
-                assert(size < (u64)ha.size);
+                assert(size <= (u64)ha.size);
                 assert(PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
 
