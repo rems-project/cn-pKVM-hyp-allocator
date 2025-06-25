@@ -73,7 +73,7 @@ struct chunk_hdr {
         u32                     mapped_size;
         struct list_head        node;
         u32                     hash;
-        /* CN */ u32            explicit_padding;
+        /* CN DIFF */ u32            explicit_padding;
         char                    data __aligned(8);
 };
 // HK: having char data at the end of the struct is very annoying
@@ -207,6 +207,7 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 //         offsetof(struct chunk_hdr, data)
 
 #ifdef NO_STATEMENT_EXPRS
+/* CN DIFF */
 // HK: replace unsigned long with size_t
 #define chunk_size(size) \
         (chunk_hdr_size() + max_u64((unsigned long)(size), MIN_ALLOC))
@@ -742,6 +743,8 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 u8 *missing_donations = this_cpu_ptr(&hyp_allocator_missing_donations);
                 u32 delta = (size >> PAGE_SHIFT) - mc->nr_pages;
 
+/* CN DIFF */
+// originally `*missing_donations = (u8)min(delta, (u32) ~((u8)0));`
 #ifdef NO_STATEMENT_EXPRS
                 *missing_donations = min_u32(delta, U8_MAX);
 #else /* NO_STATEMENT_EXPRS*/
