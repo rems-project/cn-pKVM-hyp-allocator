@@ -1663,6 +1663,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     requires take a_in=Cn_hyp_allocator(allocator);
     a_in.hdrs==Chunk_nil{};
     (u64)a_in.ha.size >= size;
+    PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size;
     size >= MIN_ALLOC(); // `hyp_alloc` ensures this.
     take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size, size);
     ensures
