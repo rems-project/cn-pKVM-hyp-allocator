@@ -249,20 +249,23 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                            struct hyp_allocator *allocator)
 /*@
         requires
-                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let B_pre = HA_pre.lseg.chunk;
-                let After_pre = HA_pre.lseg.after;
+                !is_null(chunk);
+                (u64)chunk & 0x7u64 == 0u64;
+                take C_pre = RW<struct chunk_hdr>(chunk);
+                take A_pre = RW<struct hyp_allocator>(allocator);
+                !is_null(C_pre.node.next);
+                (u64)C_pre.node.next & 0x7u64 == 0u64;
         ensures
-                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                HA_post == HA_pre;
-
-                match After_pre {
-                        Chunk_nil {} => {
-                                is_null(return)
-                        }
-                        Chunk_cons {hd:hdr, tl:tl} => {
-                                (u64)return == hdr.header_address
-                        }
+                take C_post = RW<struct chunk_hdr>(chunk);
+                take A_post = RW<struct hyp_allocator>(allocator);
+                C_pre == C_post;
+                A_pre == A_post;
+                let cond = C_pre.node.next == member_shift<struct hyp_allocator>(allocator, chunks);
+                if (cond) {
+                        is_null(return)
+                } else {
+                        !is_null(return) &&
+                        ptr_eq(member_shift<struct chunk_hdr>(return, node), C_pre.node.next)
                 };
 @*/
 {
@@ -674,7 +677,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
-        chunk_hash_update(list_is_last(&(chunk)->node, &(allocator)->chunks) ? NULL : list_next_entry(chunk, node));
+        chunk_hash_update(__chunk_next(chunk, allocator));
         // chunk_hash_update(chunk);
         /*CN*/ LemmaPrevChunk(chunk, allocator);
 }
