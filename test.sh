@@ -2,6 +2,7 @@
 
 JOBS=${1:-1}
 
+# chunk_list_insert and LemmaCreateNewChunk should be very heavy
 targets=(
   chunk_unmapped_size
   setup_first_chunk
@@ -18,6 +19,8 @@ targets=(
   __chunk_prev
   LemmaNextChunk
   LemmaPrevChunk
+  chunk_list_insert
+  LemmaCreateNewChunk
 )
 
 run_test() {

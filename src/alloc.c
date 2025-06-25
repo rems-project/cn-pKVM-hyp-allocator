@@ -607,7 +607,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
     requires
         !is_null(chunk);
         !is_null(prev);
-        take HA_pre = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk);
+        take HA_pre = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_none{});
         let lseg_pre = HA_pre.lseg;
         let Prev_pre = lseg_pre.chunk;
         let Chunk = HA_pre.chunk;
@@ -839,6 +839,27 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
                 // chunk is located in the allocator's memory
                 assert(HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end);
+
+                let P_pre = HA_pre.lseg.chunk;
+                // order
+                // (i) prev <= prev_alloc_end
+                // (ii)      <= chunk
+                // (iii)     <= chunk_alloc_end
+                // (iv)      <= prev_old_mapped_size
+                // (v)       <= prev old_va_size
+                // (v)       <= prev old_va_size
+                // (vi)      <= allocator_end
+                let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size;
+                let chunk_alloc_end = (u64)chunk + size + Cn_chunk_hdr_size();
+                let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
+                let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
+                assert((u64)prev <= prev_alloc_end); // (i)
+                assert(prev_alloc_end <= (u64)chunk); // (ii)
+                assert((u64)chunk < chunk_alloc_end); // (iii)
+                assert(chunk_alloc_end <= prev_old_mapped_size); // (iv)
+                assert(prev_old_mapped_size <= prev_old_va_size); // (v)
+                assert(prev_old_va_size <= allocator_end); // (vi)
+
                 return {ha: HA_pre.ha, lseg: HA_pre.lseg};
         }
 }
@@ -922,6 +943,98 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
 }
 @*/
 
+void LemmaCreateNewChunkAux(char *chunk_data, size_t size1, size_t size, size_t size2)
+/*@
+requires
+    !is_null(chunk_data);
+    let size_all = size1 + size + size2 + Cn_chunk_hdr_size();
+    take C_pre = Cn_char_array(chunk_data, size_all);
+
+    let chunk_hdr = array_shift<unsigned char>(chunk_data, size1);
+    let chunk = array_shift<unsigned char>(chunk_data, size1 + Cn_chunk_hdr_size());
+    let remaining = array_shift<unsigned char>(chunk_data, size1 + size + Cn_chunk_hdr_size());
+ensures
+    take C1 = Cn_char_array(chunk_data, size1);
+    take Hdr = Own_chunk_hdr(chunk_hdr);
+    take C2 = Cn_char_array(chunk, size);
+    take C3 = Cn_char_array(remaining, size2);
+@*/
+{
+        //unsigned long i;
+        //for (i = 0; i < (unsigned long)size2; i++)
+        ///*@
+        //inv
+        //        take L0 = Cn_char_array(chunk_data, (u64)size1);
+        //        take L1 = Cn_char_array_with_offset(p, (u64)size2 - i, (u64)size1 + (u64)i);
+        //        take L2 = Cn_char_array(owned_by_ha, i);
+        //        {p} unchanged;
+        //        {size1} unchanged;
+        //        {size2} unchanged;
+        //        i <= (u64)size2;
+        //@*/
+        //{
+        //        /*@ focus W<char>, i; @*/
+        //        /*@ focus W<char>, ((u64)size1 + i); @*/
+        //}
+
+}
+
+
+void LemmaCreateNewChunk(struct chunk_hdr *chunk, size_t size,
+                         struct chunk_hdr *prev,
+                         struct hyp_allocator *allocator)
+/*@
+requires
+        !is_null(prev);
+        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
+        let P_pre = HA_pre.lseg.chunk;
+
+
+        let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
+        HA_pre.ha.start <= (u64)prev && (u64)prev < allocator_end;
+
+        // order
+        // (i) prev <= prev_alloc_end
+        // (ii)      <= chunk
+        // (iii)     <= chunk_alloc_end
+        // (iv)      <= prev_old_mapped_size
+        // (v)       <= prev old_va_size
+        // (vi)      <= allocator_end
+        let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size;
+        let chunk_alloc_end = (u64)chunk + size + Cn_chunk_hdr_size();
+        let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
+        let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
+        (u64)prev <= prev_alloc_end; // (i)
+        prev_alloc_end <= (u64)chunk; // (ii)
+        (u64)chunk < chunk_alloc_end; // (iii)
+        chunk_alloc_end <= prev_old_mapped_size; // (iv)
+        prev_old_mapped_size <= prev_old_va_size; // (v)
+        prev_old_va_size <= allocator_end; // (vi)
+ensures
+        take HA_post = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_some{value: (u64)size});
+
+        take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)size);
+@*/
+{
+        /*@
+                split_case(ptr_eq(
+                        member_shift<struct chunk_hdr>(prev, node),
+                        member_shift<struct hyp_allocator>(allocator, chunks)));
+        @*/
+        /*@
+                split_case(ptr_eq(
+                        member_shift<struct chunk_hdr>(prev, node)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)));
+        @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)->next));@*/
+        unsigned long chunk_end = (unsigned long)prev + prev->mapped_size +
+                                  chunk_unmapped_size(prev, allocator);
+        size_t size_1 = (u64)chunk - (u64)prev - chunk_hdr_size() - prev->alloc_size;
+        size_t size_2 = chunk_end - (u64)chunk - chunk_hdr_size() - size;
+        LemmaCreateNewChunkAux((char*)chunk_data(prev) + prev->alloc_size, size_1, size, size_2);
+}
+
 // chunk: the new chunk to install
 // size: alloc size for chunk
 // prev: the previous chunk for `chunk`
@@ -972,8 +1085,10 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 return -EINVAL;
         }
 
+        LemmaCreateNewChunk(chunk, size, prev, allocator);
         prev_mapped_size = prev->mapped_size;
         prev->mapped_size = (unsigned long)chunk - (unsigned long)prev;
+
 
         chunk->mapped_size = prev_mapped_size - prev->mapped_size;
         chunk->alloc_size = size;
