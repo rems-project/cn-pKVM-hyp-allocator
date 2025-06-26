@@ -978,9 +978,11 @@ ensures
 lemma CreateChunkHdr(pointer chunk_data)
     requires
         !is_null(chunk_data);
-        take C_pre = Cn_char_array(chunk_data, Cn_chunk_hdr_size());
+        take U = each(u64 i; i < Cn_chunk_hdr_size()){
+                W<char>(array_shift<char>(chunk_data, i))
+        };
     ensures
-        take C = Own_chunk_hdr(chunk_data);
+        take C = RW<struct chunk_hdr_only>(chunk_data);
 @*/
 
 void LemmaCreateNewChunkAux(char *chunk_data, size_t size1, size_t size, size_t size2)
