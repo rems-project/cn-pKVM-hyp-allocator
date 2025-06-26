@@ -336,7 +336,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
 
 // chunk_install is a special case for the fundamental invariant for the chunk lists
 // as it temporarily breaks the invariant.
-predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chunk_hdr_for_install(pointer header_address, pointer chunk, cn_hyp_allocator_core ha,  option_u64 alloc_size_opt, boolean valid_mapped_size)
+predicate ({cn_chunk_hdr Hdr, struct list_head Node, u64 va_size}) Cn_chunk_hdr_for_install(pointer header_address, pointer chunk, cn_hyp_allocator_core ha,  option_u64 alloc_size_opt, boolean valid_mapped_size)
 {
         let end = ha.start + (u64)ha.size;
         let va_size_1 = (u64)chunk - (u64)header_address;
@@ -346,13 +346,13 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chu
         assert((u64)chunk < next_chunk);
         let va_size_2 =  next_chunk - (u64)chunk;
 
-        take C = Cn_chunk_hdr_inner(chunk, ha, Option_u64_some{value: va_size_2}, false, alloc_size_opt, valid_mapped_size);
-        return {Hdr: P.Hdr, Node: P.Node, Chunk: C.Hdr};
+        //take C = Cn_chunk_hdr_inner(chunk, ha, Option_u64_some{value: va_size_2}, false, alloc_size_opt, valid_mapped_size);
+        return {Hdr: P.Hdr, Node: P.Node, va_size: va_size_2};
 
 }
 
 
-predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk,  option_u64 alloc_size_opt, boolean valid_mapped_size) {
+predicate ({cn_hyp_allocator ha, cn_lseg lseg, u64 va_size}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk,  option_u64 alloc_size_opt, boolean valid_mapped_size) {
   take ha_full = Cn_hyp_allocator_only(p);
   let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
   let end = ha.start + (u64)ha.size;
@@ -368,7 +368,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk}) Cn_hyp_alloc
   take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha, ha.head);
   take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha, ha.head);
   let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
-  return ( {ha:ha_full, lseg:lseg, chunk: cn_hdr.Chunk});
+  return ( {ha:ha_full, lseg:lseg, va_size: cn_hdr.va_size} );
 
 }
 

@@ -95,29 +95,31 @@ datatype chunk_hdr_option {
   ChunkHdr_none {},
   ChunkHdr_some { struct chunk_hdr_only hdr }
 }
+datatype chunk_hdr_u_option {
+  ChunkHdr_u_none {},
+  ChunkHdr_u_some { u32 alloc_size, u32 mapped_size, struct list_head node }
+}
 
-function (boolean) bind_hash_change_only (datatype chunk_hdr_option pre, datatype chunk_hdr_option post)
+function (boolean) bind_hash_change_only_u (datatype chunk_hdr_u_option pre, datatype chunk_hdr_option post)
 {
         match (pre) {
-                ChunkHdr_none {} => {
+                ChunkHdr_u_none {} => {
                         match (post) {
                                 ChunkHdr_none {} => {
                                         true
                                 }
-                                ChunkHdr_some {hdr: hdr} => {
+                                ChunkHdr_some {hdr:hdr} => {
                                         false
                                 }
                         }
                 }
-                ChunkHdr_some {hdr: hdr1} => {
+                ChunkHdr_u_some {alloc_size: x2, mapped_size: y2, node: z2 } => {
                         match (post) {
                                 ChunkHdr_none {} => {
                                         false
                                 }
-                                ChunkHdr_some {hdr: hdr2} => {
-                                        hdr1.alloc_size == hdr2.alloc_size &&
-                                        hdr1.mapped_size == hdr2.mapped_size &&
-                                        hdr1.node == hdr2.node
+                                ChunkHdr_some {hdr: hdr } => {
+                                        hdr.alloc_size == x2 && hdr.mapped_size == y2 && hdr.node == z2
                                 }
                         }
                 }
@@ -172,10 +174,10 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 static inline void chunk_hash_update(struct chunk_hdr *chunk)
 /*@
     requires
-        take C_pre = MaybeChunkHdr(chunk, !is_null(chunk));
+        take C_pre = MaybeChunkHdrU(chunk, !is_null(chunk));
     ensures
         take C_post = MaybeChunkHdr(chunk, !is_null(chunk));
-        bind_hash_change_only(C_pre, C_post);
+        bind_hash_change_only_u(C_pre, C_post);
 @*/
 {
         if (chunk) {
@@ -252,21 +254,29 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
         requires
                 !is_null(chunk);
                 (u64)chunk & 0x7u64 == 0u64;
-                take C_pre = RW<struct chunk_hdr_only>(chunk);
+                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_pre = RW<struct hyp_allocator>(allocator);
-                !is_null(C_pre.node.next);
-                (u64)C_pre.node.next & 0x7u64 == 0u64;
+                !is_null(node.next);
+                (u64)node.next & 0x7u64 == 0u64;
         ensures
-                take C_post = RW<struct chunk_hdr_only>(chunk);
+                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take hash2 = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_post = RW<struct hyp_allocator>(allocator);
-                C_pre == C_post;
+                alloc_size == alloc_size2 &&
+                mapped_size == mapped_size2 &&
+                node == node2;
                 A_pre == A_post;
-                let cond = ptr_eq(C_pre.node.next, member_shift<struct hyp_allocator>(allocator, chunks));
+                let cond = ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
                 if (cond) {
                         is_null(return)
                 } else {
                         !is_null(return) &&
-                        ptr_eq(member_shift<struct chunk_hdr>(return, node), C_pre.node.next)
+                        ptr_eq(member_shift<struct chunk_hdr>(return, node), node.next)
                 };
 @*/
 {
@@ -610,13 +620,19 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         take HA_pre = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_none{}, true);
         let lseg_pre = HA_pre.lseg;
         let Prev_pre = lseg_pre.chunk;
-        let Chunk = HA_pre.chunk;
+
+        // chunk is not constructed yet
+        take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+        take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+        take node = W<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+        take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
 
         //  [prev]    [+alloc_size]             [chunk]     [+(old)va_size]
         //    ------- ------------------------- ----------- ----------
         (u64)prev < (u64)chunk;
         (u64)prev + Cn_chunk_hdr_size() +  (u64)Prev_pre.alloc_size <= (u64)chunk;
-        take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
+        take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)alloc_size);
+        take X = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size), (u64)HA_pre.va_size);
 
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
@@ -625,6 +641,12 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         let ha = HA_pre.ha;
         HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
         lseg_pre.before == lseg_post.before;
+        let Chunk = {
+                header_address: (u64)chunk,
+                va_size: (u32)HA_pre.va_size,
+                alloc_size: alloc_size,
+                mapped_size: mapped_size
+        };
         lseg_post.after == Chunk_cons {hd: Chunk, tl: HA_pre.lseg.after};
 
         take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
@@ -658,15 +680,15 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         list_add(&chunk->node, &prev->node);
 
         chunk_hash_update(prev);
-        /*CN*/ LemmaNextChunk(prev, allocator);
-        /*@ split_case(ptr_eq(
-                member_shift<struct chunk_hdr>(chunk, node)->next,
-                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+        // /*CN*/ LemmaNextChunk(prev, allocator);
+        // /*@ split_case(ptr_eq(
+        //         member_shift<struct chunk_hdr>(chunk, node)->next,
+        //         member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        // /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        // /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         chunk_hash_update(__chunk_next(chunk, allocator));
         chunk_hash_update(chunk);
-        /*CN*/ LemmaPrevChunk(chunk, allocator);
+        // /*CN*/ LemmaPrevChunk(chunk, allocator);
 }
 
 static inline void chunk_list_del(struct chunk_hdr *chunk,
@@ -774,6 +796,22 @@ function (boolean) chunk_install_sanity_check(pointer prev_p, pointer chunk_p, s
            && !((u64)Cn_chunk_data(prev) + (u64)prev.alloc_size > (u64)chunk_p)
 }
 
+predicate (datatype chunk_hdr_u_option) MaybeChunkHdrU(pointer chunk, boolean condition)
+{
+        if (condition)
+        {
+                assert(!is_null(chunk));
+                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+                return ChunkHdr_u_some { alloc_size: alloc_size, mapped_size: mapped_size, node: node };
+        }
+        else
+        {
+                return ChunkHdr_u_none {};
+        }
+}
 
 predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condition)
 {

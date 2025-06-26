@@ -177,7 +177,7 @@ static inline void __list_add(struct list_head *new,
 /*@
 	requires
 		let head = prev;
-		take New_pre = RW<struct list_head>(new);
+		take New_pre = W<struct list_head>(new);
 		take Head_pre = RW<struct list_head>(head);
 		!ptr_eq(new, next);
 		let p = !ptr_eq(head, next);
@@ -239,7 +239,7 @@ function (boolean) list_add_aux(struct list_head Next_post, struct list_head New
 static inline void list_add(struct list_head *new, struct list_head *head)
 /*@
 	requires
-		take New_pre = RW<struct list_head>(new);
+		take New_pre = W<struct list_head>(new);
 		take Head_pre = RW<struct list_head>(head);
 		let next = Head_pre.next;
 		!ptr_eq(new, next);
