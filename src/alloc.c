@@ -622,26 +622,12 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
         let lseg_post = HA_post.lseg;
         let Prev_post = lseg_post.chunk;
+        let ha = HA_pre.ha;
+        HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
         lseg_pre.before == lseg_post.before;
-        // chunk does not care hash update
-        lseg_post.chunk.alloc_size == lseg_pre.chunk.alloc_size;
-        lseg_post.chunk.mapped_size == lseg_pre.chunk.mapped_size;
-        lseg_post.chunk.header_address == lseg_pre.chunk.header_address;
+        lseg_post.after == Chunk_cons {hd: Chunk, tl: HA_pre.lseg.after};
+
         take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
-        match (lseg_post.after) {
-                Chunk_nil {} => {
-                        false
-                }
-                Chunk_cons {hd:hdr, tl:tl} => {
-                        // Now we obtain the ownership of the chunk data separately
-                        // since alloc_size can be greater than 0.
-                        tl == lseg_pre.after
-                        && (u64)chunk == hdr.header_address
-                        && Chunk.alloc_size == hdr.alloc_size
-                        // TODO: chunk.mapped_size == hdr.mapped_size
-                        // TODO: hdr.va_size + Prev_post.va_size == Prev_pre.va_size
-                }
-        };
 @*/
 {
         // HK: non-rust ownership type part
@@ -892,7 +878,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 return;
         }
         else
-        { if (ret == -0i32)
+        { if (ret == 0i32)
         {
                 take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
                 assert(HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head));
