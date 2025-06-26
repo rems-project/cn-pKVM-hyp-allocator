@@ -943,11 +943,56 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
 }
 @*/
 
+void LemmaSplitAndNewChunk(
+        char *p, unsigned int size1, unsigned int size2
+)
+/*@
+requires
+        let size = (u64)size1 + (u64)size2;
+        take X = Cn_char_array(p, size);
+        let owned_by_ha = array_shift<char>(p, (u64)size1);
+ensures
+        take X1 = Cn_char_array(p, (u64)size1);
+        take X2 = Cn_char_array(owned_by_ha, (u64)size2);
+@*/
+{
+        unsigned long i;
+        for (i = 0; i < (unsigned long)size2; i++)
+        /*@
+        inv
+                take L0 = Cn_char_array(p, (u64)size1);
+                take L1 = Cn_char_array_with_offset(p, (u64)size2 - i, (u64)size1 + (u64)i);
+                take L2 = Cn_char_array(owned_by_ha, i);
+                {p} unchanged;
+                {size1} unchanged;
+                {size2} unchanged;
+                i <= (u64)size2;
+        @*/
+        {
+                /*@ focus W<char>, i; @*/
+                /*@ focus W<char>, ((u64)size1 + i); @*/
+        }
+}
+
+/*@
+lemma CreateChunkHdr(pointer chunk_data)
+    requires
+        !is_null(chunk_data);
+        take C_pre = Cn_char_array(chunk_data, Cn_chunk_hdr_size());
+    ensures
+        take C = Own_chunk_hdr(chunk_data);
+@*/
+
 void LemmaCreateNewChunkAux(char *chunk_data, size_t size1, size_t size, size_t size2)
 /*@
 requires
     !is_null(chunk_data);
+    // no overflow
+    size1 <= (u64)MAXu32();
+    size <=  (u64)MAXu32();
+    size2 <= (u64)MAXu32();
     let size_all = size1 + size + size2 + Cn_chunk_hdr_size();
+    size_all <= (u64)MAXu32();
     take C_pre = Cn_char_array(chunk_data, size_all);
 
     let chunk_hdr = array_shift<unsigned char>(chunk_data, size1);
@@ -960,23 +1005,28 @@ ensures
     take C3 = Cn_char_array(remaining, size2);
 @*/
 {
-        //unsigned long i;
-        //for (i = 0; i < (unsigned long)size2; i++)
-        ///*@
-        //inv
-        //        take L0 = Cn_char_array(chunk_data, (u64)size1);
-        //        take L1 = Cn_char_array_with_offset(p, (u64)size2 - i, (u64)size1 + (u64)i);
-        //        take L2 = Cn_char_array(owned_by_ha, i);
-        //        {p} unchanged;
-        //        {size1} unchanged;
-        //        {size2} unchanged;
-        //        i <= (u64)size2;
-        //@*/
-        //{
-        //        /*@ focus W<char>, i; @*/
-        //        /*@ focus W<char>, ((u64)size1 + i); @*/
-        //}
+        /*
+                +---------------------------+  ← chunk_data
+                |          size1            |
+                +---------------------------+  ← chunk_hdr
+                |        chunk_hdr          |
+                +---------------------------+  ← chunk
+                |           size            |
+                +---------------------------+  ← remaining
+                |          size2            |
+                +---------------------------+  ← end
+        */
+       size_t size_all = size1 + size + size2 + chunk_hdr_size();
+       char *chunk_hdr = chunk_data + size1;
+       char *chunk = (char *)chunk_hdr + chunk_hdr_size();
+       char *remaining = chunk + size;
+       LemmaSplitAndNewChunk(chunk_data, size1, size_all - size1);
+       size_all -= size1;
+       LemmaSplitAndNewChunk(chunk_hdr, chunk_hdr_size(), size_all - chunk_hdr_size());
+       size_all -= chunk_hdr_size();
+       LemmaSplitAndNewChunk(chunk, size, size_all - size);
 
+       /*@ apply CreateChunkHdr(chunk_hdr); @*/
 }
 
 
@@ -1526,36 +1576,6 @@ predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
 
 */
 
-void LemmaSplitAndNewChunk(
-        char *p, unsigned int size1, unsigned int size2
-)
-/*@
-requires
-        let size = (u64)size1 + (u64)size2;
-        take X = Cn_char_array(p, size);
-        let owned_by_ha = array_shift<char>(p, (u64)size1);
-ensures
-        take X1 = Cn_char_array(p, (u64)size1);
-        take X2 = Cn_char_array(owned_by_ha, (u64)size2);
-@*/
-{
-        unsigned long i;
-        for (i = 0; i < (unsigned long)size2; i++)
-        /*@
-        inv
-                take L0 = Cn_char_array(p, (u64)size1);
-                take L1 = Cn_char_array_with_offset(p, (u64)size2 - i, (u64)size1 + (u64)i);
-                take L2 = Cn_char_array(owned_by_ha, i);
-                {p} unchanged;
-                {size1} unchanged;
-                {size2} unchanged;
-                i <= (u64)size2;
-        @*/
-        {
-                /*@ focus W<char>, i; @*/
-                /*@ focus W<char>, ((u64)size1 + i); @*/
-        }
-}
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
