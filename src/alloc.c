@@ -607,7 +607,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
     requires
         !is_null(chunk);
         !is_null(prev);
-        take HA_pre = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_none{}, true);
+        take HA_pre = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_none{});
         let lseg_pre = HA_pre.lseg;
         let Prev_pre = lseg_pre.chunk;
         let Chunk = HA_pre.chunk;
@@ -1011,7 +1011,7 @@ requires
         prev_old_mapped_size <= prev_old_va_size; // (v)
         prev_old_va_size <= allocator_end; // (vi)
 ensures
-        take HA_post = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_some{value: (u64)size}, false);
+        take HA_post = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_some{value: (u64)size});
 
         take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)size);
 @*/
