@@ -161,7 +161,7 @@ predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
 }
 
 // check_node: we assume that alloc_size and node are set.
-predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer header_address, cn_hyp_allocator_core ha, option_u64 va_size_opt, boolean check_node, option_u64 alloc_size_opt)
+predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer header_address, cn_hyp_allocator_core ha, option_u64 va_size_opt, boolean check_node, option_u64 alloc_size_opt, boolean valid_mapped_size)
 {
 
         assert(!is_null(header_address));
@@ -185,8 +185,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         };
 
         let valid_chunk = Option_u64_none {} == alloc_size_opt;
-        let valid_mapped_size = Option_u64_none{} == va_size_opt;
-        assert(valid_chunk implies hdr.alloc_size <= hdr.mapped_size);
+        assert((valid_chunk && valid_mapped_size) implies hdr.alloc_size <= hdr.mapped_size);
         // LemmaCreateNewChunk
         assert(valid_mapped_size implies cn_hdr.mapped_size <= cn_hdr.va_size);
         assert(valid_chunk implies cn_hdr.alloc_size <= ha.size);
@@ -234,7 +233,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
 // in the hyp_allocator's address space
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator_core ha)
 {
-        take cn_hdr = Cn_chunk_hdr_inner(header_address, ha, Option_u64_none {}, true, Option_u64_none {});
+        take cn_hdr = Cn_chunk_hdr_inner(header_address, ha, Option_u64_none {}, true, Option_u64_none {}, true);
         return cn_hdr;
 }
 
@@ -332,30 +331,30 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
 
 // chunk_install is a special case for the fundamental invariant for the chunk lists
 // as it temporarily breaks the invariant.
-predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chunk_hdr_for_install(pointer header_address, pointer chunk, cn_hyp_allocator_core ha,  option_u64 alloc_size_opt)
+predicate ({cn_chunk_hdr Hdr, struct list_head Node, cn_chunk_hdr Chunk}) Cn_chunk_hdr_for_install(pointer header_address, pointer chunk, cn_hyp_allocator_core ha,  option_u64 alloc_size_opt, boolean valid_mapped_size)
 {
         let end = ha.start + (u64)ha.size;
         let va_size_1 = (u64)chunk - (u64)header_address;
-        take P = Cn_chunk_hdr_inner(header_address, ha, Option_u64_some{value:va_size_1} , true, Option_u64_none{});
+        take P = Cn_chunk_hdr_inner(header_address, ha, Option_u64_some{value:va_size_1} , true, Option_u64_none{}, valid_mapped_size);
 
         let next_chunk = (Cn_list_is_last(P.Node, ha.head) ? end : (u64)my_container_of_chunk_hdr(P.Node.next) );
         assert((u64)chunk < next_chunk);
         let va_size_2 =  next_chunk - (u64)chunk;
 
-        take C = Cn_chunk_hdr_inner(chunk, ha, Option_u64_some{value: va_size_2}, false, alloc_size_opt);
+        take C = Cn_chunk_hdr_inner(chunk, ha, Option_u64_some{value: va_size_2}, false, alloc_size_opt, valid_mapped_size);
         return {Hdr: P.Hdr, Node: P.Node, Chunk: C.Hdr};
 
 }
 
 
-predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk,  option_u64 alloc_size_opt) {
+predicate ({cn_hyp_allocator ha, cn_lseg lseg, cn_chunk_hdr chunk}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk,  option_u64 alloc_size_opt, boolean valid_mapped_size) {
   take ha_full = Cn_hyp_allocator_only(p);
   let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
 
   // own this chunk
-  take cn_hdr = Cn_chunk_hdr_for_install(prev, chunk, ha, alloc_size_opt);
+  take cn_hdr = Cn_chunk_hdr_for_install(prev, chunk, ha, alloc_size_opt, valid_mapped_size);
   assert(!is_null(cn_hdr.Node.next));
   assert(!is_null(cn_hdr.Node.prev));
 
