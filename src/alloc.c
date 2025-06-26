@@ -855,7 +855,8 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
                 assert((u64)prev <= prev_alloc_end); // (i)
                 assert(prev_alloc_end <= (u64)chunk); // (ii)
-                assert((u64)chunk < chunk_alloc_end); // (iii)
+                assert((u64)chunk < (u64)chunk + Cn_chunk_hdr_size()); // (iii')
+                assert((u64)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end); // (iii'')
                 assert(chunk_alloc_end <= prev_old_mapped_size); // (iv)
                 assert(prev_old_mapped_size <= prev_old_va_size); // (v)
                 assert(prev_old_va_size <= allocator_end); // (vi)
@@ -1058,12 +1059,19 @@ requires
         let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
         (u64)prev <= prev_alloc_end; // (i)
         prev_alloc_end <= (u64)chunk; // (ii)
-        (u64)chunk < chunk_alloc_end; // (iii)
+        (u64)chunk < (u64)chunk + Cn_chunk_hdr_size(); // (iii')
+        (u64)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end; // (iii'')
         chunk_alloc_end <= prev_old_mapped_size; // (iv)
         prev_old_mapped_size <= prev_old_va_size; // (v)
         prev_old_va_size <= allocator_end; // (vi)
 ensures
         take HA_post = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_some{value: (u64)size}, false);
+        HA_post.ha == HA_pre.ha;
+        HA_post.lseg.before == HA_pre.lseg.before;
+        HA_post.lseg.after == HA_pre.lseg.after;
+        HA_post.lseg.chunk.header_address == HA_pre.lseg.chunk.header_address;
+        HA_post.lseg.chunk.mapped_size == HA_pre.lseg.chunk.mapped_size;
+        HA_post.lseg.chunk.alloc_size == HA_pre.lseg.chunk.alloc_size;
 
         take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)size);
 @*/
@@ -1144,6 +1152,12 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         chunk->mapped_size = prev_mapped_size - prev->mapped_size;
         chunk->alloc_size = size;
+
+        /*@
+                split_case(ptr_eq(
+                        member_shift<struct chunk_hdr>(prev, node)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)));
+        @*/
 
         chunk_list_insert(chunk, prev, allocator);
 
@@ -2056,6 +2070,13 @@ void *hyp_alloc(unsigned long size)
                 size > 0u64;
                 let actual_size = cn_ALIGN(size, MIN_ALLOC());
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
+
+                // The following check is done in memcache functions,
+                // which we ignore in this verification.
+                // So, we explicitly state the following
+                actual_size <= (u64)HA_pre.ha.size;
+
+                // For the first allocation, we have a special ownership structure
                 take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {});
         ensures
                 take U = MaybeCn_char_array(return, actual_size);

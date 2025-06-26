@@ -21,6 +21,7 @@ targets=(
   LemmaPrevChunk
   chunk_list_insert
   LemmaCreateNewChunk
+  LemmaCreateNewChunkAux
 )
 
 run_test() {

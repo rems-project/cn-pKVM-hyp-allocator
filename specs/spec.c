@@ -216,12 +216,17 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         // unless this is not the last chunk
         assert(
                 check_node implies
-                ((u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next
+                (((u64)member_shift<struct chunk_hdr>(header_address, node) < (u64)hdr.node.next
+                    && ha.start <= (u64)hdr.node.next
+                    && (u64) hdr.node.next < end)
                 || (u64)hdr.node.next == (u64)ha.head)
         );
         assert(
                 check_node implies
+                (
                 ((u64)hdr.node.prev < (u64)member_shift<struct chunk_hdr>(header_address, node)
+                    && ha.start <= (u64)hdr.node.prev
+                    && (u64) hdr.node.prev < end)
                 || (u64)hdr.node.prev == (u64)ha.head)
         );
 
