@@ -91,9 +91,15 @@ struct chunk_hdr_only {
 
 // Auxiliary functions for chunk_hdr
 /*@
+type_synonym cn_chunk_hdr_raw = {
+        u32 alloc_size,
+        u32 mapped_size,
+        struct list_head node,
+        u32 hash
+}
 datatype chunk_hdr_option {
   ChunkHdr_none {},
-  ChunkHdr_some { struct chunk_hdr_only hdr }
+  ChunkHdr_some { cn_chunk_hdr_raw hdr }
 }
 datatype chunk_hdr_u_option {
   ChunkHdr_u_none {},
@@ -133,10 +139,17 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     requires
         !is_null(chunk);
-        take C_pre = Own_chunk_hdr(chunk);
+        take alloc_size_pre = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+        take mapped_size_pre = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+        take node_pre = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
     ensures
-        take C_post = Own_chunk_hdr(chunk);
-        C_pre == C_post;
+        take alloc_size_post = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+        take mapped_size_post = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+        take node_post = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+        alloc_size_pre == alloc_size_post &&
+        mapped_size_pre == mapped_size_post &&
+        node_pre == node_post;
+
 @*/
 {
         size_t len = offsetof(struct chunk_hdr, hash);
@@ -150,7 +163,9 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
     /*@
         inv
         let L = (u64)offsetof(chunk_hdr, hash);
-        take C = Own_chunk_hdr(chunk);
+        take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+        take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+        take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
         (u64)chunk <= (u64)data;
         len <= L;
         (u64)data + len == (u64)chunk + L;
@@ -805,6 +820,7 @@ predicate (datatype chunk_hdr_u_option) MaybeChunkHdrU(pointer chunk, boolean co
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+                take pad = W<unsigned>(member_shift<struct chunk_hdr>(chunk, explicit_padding));
                 return ChunkHdr_u_some { alloc_size: alloc_size, mapped_size: mapped_size, node: node };
         }
         else
@@ -817,7 +833,7 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
 {
         if (condition)
         {
-                take v = RW<struct chunk_hdr_only>(chunk);
+                take v = Own_chunk_hdr(chunk);
                 return ChunkHdr_some { hdr: v };
         }
         else
@@ -1006,8 +1022,13 @@ lemma CreateChunkHdr(pointer chunk_data)
         take U = each(u64 i; i < Cn_chunk_hdr_size()){
                 W<char>(array_shift<char>(chunk_data, i))
         };
+        Cn_chunk_hdr_size() == sizeof<struct chunk_hdr>;
     ensures
-        take C = RW<struct chunk_hdr_only>(chunk_data);
+        take alloc_size = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, alloc_size));
+        take mapped_size = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, mapped_size));
+        take node = W<struct list_head>(member_shift<struct chunk_hdr>(chunk_data, node));
+        take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, hash));
+        take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, explicit_padding));
 @*/
 
 void LemmaCreateNewChunkAux(char *chunk_data, size_t size1, size_t size, size_t size2)

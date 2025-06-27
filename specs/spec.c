@@ -154,9 +154,20 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 
 /*@
 // Own_chunk just owns the chunk header and the mapped part of the chunk
-predicate (struct chunk_hdr_only) Own_chunk_hdr(pointer header_address)
+predicate (cn_chunk_hdr_raw) Own_chunk_hdr(pointer chunk)
 {
-        take cn_hdr = RW<struct chunk_hdr_only>(header_address);
+        assert(!is_null(chunk));
+        take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+        take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+        take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+        take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+        take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk, explicit_padding));
+        let cn_hdr = {
+                alloc_size: alloc_size,
+                mapped_size: mapped_size,
+                node: node,
+                hash: hash
+        };
         return cn_hdr;
 }
 
@@ -405,7 +416,7 @@ lemma ListSegAfterNull (pointer allocator, pointer result)
             take HA2 = Cn_hyp_allocator(allocator);
             HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};
 
-predicate (struct chunk_hdr_only) FirstChunk(pointer first_chunk, u32 ha_size, u64 alloc_size)
+predicate (cn_chunk_hdr_raw) FirstChunk(pointer first_chunk, u32 ha_size, u64 alloc_size)
 {
         // HK:This is actually wrong in terms of pa-based ownership.
         // Even though you have the va-ownership of the va region [start, start+size), you do not have the right to access the memory, as they are not mapped physically for now.
