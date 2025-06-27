@@ -673,6 +673,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 mapped_size: mapped_size
         };
         lseg_post.after == Chunk_cons {hd: Chunk, tl: HA_pre.lseg.after};
+        lseg_pre.chunk == Prev_post;
 
         take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
 @*/
