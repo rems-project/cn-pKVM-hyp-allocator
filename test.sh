@@ -26,17 +26,24 @@ targets=(
 
 run_test() {
   target="$1"
-  if make ONLY="$target" cn-verify 2> /dev/null | tee "verify-${target}.log"; then
-    if grep -q "\[1/1\]: $target -- pass" "verify-${target}.log"; then
-      echo "$target passed"
-    else
-      echo "$target failed verification"
-      exit 1
-    fi
+  start=$(date +%s.%N)
+
+  if make ONLY="$target" cn-verify OPT="-p 20" > "verify-${target}.log" 2>/dev/null &&
+     grep -q "\[1/1\]: $target -- pass" "verify-${target}.log"; then
+    status="passed"
   else
-    echo "failed for $target"
-    exit 1
+    if grep -q "\[1/1\]: $target -- pass" "verify-${target}.log"; then
+      status="failed verification"
+    else
+      status="failed"
+    fi
   fi
+
+  end=$(date +%s.%N)
+  elapsed=$(echo "$end - $start" | bc)
+  echo "$target $status (in ${elapsed}s)"
+
+  [[ $status != "passed" ]] && exit 1
 }
 
 export -f run_test

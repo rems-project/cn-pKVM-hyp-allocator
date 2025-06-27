@@ -1097,6 +1097,13 @@ ensures
         HA_post.lseg.chunk.mapped_size == HA_pre.lseg.chunk.mapped_size;
         HA_post.lseg.chunk.alloc_size == HA_pre.lseg.chunk.alloc_size;
 
+        take alloc_size = W<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+        take mapped_size = W<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+        take node = W<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+        take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+        take X = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size), (u64)HA_post.va_size);
+
+
         take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)size);
 @*/
 {
