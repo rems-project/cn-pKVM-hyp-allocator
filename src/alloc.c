@@ -1984,6 +1984,45 @@ void sanity_lseg_empty(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
 
 }
 
+/*@
+function [rec] (datatype cn_chunk_hdrs) RevChunkHdrs(datatype cn_chunk_hdrs hdrs)
+{
+        match (hdrs) {
+                Chunk_nil {} => { Chunk_nil {} }
+                Chunk_cons { hd: chunk_hdr, tl: tl } => {
+                        Chunk_cons { hd: chunk_hdr, tl: RevChunkHdrs(tl) }
+                }
+        }
+}
+predicate (void) MaybeEndOfIter(pointer allocator, pointer chunk, cn_hyp_allocator ha, cn_lseg pre)
+{
+        if (pre.after == Chunk_nil {}) {
+                // thing
+                take C = Cn_hyp_allocator(allocator);
+                assert(C.hdrs == RevChunkHdrs(Chunk_cons{ hd: pre.chunk, tl: pre.before }));
+                return;
+        } else {
+                // nothing
+                take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                assert(C.ha == ha);
+                assert(C.lseg == pre);
+                return;
+        }
+}
+
+@*/
+
+void LemmaConvertLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
+/*@
+requires
+        take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
+    ensures
+        take C2 = MaybeEndOfIter(allocator, chunk, C.ha, C.lseg);
+@*/
+{
+
+}
+
 static struct chunk_hdr *get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // should the spec of this characterise "best", or just ensure that this returns a legit chunk?  We guess the latter is sufficient for functional correctness and we'll do that
 // should the spec of this pull out the ownership of that chunk, or just identify the chunk?  We guess the context will sometimes have to mess with neighbouring chunks, so we'll do the pulling out there, not here
@@ -2064,7 +2103,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 // /*@ split_case(ptr_eq(
                 //     member_shift<struct chunk_hdr>(chunk, node)->next,
                 //     member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-
+                LemmaConvertLsegToChunkHdrs(allocator, chunk);
         }
 
         return chunk_get(best_chunk);
