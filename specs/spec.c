@@ -196,7 +196,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         };
 
         let valid_chunk = Option_u64_none {} == alloc_size_opt;
-        assert((valid_chunk && valid_mapped_size) implies hdr.alloc_size <= hdr.mapped_size);
+        assert((valid_chunk && valid_mapped_size) implies (u64)hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)hdr.mapped_size);
         // LemmaCreateNewChunk
         assert(valid_mapped_size implies cn_hdr.mapped_size <= cn_hdr.va_size);
         assert(valid_chunk implies cn_hdr.alloc_size <= ha.size);
