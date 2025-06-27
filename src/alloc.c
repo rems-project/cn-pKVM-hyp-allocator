@@ -1129,6 +1129,7 @@ ensures
         HA_post.lseg.chunk.header_address == HA_pre.lseg.chunk.header_address;
         HA_post.lseg.chunk.mapped_size == HA_pre.lseg.chunk.mapped_size;
         HA_post.lseg.chunk.alloc_size == HA_pre.lseg.chunk.alloc_size;
+        (u64)HA_post.lseg.chunk.va_size + (u64)HA_post.va_size == (u64)HA_pre.lseg.chunk.va_size;
 
          take chunk_hdr_only_u = W<struct chunk_hdr_only>(chunk);
         take X = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + (u64)size), (u64)HA_post.va_size - (u64)size - Cn_chunk_hdr_size());

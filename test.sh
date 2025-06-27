@@ -22,7 +22,12 @@ targets=(
   chunk_list_insert
   LemmaCreateNewChunk
   LemmaCreateNewChunkAux
+  chunk_install
+  get_free_chunk
+  chunk_recycle
+  hyp_alloc
 )
+# unproved: chunk_install, get_free_hunk, chunk_recycle, hyp_alloc
 
 run_test() {
   target="$1"
