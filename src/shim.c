@@ -153,10 +153,16 @@ u64 hyp_virt_to_pfn(void *addr)
 
 // Spinlock
 void hyp_spin_lock(hyp_spinlock_t *lock)
+/*@
+ requires true; ensures true;
+ @*/
 {
 	// log_function();
 }
 void hyp_spin_unlock(hyp_spinlock_t *lock)
+/*@
+ requires true; ensures true;
+ @*/
 {
 	// log_function();
 }

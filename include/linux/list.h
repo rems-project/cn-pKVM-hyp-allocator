@@ -42,6 +42,7 @@ static inline int list_empty(const struct list_head *head)
 		take H_pre = RW<struct list_head>(head);
 	ensures
 		take H_post = RW<struct list_head>(head);
+		H_pre == H_post;
 		return == (ptr_eq(H_post.next, head) ? 1i32 : 0i32);
 @*/
 {

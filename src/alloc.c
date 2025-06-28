@@ -1761,6 +1761,14 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                     WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
         }
 
+        /*@ split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node),
+                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node)->next,
+                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         /*@ split_case(is_null(chunk)); @*/
 
         return 0;
@@ -2171,19 +2179,23 @@ void *hyp_alloc(unsigned long size)
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
                 size > 0u64;
+		size <= (u64)MAXu32();
                 let actual_size = cn_ALIGN(size, MIN_ALLOC());
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
 
                 // The following check is done in memcache functions,
                 // which we ignore in this verification.
                 // So, we explicitly state the following
-                actual_size <= (u64)HA_pre.ha.size;
+		PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
 
                 // For the first allocation, we have a special ownership structure
                 take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {});
         ensures
                 take U = MaybeCn_char_array(return, actual_size);
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
+		HA_post.ha.size == HA_pre.ha.size;
+		HA_post.ha.start == HA_pre.ha.start;
+		HA_post.ha.head == HA_pre.ha.head;
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -2202,6 +2214,7 @@ void *hyp_alloc(unsigned long size)
                 if (ret) {
                         goto end;
                 }
+		/*@ split_case(ret == 0i32); @*/
 
                 chunk = (struct chunk_hdr *)allocator->start;
                 goto end;
@@ -2240,6 +2253,12 @@ end:
         if (!ret) {
                 memset(chunk_data(chunk), 0, size);
         }
+
+        /*@ split_case(is_null(chunk)); @*/
+        /*@ split_case(
+                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )); @*/
 
         return ret ? NULL : chunk_data(chunk);
 }
