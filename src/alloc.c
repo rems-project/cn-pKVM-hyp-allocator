@@ -1761,6 +1761,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                     WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
         }
 
+        /*@ split_case(is_null(chunk)); @*/
+
         return 0;
 }
 
