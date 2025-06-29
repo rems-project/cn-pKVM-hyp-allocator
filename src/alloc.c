@@ -1723,6 +1723,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
 @*/
 {
+	/*@ assert(!is_null(chunk)); @*/
         unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);
         size_t missing_map, expected_mapping = size;
         struct chunk_hdr *new_chunk = NULL;
@@ -1758,18 +1759,20 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 apply SplitAndNewChunk(original_cn_char_array, (u32)size_1, (u32)size_2, (u32)size_3);
                 @*/
 
+		// chunk must be non null
+		/*@ assert(!is_null(chunk)); @*/
                     WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
+                /*@ split_case(is_null(chunk)); @*/
+                /*@ split_case(ptr_eq(
+                            member_shift<struct chunk_hdr>(chunk, node),
+                            member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ split_case(ptr_eq(
+                            member_shift<struct chunk_hdr>(chunk, node)->next,
+                            member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+                /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         }
 
-        /*@ split_case(ptr_eq(
-                    member_shift<struct chunk_hdr>(chunk, node),
-                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ split_case(ptr_eq(
-                    member_shift<struct chunk_hdr>(chunk, node)->next,
-                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
-        /*@ split_case(is_null(chunk)); @*/
 
         return 0;
 }
@@ -2261,6 +2264,7 @@ void *hyp_alloc(unsigned long size)
 		/*@ split_case(ret == 0i32); @*/
 
                 chunk = (struct chunk_hdr *)allocator->start;
+        	/*@ split_case(is_null(chunk)); @*/
                 goto end;
         }
 
@@ -2288,6 +2292,7 @@ void *hyp_alloc(unsigned long size)
         }
 
         WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
+        /*@ split_case(is_null(chunk)); @*/
 end:
         hyp_spin_unlock(&allocator->lock);
 
@@ -2298,7 +2303,6 @@ end:
                 memset(chunk_data(chunk), 0, size);
         }
 
-        /*@ split_case(is_null(chunk)); @*/
         /*@ split_case(
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)
