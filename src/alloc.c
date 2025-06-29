@@ -1964,6 +1964,8 @@ predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_
 {
         if (ptr_eq(member_shift<struct chunk_hdr_only>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
                 take HA = Cn_hyp_allocator(allocator);
+                assert(is_null(best_chunk) ||
+                        GetFreeChunkInvAux(HA.hdrs, chunk, best_chunk, best_available_size));
                 return;
         } else {
                 take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
@@ -2004,12 +2006,10 @@ function [rec] (datatype cn_chunk_hdrs) RevChunkHdrs(datatype cn_chunk_hdrs hdrs
                 }
         }
 }
-predicate (void) MaybeEndOfIter(pointer allocator, pointer chunk, cn_hyp_allocator ha, cn_lseg pre)
+predicate (void) MaybeEndOfIter(pointer allocator, pointer chunk, cn_hyp_allocator ha, cn_lseg pre, pointer next)
 {
-        if (pre.after == Chunk_nil {}) {
+        if (ptr_eq(next, member_shift<struct hyp_allocator>(allocator, chunks))) {
                 // thing
-                take C = Cn_hyp_allocator(allocator);
-                assert(C.hdrs == RevChunkHdrs(Chunk_cons{ hd: pre.chunk, tl: pre.before }));
                 return;
         } else {
                 // nothing
@@ -2027,7 +2027,10 @@ void LemmaConvertLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_h
 requires
         take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
     ensures
-        take C2 = MaybeEndOfIter(allocator, chunk, C.ha, C.lseg);
+        take C2 = Cn_hyp_allocator(allocator);
+        C2.ha == C.ha;
+        C.lseg.after == Chunk_nil {};
+        C2.hdrs == RevChunkHdrs(Chunk_cons{ hd: C.lseg.chunk, tl: C.lseg.before });
 @*/
 {
 
@@ -2039,7 +2042,9 @@ static struct chunk_hdr *get_free_chunk(struct hyp_allocator *allocator, size_t 
 // what variable name to use for the result of Cn_hyp_allocator?
 // (should CN support enforced per-type naming conventions?)
 /*@
-requires take HA_in = Cn_hyp_allocator(allocator);
+requires
+        take HA_in = Cn_hyp_allocator(allocator);
+        HA_in.hdrs != Chunk_nil {};
 ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
@@ -2088,10 +2093,26 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                                         chunk_unmapped_size(chunk, allocator);
 
                 if (chunk_is_used(chunk)) {
+                        /* CN */
+                        if (chunk->node.next == &allocator->chunks) {
+                              LemmaConvertLsegToChunkHdrs(allocator, chunk);
+                              /*@ split_case(
+                                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                                                member_shift<struct hyp_allocator>(allocator, chunks)
+                                        )); @*/
+                        }
                         continue;
                 }
 
                 if (chunk_size(size) > available_size) {
+                        /* CN */
+                        if (chunk->node.next == &allocator->chunks) {
+                              LemmaConvertLsegToChunkHdrs(allocator, chunk);
+                              /*@ split_case(
+                                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                                                member_shift<struct hyp_allocator>(allocator, chunks)
+                                        )); @*/
+                        }
                         continue;
                 }
 
@@ -2099,10 +2120,26 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                         best_chunk = chunk;
                         // PATCH(HK): Similar to c42b25f27262ad3f37fdb80612189bf41a729c0d
                         best_available_size = available_size;
+                        /* CN */
+                        if (chunk->node.next == &allocator->chunks) {
+                        LemmaConvertLsegToChunkHdrs(allocator, chunk);
+                        /*@ split_case(
+                                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                                                member_shift<struct hyp_allocator>(allocator, chunks)
+                                        )); @*/
+                        }
                         continue;
                 }
 
                 if (best_available_size <= available_size) {
+                /* CN */
+                        if (chunk->node.next == &allocator->chunks) {
+                        LemmaConvertLsegToChunkHdrs(allocator, chunk);
+                        /*@ split_case(
+                                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                                                member_shift<struct hyp_allocator>(allocator, chunks)
+                                        )); @*/
+                        }
                         continue;
                 }
 
@@ -2113,7 +2150,14 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 // /*@ split_case(ptr_eq(
                 //     member_shift<struct chunk_hdr>(chunk, node)->next,
                 //     member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                LemmaConvertLsegToChunkHdrs(allocator, chunk);
+                /* CN */
+                if (chunk->node.next == &allocator->chunks) {
+                        LemmaConvertLsegToChunkHdrs(allocator, chunk);
+                        /*@ split_case(
+                                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                                        member_shift<struct hyp_allocator>(allocator, chunks)
+                                )); @*/
+                }
         }
 
         return chunk_get(best_chunk);
