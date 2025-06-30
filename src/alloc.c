@@ -1761,16 +1761,21 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
 		// chunk must be non null
 		/*@ assert(!is_null(chunk)); @*/
-                    WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
+		/* CN DIFF */
+		/* HK: capturing the return value is needed to unfold `ChunkInstallPost` */
+		    int ret = chunk_install(new_chunk, 0, chunk, allocator);
+                    WARN_ON(ret);
                 /*@ split_case(is_null(chunk)); @*/
-                /*@ split_case(ptr_eq(
-                            member_shift<struct chunk_hdr>(chunk, node),
-                            member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                /*@ split_case(ptr_eq(
-                            member_shift<struct chunk_hdr>(chunk, node)->next,
-                            member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
-                /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+                /*@ split_case(ret == 0i32); @*/
+
+                // /*@ split_case(ptr_eq(
+                //             member_shift<struct chunk_hdr>(chunk, node),
+                //             member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                // /*@ split_case(ptr_eq(
+                //             member_shift<struct chunk_hdr>(chunk, node)->next,
+                //             member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                // /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
+                // /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         }
 
 
