@@ -108,11 +108,6 @@ datatype cn_chunk_hdrs {
   Chunk_cons { cn_chunk_hdr hd, datatype cn_chunk_hdrs tl }
 }
 
-datatype cn_chunk_hdr_option {
-  Chunk_none {},
-  Chunk_some { cn_chunk_hdr hdr }
-}
-
 datatype option_u64 {
         Option_u64_none {},
         Option_u64_some { u64 value }
@@ -247,10 +242,30 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
 
 // Cn_chunk_hdr validates the locations of the chunk header and its next are
 // in the hyp_allocator's address space
+// HK: the predicate name should be Cn_chunk not Cn_chunk_hdr, as it also owns
+// the chunk data if necessary.
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator_core ha)
 {
         take cn_hdr = Cn_chunk_hdr_inner(header_address, ha, Option_u64_none {}, true, Option_u64_none {}, true);
         return cn_hdr;
+}
+
+datatype cn_chunk_option {
+        Chunk_none {},
+        Chunk_some { cn_chunk_hdr hdr, struct list_head node }
+}
+
+predicate (datatype cn_chunk_option) Maybe_Cn_chunk_hdr(pointer header_address, cn_hyp_allocator_core ha, boolean condition)
+{
+        if (condition)
+        {
+                take cn_hdr = Cn_chunk_hdr(header_address, ha);
+                return Chunk_some { hdr: cn_hdr.Hdr, node: cn_hdr.Node };
+        }
+        else
+        {
+                return Chunk_none {};
+        }
 }
 
 // HK: prev is unused? what is for?
@@ -439,57 +454,7 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   return( {ha:ha_full, hdrs:hdrs} );
 }
 
-function (boolean) Is_chunk_some(datatype cn_chunk_hdr_option maybe_hdr)
-{
-        match (maybe_hdr) {
-        Chunk_none {} => {
-                false
-        }
-        Chunk_some {hdr:hdr} => {
-                true
-        }
-        }
-}
 
-
-function [rec] (datatype cn_chunk_hdr_option) lookup(pointer p, datatype cn_chunk_hdrs hdrs)
-{
-        match (hdrs) {
-        Chunk_nil {} => {
-                Chunk_none {}
-        }
-        Chunk_cons {hd:hdr, tl:tl} => {
-                if (hdr.header_address == (u64) p){
-                        Chunk_some { hdr:hdr }
-                } else {
-                        lookup(p,tl)
-                }
-        }
-        }
-}
-
-function [rec] (datatype cn_chunk_hdr_option) next_chunk(pointer p, datatype cn_chunk_hdrs hdrs)
-{
-        match (hdrs) {
-        Chunk_nil {} => {
-                Chunk_none {}
-        }
-        Chunk_cons {hd:hdr, tl:tl} => {
-                if (hdr.header_address == (u64) p){
-                        match (tl) {
-                        Chunk_nil {} => {
-                                Chunk_none {}
-                        }
-                        Chunk_cons {hd:hdr2, tl:tl2} => {
-                                Chunk_some { hdr:hdr2 }
-                        }
-                        }
-                } else {
-                        lookup(p,tl)
-                }
-        }
-        }
-}
 
 function (boolean) is_free_chunk(cn_chunk_hdr hdr, u32 size)
 {
