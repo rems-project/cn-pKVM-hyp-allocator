@@ -1947,12 +1947,13 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
 
 predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, u64 best_available_size, u64 size)
 {
-        //let best_chunk_valid = !is_null(best_chunk);
-        //let is_last_chunk = my_list_is_last(chunk, allocator);
-        //let ha = Cn_hyp_allocator_only(allocator);
-        // // predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last)
-        //take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, best_chunk_valid ? best_chunk : chunk);
-        //take C = Maybe_Cn_chunk_hdr(best_chunk, ha, best_chunk_valid);
+        // let best_chunk_valid = !is_null(best_chunk);
+        // let is_last_chunk = my_list_is_last(chunk, allocator);
+        // let ha = Cn_hyp_allocator_only(allocator);
+        //  // predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last)
+        // take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, best_chunk_valid ? best_chunk : chunk);
+        // take C = Maybe_Cn_chunk_hdr(best_chunk, ha, best_chunk_valid);
+        //take hdrs2 =
 
 
         return;
@@ -2163,6 +2164,7 @@ void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chu
 @*/
 {}
 
+
 void LemmaGetLastChunk(struct hyp_allocator *allocator)
 /*@
         requires
@@ -2193,11 +2195,14 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                 let ha_inv = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
                 ha_full_inv == ha_full;
 
-                take cn_hdr = Cn_chunk_hdr(chunk, ha);
+                let cur_chunk = ptr_eq(chunk, ha.head) ?
+                        array_shift<char>(ha_full.last, -offsetof(chunk_hdr, node)) : chunk;
+
+                take cn_hdr = Cn_chunk_hdr(cur_chunk, ha);
                 !is_null(cn_hdr.Node.next);
                 !is_null(cn_hdr.Node.prev);
 
-                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+                let chunk_node = member_shift<struct chunk_hdr>(cur_chunk, node);
                 take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha, ha.head);
                 take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha, ha.head);
         @*/
@@ -2266,7 +2271,10 @@ void *hyp_alloc(unsigned long size)
         struct hyp_allocator *allocator = &hyp_allocator;
         struct chunk_hdr *chunk, *last_chunk;
         unsigned long chunk_addr;
-        int missing_map, ret = 0;
+        int ret = 0;
+        /* CN DIFF */
+        // missing_map should be size_t to match the type of chunk_needs_mapping
+        size_t missing_map;
 
         size = ALIGN(size, MIN_ALLOC);
 
