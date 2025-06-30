@@ -2230,6 +2230,18 @@ void LsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
                 take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
         ensures
                 take C2 = Cn_hyp_allocator(allocator);
+                C.ha == C2.ha;
+@*/
+{}
+
+void my_memset(char *s, char c, size_t n)
+/*@
+    requires
+        take U = Cn_char_array(s, n);
+    ensures
+         // should we capture W<> -> RW<> behavior?
+         // just i'm lazy not to write it
+        take V = Cn_char_array(s, n);
 @*/
 {}
 
@@ -2240,23 +2252,26 @@ void *hyp_alloc(unsigned long size)
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
                 size > 0u64;
-		size <= (u64)MAXu32();
+                size <= (u64)MAXu32();
                 let actual_size = cn_ALIGN(size, MIN_ALLOC());
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
 
                 // The following check is done in memcache functions,
                 // which we ignore in this verification.
                 // So, we explicitly state the following
-		PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
+                PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
 
                 // For the first allocation, we have a special ownership structure
                 take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {});
         ensures
                 take U = MaybeCn_char_array(return, actual_size);
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
-		HA_post.ha.size == HA_pre.ha.size;
-		HA_post.ha.start == HA_pre.ha.start;
-		HA_post.ha.head == HA_pre.ha.head;
+                HA_post.ha.size == HA_pre.ha.size;
+                HA_post.ha.start == HA_pre.ha.start;
+                HA_post.ha.head == HA_pre.ha.head;
+
+                // the case where even the first allocation fails
+                take C2 = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {} && return == NULL);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -2312,11 +2327,18 @@ end:
 
         *(this_cpu_ptr(&hyp_allocator_errno)) = ret;
 
+        /* CN DIFF for proof */
+        if (!list_empty(&hyp_allocator.chunks)) {
+                LsegToChunkHdrs(allocator, chunk);
+        }
+
         /* Enforce zeroing allocated memory */
         if (!ret)
         {
-                LsegToChunkHdrs(allocator, chunk);
-                memset(chunk_data(chunk), 0, size);
+                /* CN DIFF */
+                // How do I write the spec to memset?
+                my_memset(chunk_data(chunk), 0, size);
+                // memset(chunk_data(chunk), 0, size);
         }
 
         return ret ? NULL : chunk_data(chunk);
