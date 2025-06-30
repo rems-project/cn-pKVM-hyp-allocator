@@ -2061,8 +2061,10 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 @*/
 
 {
+        /* CN DIFF */
+        // version: e6f1cbbab1843a62714bf19329cbabf43adbd297
         struct chunk_hdr *chunk, *best_chunk = NULL;
-        size_t best_available_size = allocator->size;
+	size_t best_available_size = SIZE_MAX;
 
         // HK: O(n) search for the best chunk
         // Several thoughts:
@@ -2087,6 +2089,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )); @*/
+
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
                 {size} unchanged;
@@ -2095,79 +2098,19 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 //take Fst = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, Chunk_nil{});
         @*/
         {
-                /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                /*@ split_case(ptr_eq(
-                    member_shift<struct chunk_hdr>(chunk, node)->next,
-                    member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                size_t available_size = chunk->mapped_size +
-                                        chunk_unmapped_size(chunk, allocator);
-
-                if (chunk_is_used(chunk)) {
-                        /* CN */
-                        if (chunk->node.next == &allocator->chunks) {
-                              LemmaConvertLsegToChunkHdrs(allocator, chunk);
-                              /*@ split_case(
-                                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                                                member_shift<struct hyp_allocator>(allocator, chunks)
-                                        )); @*/
-                        }
-                        continue;
+		size_t available_size = chunk->mapped_size +
+					chunk_unmapped_size(chunk, allocator);
+		if (chunk_is_used(chunk)) {
+			continue;
                 }
-
-                if (chunk_size(size) > available_size) {
-                        /* CN */
-                        if (chunk->node.next == &allocator->chunks) {
-                              LemmaConvertLsegToChunkHdrs(allocator, chunk);
-                              /*@ split_case(
-                                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                                                member_shift<struct hyp_allocator>(allocator, chunks)
-                                        )); @*/
-                        }
-                        continue;
+		if (chunk_size(size) > available_size) {
+			continue;
                 }
-
-                if (!best_chunk) {
-                        best_chunk = chunk;
-                        // PATCH(HK): Similar to c42b25f27262ad3f37fdb80612189bf41a729c0d
-                        best_available_size = available_size;
-                        /* CN */
-                        if (chunk->node.next == &allocator->chunks) {
-                        LemmaConvertLsegToChunkHdrs(allocator, chunk);
-                        /*@ split_case(
-                                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                                                member_shift<struct hyp_allocator>(allocator, chunks)
-                                        )); @*/
-                        }
-                        continue;
+		if (best_available_size <= available_size) {
+			continue;
                 }
-
-                if (best_available_size <= available_size) {
-                /* CN */
-                        if (chunk->node.next == &allocator->chunks) {
-                        LemmaConvertLsegToChunkHdrs(allocator, chunk);
-                        /*@ split_case(
-                                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                                                member_shift<struct hyp_allocator>(allocator, chunks)
-                                        )); @*/
-                        }
-                        continue;
-                }
-
-                best_chunk = chunk;
-                best_available_size = available_size;
-                // /*@ apply ListSeg(allocator, chunk); @*/
-                // /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                // /*@ split_case(ptr_eq(
-                //     member_shift<struct chunk_hdr>(chunk, node)->next,
-                //     member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                /* CN */
-                if (chunk->node.next == &allocator->chunks) {
-                        LemmaConvertLsegToChunkHdrs(allocator, chunk);
-                        /*@ split_case(
-                                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                                        member_shift<struct hyp_allocator>(allocator, chunks)
-                                )); @*/
-                }
+		best_chunk = chunk;
+		best_available_size = available_size;
         }
 
         return chunk_get(best_chunk);
