@@ -2213,8 +2213,10 @@ void *hyp_alloc(unsigned long size)
         hyp_spin_lock(&allocator->lock);
         //PS: ownership from lock invariant
         //PS: hyp_spin_lock returns Cn_hyp_allocator(&allocator)
-
-        if (list_empty(&hyp_allocator.chunks)) {
+        /* CN DIFF */
+        // this variable is used to split the case later in this function.
+        int cn_flag = list_empty(&hyp_allocator.chunks);
+        if (cn_flag) {
                 ret = setup_first_chunk(allocator, size);
 		/*@ split_case(ret == 0i32); @*/
                 if (ret) {
@@ -2261,7 +2263,7 @@ end:
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )); @*/
         /* CN DIFF for proof */
-        if (!list_empty(&hyp_allocator.chunks)) {
+        if (!ret || !cn_flag) {
                 LsegToChunkHdrs(allocator, chunk);
         }
 
