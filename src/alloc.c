@@ -2219,6 +2219,15 @@ predicate (void) FirstAllocation(pointer start, u32 size, u64 alloc_size, boolea
 }
 @*/
 
+void LsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
+/*@
+        requires
+                take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        ensures
+                take C2 = Cn_hyp_allocator(allocator);
+@*/
+{}
+
 // HK: To avoid "mismatched types" error
 //void *hyp_alloc(size_t size)
 void *hyp_alloc(unsigned long size)
@@ -2258,10 +2267,10 @@ void *hyp_alloc(unsigned long size)
 
         if (list_empty(&hyp_allocator.chunks)) {
                 ret = setup_first_chunk(allocator, size);
+		/*@ split_case(ret == 0i32); @*/
                 if (ret) {
                         goto end;
                 }
-		/*@ split_case(ret == 0i32); @*/
 
                 chunk = (struct chunk_hdr *)allocator->start;
         	/*@ split_case(is_null(chunk)); @*/
@@ -2299,14 +2308,11 @@ end:
         *(this_cpu_ptr(&hyp_allocator_errno)) = ret;
 
         /* Enforce zeroing allocated memory */
-        if (!ret) {
+        if (!ret)
+        {
+                LsegToChunkHdrs(allocator, chunk);
                 memset(chunk_data(chunk), 0, size);
         }
-
-        /*@ split_case(
-                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                        member_shift<struct hyp_allocator>(allocator, chunks)
-                )); @*/
 
         return ret ? NULL : chunk_data(chunk);
 }
