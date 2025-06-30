@@ -26,6 +26,7 @@ targets=(
   get_free_chunk
   chunk_recycle
   hyp_alloc
+  LemmaGetLastChunk
 )
 # unproved: chunk_install, get_free_hunk, chunk_recycle, hyp_alloc
 

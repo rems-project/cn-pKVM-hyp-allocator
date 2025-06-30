@@ -2153,7 +2153,7 @@ predicate (void) FirstAllocation(pointer start, u32 size, u64 alloc_size, boolea
 }
 @*/
 
-void LsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
+void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
 /*@
         requires
                 take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
@@ -2163,8 +2163,66 @@ void LsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
 @*/
 {}
 
+void LemmaGetLastChunk(struct hyp_allocator *allocator)
+/*@
+        requires
+                take C = Cn_hyp_allocator(allocator);
+                C.hdrs != Chunk_nil {};
+                let ha_full = C.ha;
+                let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
+                let last = array_shift<char>(C.ha.last, -offsetof(chunk_hdr, node));
+        ensures
+                take C2 = Cn_hyp_allocator_focusing_on(allocator, last);
+                C2.ha == C.ha;
+@*/
+{
+        struct list_head *prev = &allocator->chunks;
+        struct list_head *last= &allocator->chunks;
+        struct chunk_hdr *chunk;
+
+        /*@
+                split_case(
+                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                                member_shift<struct hyp_allocator>(allocator, chunks)
+                        )
+                );
+        @*/
+        list_for_each_entry(chunk, &allocator->chunks, node)
+        /*@ inv {allocator} unchanged;
+                take ha_full_inv = Cn_hyp_allocator_only(allocator);
+                let ha_inv = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
+                ha_full_inv == ha_full;
+
+                take cn_hdr = Cn_chunk_hdr(chunk, ha);
+                !is_null(cn_hdr.Node.next);
+                !is_null(cn_hdr.Node.prev);
+
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+                take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha, ha.head);
+                take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha, ha.head);
+        @*/
+        {
+                /*@
+                split_case(
+                        ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
+                                member_shift<struct hyp_allocator>(allocator, chunks)
+                        )
+                );
+                @*/
+        }
+        /*@
+        split_case(
+                ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )
+        );
+        @*/
+}
+
+
 void my_memset(char *s, char c, size_t n)
 /*@
+    trusted;
     requires
         take U = Cn_char_array(s, n);
     ensures
@@ -2172,7 +2230,9 @@ void my_memset(char *s, char c, size_t n)
          // just i'm lazy not to write it
         take V = Cn_char_array(s, n);
 @*/
-{}
+{
+        memset(s, c, n);
+}
 
 // HK: To avoid "mismatched types" error
 //void *hyp_alloc(size_t size)
@@ -2234,6 +2294,7 @@ void *hyp_alloc(unsigned long size)
                 goto end;
         }
         // HK: when there is no free chunk, we divide the last chunk
+        LemmaGetLastChunk(allocator);
 
         last_chunk = chunk_get(list_last_entry(&allocator->chunks, struct chunk_hdr, node));
 
@@ -2264,7 +2325,7 @@ end:
                 )); @*/
         /* CN DIFF for proof */
         if (!ret || !cn_flag) {
-                LsegToChunkHdrs(allocator, chunk);
+                LemmaLsegToChunkHdrs(allocator, chunk);
         }
 
         /* Enforce zeroing allocated memory */
