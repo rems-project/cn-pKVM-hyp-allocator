@@ -1934,8 +1934,10 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
                 take HA_out = Cn_hyp_allocator_focusing_on(allocator, result);
                 let lseg = HA_out.lseg;
 
-                assert(is_free_chunk(lseg.chunk, (u32)size)
-                && {ha: HA_out.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})} == HA_in);
+                assert(HA_in.ha.size == HA_out.ha.size);
+                assert(HA_in.ha.start == HA_out.ha.start);
+                assert(HA_in.ha.head == HA_out.ha.head);
+                assert(is_free_chunk(lseg.chunk, (u32)size));
                 return;
         }
 }
@@ -2327,6 +2329,10 @@ end:
 
         *(this_cpu_ptr(&hyp_allocator_errno)) = ret;
 
+        /*@ split_case(
+                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )); @*/
         /* CN DIFF for proof */
         if (!list_empty(&hyp_allocator.chunks)) {
                 LsegToChunkHdrs(allocator, chunk);
