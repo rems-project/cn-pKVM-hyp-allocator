@@ -1765,10 +1765,11 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         (return == 0i32 && can_split) implies chunk_recycle_aux(HA_pre.lseg.after, HA_post.lseg.after, new_chunk);
 
         return != 0i32 implies C_post == C_pre;
+        let tmp_mapped_size = (u64)C_pre.mapped_size + Cn_chunk_needs_mapping((u64)C_pre.mapped_size, size);
         (return == 0i32 && !can_split) implies
                 C_post == {
                         header_address: C_pre.header_address,
-                        mapped_size: C_pre.mapped_size,
+                        mapped_size: (u32)tmp_mapped_size,
                         alloc_size: (u32)size,
                         va_size: C_pre.va_size
                 };
