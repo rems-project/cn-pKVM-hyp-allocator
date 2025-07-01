@@ -142,9 +142,7 @@ predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
 predicate void Conditional_Cn_char_array(pointer p, u64 size, boolean cond)
 {
         if (cond) {
-                take U = each(u64 i; i < size){
-                        W<char>(array_shift<char>(p, i))
-                };
+                take U = Cn_char_array(p, size);
                 return;
         }
         else {
