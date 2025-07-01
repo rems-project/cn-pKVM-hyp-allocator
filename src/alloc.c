@@ -1755,11 +1755,14 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         chunk_hash_update(chunk);
 
         if (new_chunk) {
-                /*@
-                apply SplitAndNewChunk(original_cn_char_array, (u32)size_1, (u32)size_2, (u32)size_3);
-                @*/
+                // /*@
+                // apply SplitAndNewChunk(original_cn_char_array, (u32)size_1, (u32)size_2, (u32)size_3);
+                // @*/
+                //(u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size)
+                LemmaSplitAndNewChunk(chunk_data(chunk), size, chunk->mapped_size +
+                                                             chunk_unmapped_size(chunk, allocator)- size - chunk_hdr_size());
 
-		// chunk must be non null
+                // chunk must be non null
 		/*@ assert(!is_null(chunk)); @*/
 		/* CN DIFF */
 		/* HK: capturing the return value is needed to unfold `ChunkInstallPost` */
@@ -2191,20 +2194,20 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
         @*/
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
-                take ha_full_inv = Cn_hyp_allocator_only(allocator);
-                let ha_inv = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
-                ha_full_inv == ha_full;
+                // take ha_full_inv = Cn_hyp_allocator_only(allocator);
+                // let ha_inv = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
+                // ha_full_inv == ha_full;
 
-                let cur_chunk = ptr_eq(chunk, ha.head) ?
-                        array_shift<char>(ha_full.last, -offsetof(chunk_hdr, node)) : chunk;
+                // let cur_chunk = ptr_eq(chunk, ha.head) ?
+                //         array_shift<char>(ha_full.last, -offsetof(chunk_hdr, node)) : chunk;
 
-                take cn_hdr = Cn_chunk_hdr(cur_chunk, ha);
-                !is_null(cn_hdr.Node.next);
-                !is_null(cn_hdr.Node.prev);
+                // take cn_hdr = Cn_chunk_hdr(cur_chunk, ha);
+                // !is_null(cn_hdr.Node.next);
+                // !is_null(cn_hdr.Node.prev);
 
-                let chunk_node = member_shift<struct chunk_hdr>(cur_chunk, node);
-                take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha, ha.head);
-                take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha, ha.head);
+                // let chunk_node = member_shift<struct chunk_hdr>(cur_chunk, node);
+                // take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha, ha.head);
+                // take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha, ha.head);
         @*/
         {
                 /*@
@@ -2272,6 +2275,7 @@ void *hyp_alloc(unsigned long size)
         struct chunk_hdr *chunk, *last_chunk;
         unsigned long chunk_addr;
         int ret = 0;
+        /* CN */ int no_free_chunk = 0;
         /* CN DIFF */
         // missing_map should be size_t to match the type of chunk_needs_mapping
         size_t missing_map;
@@ -2302,6 +2306,7 @@ void *hyp_alloc(unsigned long size)
                 goto end;
         }
         // HK: when there is no free chunk, we divide the last chunk
+        no_free_chunk = 1;
         LemmaGetLastChunk(allocator);
 
         last_chunk = chunk_get(list_last_entry(&allocator->chunks, struct chunk_hdr, node));
@@ -2320,8 +2325,11 @@ void *hyp_alloc(unsigned long size)
                 }
         }
 
+        LemmaSplitAndNewChunk(chunk_data(last_chunk), last_chunk->alloc_size, allocator->start + allocator->size - last_chunk->alloc_size - chunk_hdr_size());
+
         WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
         /*@ split_case(is_null(chunk)); @*/
+        LemmaLsegToChunkHdrs(allocator, last_chunk);
 end:
         hyp_spin_unlock(&allocator->lock);
 
@@ -2332,7 +2340,7 @@ end:
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )); @*/
         /* CN DIFF for proof */
-        if (!ret || !cn_flag) {
+        if ((!ret || !cn_flag) && !no_free_chunk) {
                 LemmaLsegToChunkHdrs(allocator, chunk);
         }
 

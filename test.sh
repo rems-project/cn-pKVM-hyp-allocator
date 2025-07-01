@@ -47,7 +47,16 @@ run_test() {
 
   end=$(date +%s.%N)
   elapsed=$(echo "$end - $start" | bc)
-  echo "$target $status (in ${elapsed}s)"
+
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  NC='\033[0m'
+
+  if [[ $status == "passed" ]]; then
+    echo -e "$target ${GREEN}$status${NC} (in ${elapsed}s)"
+  else
+    echo -e "$target ${RED}$status${NC} (in ${elapsed}s)"
+  fi
 
   [[ $status != "passed" ]] && exit 1
 }
