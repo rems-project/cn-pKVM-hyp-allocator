@@ -2192,6 +2192,27 @@ void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chu
 @*/
 {}
 
+/*@
+predicate void LemmaGetLastChunkInv(pointer chunk, cn_hyp_allocator ha)
+{
+        if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
+                ha.head)) {
+                let ha_core = Cn_hyp_allocator_core(ha);
+                take hdrs = Cn_chunk_hdrs_rev(ha.last, ha.head, ha_core, ha.head);
+                return;
+        } else {
+                let ha_core = Cn_hyp_allocator_core(ha);
+                take cn_hdr = Cn_chunk_hdr(chunk, ha_core);
+                assert(!is_null(cn_hdr.Node.next));
+                assert(!is_null(cn_hdr.Node.prev));
+
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+                take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_core, ha.head);
+                take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_core, ha.head);
+                return;
+        }
+}
+@*/
 
 void LemmaGetLastChunk(struct hyp_allocator *allocator)
 /*@
@@ -2200,39 +2221,34 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                 C.hdrs != Chunk_nil {};
                 let ha_full = C.ha;
                 let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
-                let last = array_shift<char>(C.ha.last, -offsetof(chunk_hdr, node));
+                !is_null(C.ha.last);
         ensures
+                let last = array_shift<char>(C.ha.last, -offsetof(chunk_hdr, node));
                 take C2 = Cn_hyp_allocator_focusing_on(allocator, last);
                 C2.ha == C.ha;
 @*/
 {
-        struct list_head *prev = &allocator->chunks;
-        struct list_head *last= &allocator->chunks;
-        struct chunk_hdr *chunk;
-
         /*@
-                split_case(
-                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                                member_shift<struct hyp_allocator>(allocator, chunks)
-                        )
-                );
+        split_case(
+                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )
+        );
+        unpack Cn_chunk_hdrs(
+                member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks),
+                Cn_hyp_allocator_core(ha_full), ha_full.head
+        );
         @*/
-        list_for_each_entry(chunk, &allocator->chunks, node)
+        struct chunk_hdr *chunk = list_first_entry(&allocator->chunks, struct chunk_hdr, node);
+
+
+        while(!list_entry_is_head(chunk, &allocator->chunks, node))
         /*@ inv {allocator} unchanged;
-                // take ha_full_inv = Cn_hyp_allocator_only(allocator);
-                // let ha_inv = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
-                // ha_full_inv == ha_full;
-
-                // let cur_chunk = ptr_eq(chunk, ha.head) ?
-                //         array_shift<char>(ha_full.last, -offsetof(chunk_hdr, node)) : chunk;
-
-                // take cn_hdr = Cn_chunk_hdr(cur_chunk, ha);
-                // !is_null(cn_hdr.Node.next);
-                // !is_null(cn_hdr.Node.prev);
-
-                // let chunk_node = member_shift<struct chunk_hdr>(cur_chunk, node);
-                // take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha, ha.head);
-                // take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha, ha.head);
+                take ha_full_inv = Cn_hyp_allocator_only(allocator);
+                let ha_inv = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
+                ha_full_inv == ha_full;
+                take Inv = LemmaGetLastChunkInv(chunk, ha_full_inv);
         @*/
         {
                 /*@
@@ -2241,15 +2257,24 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
                 );
+                unpack Cn_chunk_hdrs(
+                        member_shift<struct chunk_hdr>(chunk, node)->next,
+                        member_shift<struct chunk_hdr>(chunk, node),
+                        Cn_hyp_allocator_core(ha_full), ha_full.head
+                );
+                split_case(
+                        ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                                member_shift<struct hyp_allocator>(allocator, chunks)
+                        )
+                );
+                unpack Cn_chunk_hdrs_rev(
+                        member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct chunk_hdr>(chunk, node),
+                        Cn_hyp_allocator_core(ha_full), ha_full.head
+                );
                 @*/
+                chunk = list_next_entry(chunk, node);
         }
-        /*@
-        split_case(
-                ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
-                        member_shift<struct hyp_allocator>(allocator, chunks)
-                )
-        );
-        @*/
 }
 
 
