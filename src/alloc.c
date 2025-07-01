@@ -2321,6 +2321,7 @@ void *hyp_alloc(unsigned long size)
         if (missing_map) {
                 ret = chunk_inc_map(last_chunk, missing_map, allocator);
                 if (ret){
+                        LemmaLsegToChunkHdrs(allocator, last_chunk);
                         goto end;
                 }
         }
