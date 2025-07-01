@@ -304,26 +304,34 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                            struct hyp_allocator *allocator)
 /*@
         requires
-                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let B_pre = HA_pre.lseg.chunk;
-                let Before_pre = HA_pre.lseg.before;
+                !is_null(chunk);
+                (u64)chunk & 0x7u64 == 0u64;
+                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+                take A_pre = RW<struct hyp_allocator>(allocator);
+                !is_null(node.prev);
+                (u64)node.prev & 0x7u64 == 0u64;
         ensures
-                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let B_post = HA_post.lseg.chunk;
-                HA_post == HA_pre;
-
-                match Before_pre {
-                        Chunk_nil {} => {
-                                is_null(return)
-                        }
-                        Chunk_cons {hd:hdr, tl:tl} => {
-                                ptr_eq(return, (pointer)hdr.header_address)
-                        }
+                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take hash2 = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+                take A_post = RW<struct hyp_allocator>(allocator);
+                alloc_size == alloc_size2 &&
+                mapped_size == mapped_size2 &&
+                node == node2;
+                A_pre == A_post;
+                let cond = ptr_eq(node.prev, member_shift<struct hyp_allocator>(allocator, chunks));
+                if (cond) {
+                        is_null(return)
+                } else {
+                        !is_null(return) &&
+                        ptr_eq(member_shift<struct chunk_hdr>(return, node), node.prev)
                 };
 @*/
 {
-        /*@ unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
-                member_shift<struct chunk_hdr>(chunk, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head); @*/
         return list_is_first(&(chunk)->node, &(allocator)->chunks) ?
                 NULL : list_prev_entry(chunk, node);
 }
@@ -727,6 +735,10 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 
         /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
                 member_shift<struct chunk_hdr>(prev, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head); @*/
+        /*@
+        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct chunk_hdr>(chunk, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head);
+        @*/
         // /*CN*/ LemmaNextChunk(prev, allocator);
         // /*@ split_case(ptr_eq(
         //         member_shift<struct chunk_hdr>(chunk, node)->next,
@@ -1109,6 +1121,7 @@ ensures
         size_all -= chunk_hdr_size();
         LemmaSplitAndNewChunk(chunk, size, size_all - size);
 
+        /*@ unpack Cn_char_array(chunk_hdr, Cn_chunk_hdr_size());@*/
         /*@ apply CreateChunkHdr(chunk_hdr); @*/
         /*@ unpack Cn_char_array(chunk_data, size1); @*/
         /*@ unpack Cn_char_array(chunk, size); @*/
@@ -1218,6 +1231,8 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 /*@ split_case(ptr_eq(
                         member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Cn_hyp_allocator_core(Pre.ha), Pre.ha.head);
+                @*/
                 list_add(&chunk->node, &allocator->chunks);
                 chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
                 chunk->alloc_size = size;
@@ -1604,6 +1619,9 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
          * There is no point splitting the last chunk, subsequent allocations
          * would be able to use this space anyway.
          */
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct chunk_hdr>(chunk, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head); @*/
         if (list_is_last(&chunk->node, &allocator->chunks)) {
