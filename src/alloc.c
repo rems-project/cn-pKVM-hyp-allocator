@@ -2115,7 +2115,9 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         /* CN DIFF */
         // version: e6f1cbbab1843a62714bf19329cbabf43adbd297
         struct chunk_hdr *chunk, *best_chunk = NULL;
-	size_t best_available_size = SIZE_MAX;
+        /* CN DIFF */
+        // SIZE MAX is not supported
+	size_t best_available_size = 0xFFFFFFFFFFFFFFFFUL; // max size_t value
 
         // HK: O(n) search for the best chunk
         // Several thoughts:
