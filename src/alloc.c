@@ -2234,10 +2234,7 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )
         );
-        unpack Cn_chunk_hdrs(
-                member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                member_shift<struct hyp_allocator>(allocator, chunks),
-                Cn_hyp_allocator_core(ha_full), ha_full.head
+        unpack Cn_chunk_hdrs(ha.first, ha_full.head, Cn_hyp_allocator_core(ha_full), ha_full.head
         );
         @*/
         struct chunk_hdr *chunk = list_first_entry(&allocator->chunks, struct chunk_hdr, node);
