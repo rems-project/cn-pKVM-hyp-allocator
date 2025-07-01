@@ -103,6 +103,16 @@ type_synonym cn_hyp_allocator_core = {
         u32 size
 }
 
+function (cn_hyp_allocator_core) Cn_hyp_allocator_core(cn_hyp_allocator ha)
+{
+        {
+                head: ha.head,
+                first: ha.first,
+                start: ha.start,
+                size: ha.size
+        }
+}
+
 datatype cn_chunk_hdrs {
   Chunk_nil {},
   Chunk_cons { cn_chunk_hdr hd, datatype cn_chunk_hdrs tl }
