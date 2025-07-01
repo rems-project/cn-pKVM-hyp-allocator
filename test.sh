@@ -33,8 +33,9 @@ targets=(
 run_test() {
   target="$1"
   start=$(date +%s.%N)
+  opt="-p 20 --disable-recursive-predicate-unfolding"
 
-  if make ONLY="$target" cn-verify OPT="-p 20" > "verify-${target}.log" 2>&1  &&
+  if make ONLY="$target" cn-verify OPT="$opt" > "verify-${target}.log" 2>&1  &&
      grep -q "\[1/1\]: $target -- pass" "verify-${target}.log"; then
     status="passed"
   else
