@@ -1835,14 +1835,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 /*@ split_case(is_null(chunk)); @*/
                 /*@ split_case(ret == 0i32); @*/
 
-                // /*@ split_case(ptr_eq(
-                //             member_shift<struct chunk_hdr>(chunk, node),
-                //             member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                // /*@ split_case(ptr_eq(
-                //             member_shift<struct chunk_hdr>(chunk, node)->next,
-                //             member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                // /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
-                // /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+                // destroy the garbage here
+                /*@ unpack Cn_char_array(array_shift<unsigned char>(new_chunk, Cn_chunk_hdr_size()), 0u64); @*/
         }
 
 
