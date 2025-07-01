@@ -399,7 +399,6 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
 
 @*/
 {
-        struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
         /*@ split_case(ptr_eq(
                 member_shift<struct chunk_hdr>(chunk, node),
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
@@ -409,6 +408,7 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->prev));@*/
         /*@ unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct chunk_hdr>(chunk, node), ha, HA_pre.ha.head); @*/
+        struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
         chunk_hash_validate(prev);
         return prev;
 }
@@ -731,14 +731,17 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)));@*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)->next));@*/
+        /*@
+        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
+                member_shift<struct chunk_hdr>(prev, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head);
+        @*/
         list_add(&chunk->node, &prev->node);
 
-        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
-                member_shift<struct chunk_hdr>(prev, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head); @*/
-        /*@
-        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
-                member_shift<struct chunk_hdr>(chunk, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head);
-        @*/
+        /*@ split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct chunk_hdr>(chunk, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head); @*/
         // /*CN*/ LemmaNextChunk(prev, allocator);
         // /*@ split_case(ptr_eq(
         //         member_shift<struct chunk_hdr>(chunk, node)->next,
