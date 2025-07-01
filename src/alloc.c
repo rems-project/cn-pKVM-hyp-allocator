@@ -1815,7 +1815,10 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 }
         }
 
+        LemmaSplitAndNewChunk(chunk_data(chunk), size, chunk->mapped_size +
+                                                        chunk_unmapped_size(chunk, allocator)- size - chunk_hdr_size());
         chunk->alloc_size = size;
+
         chunk_hash_update(chunk);
 
         if (new_chunk) {
@@ -1823,9 +1826,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 // apply SplitAndNewChunk(original_cn_char_array, (u32)size_1, (u32)size_2, (u32)size_3);
                 // @*/
                 //(u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size)
-                /* LemmaSplitAndNewChunk(chunk_data(chunk), size, chunk->mapped_size +
-                                                             chunk_unmapped_size(chunk, allocator)- size - chunk_hdr_size()); */
-
                 // chunk must be non null
 		/*@ assert(!is_null(chunk)); @*/
 		/* CN DIFF */
@@ -2375,9 +2375,11 @@ void *hyp_alloc(unsigned long size)
         }
 
         //LemmaSplitAndNewChunk(chunk_data(last_chunk) + last_chunk->alloc_size, , allocator->start + allocator->size - last_chunk->alloc_size - (unsigned long)chunk_data(last_chunk));
-
-        WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
+        /* CN DIFF */
+        int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
+        WARN_ON(res_chunk_install);
         /*@ split_case(is_null(chunk)); @*/
+        /*@ split_case(res_chunk_install == 0i32); @*/
         LemmaLsegToChunkHdrs(allocator, last_chunk);
 end:
         hyp_spin_unlock(&allocator->lock);
