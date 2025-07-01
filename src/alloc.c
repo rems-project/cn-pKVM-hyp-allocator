@@ -369,6 +369,8 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
 /*@
         requires
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let ha_full = HA_pre.ha;
+                let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
                 let B_pre = HA_pre.lseg.chunk;
                 let Before_pre = HA_pre.lseg.before;
         ensures
@@ -395,6 +397,8 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->prev));@*/
+        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct chunk_hdr>(chunk, node), ha, HA_pre.ha.head); @*/
         chunk_hash_validate(prev);
         return prev;
 }
@@ -432,7 +436,8 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
         requires
                 !is_null(chunk);
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let ha = HA_pre.ha;
+                let ha_full = HA_pre.ha;
+                let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
                 let C = HA_pre.lseg.chunk;
                 let After_pre = HA_pre.lseg.after;
         ensures
@@ -452,6 +457,8 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct chunk_hdr>(chunk, node), ha, HA_pre.ha.head); @*/
         return next ? (unsigned long)next - chunk_unmapped_region(chunk) :
                 allocator_end - chunk_unmapped_region(chunk);
 }
@@ -542,6 +549,9 @@ void LemmaNextChunk(struct chunk_hdr *chunk,
     requires
         !is_null(chunk);
         take X = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let ha_full = X.ha;
+        let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
+        let C_pre = X.lseg.chunk;
         X.lseg.after != Chunk_nil{};
         let next = match (X.lseg.after) {
             Chunk_nil {} => {
@@ -568,6 +578,8 @@ void LemmaNextChunk(struct chunk_hdr *chunk,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct chunk_hdr>(chunk, node), ha, X.ha.head); @*/
 }
 
 
