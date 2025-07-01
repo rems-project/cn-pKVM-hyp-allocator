@@ -2326,7 +2326,7 @@ void *hyp_alloc(unsigned long size)
                 }
         }
 
-        LemmaSplitAndNewChunk(chunk_data(last_chunk), last_chunk->alloc_size, allocator->start + allocator->size - last_chunk->alloc_size - chunk_data(last_chunk));
+        LemmaSplitAndNewChunk(chunk_data(last_chunk), last_chunk->alloc_size, allocator->start + allocator->size - last_chunk->alloc_size - (unsigned long)chunk_data(last_chunk));
 
         WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
         /*@ split_case(is_null(chunk)); @*/
