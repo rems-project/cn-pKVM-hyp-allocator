@@ -103,6 +103,16 @@ type_synonym cn_hyp_allocator_core = {
         u32 size
 }
 
+function (cn_hyp_allocator_core) Cn_hyp_allocator_core(cn_hyp_allocator ha)
+{
+        {
+                head: ha.head,
+                first: ha.first,
+                start: ha.start,
+                size: ha.size
+        }
+}
+
 datatype cn_chunk_hdrs {
   Chunk_nil {},
   Chunk_cons { cn_chunk_hdr hd, datatype cn_chunk_hdrs tl }
@@ -112,6 +122,46 @@ datatype option_u64 {
         Option_u64_none {},
         Option_u64_some { u64 value }
 }
+
+
+predicate [rec] void Cn_char_array(pointer p, u64 size)
+{
+        take U = each(u64 i; i < size){
+                W<char>(array_shift<char>(p, i))
+        };
+        return;
+}
+predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
+{
+        take U = each(u64 i; offset <= i && i < offset + size){
+                W<char>(array_shift<char>(p, i))
+        };
+        return;
+}
+
+predicate void Conditional_Cn_char_array(pointer p, u64 size, boolean cond)
+{
+        if (cond) {
+                take U = each(u64 i; i < size){
+                        W<char>(array_shift<char>(p, i))
+                };
+                return;
+        }
+        else {
+                return;
+        }
+}
+
+predicate void MaybeCn_char_array(pointer p, u64 size)
+{
+        if (ptr_eq(p, NULL)) {
+                return;
+        } else {
+                take U = Cn_char_array(p, size);
+                return;
+        }
+}
+
 
 @*/
 
@@ -270,7 +320,7 @@ predicate (datatype cn_chunk_option) Maybe_Cn_chunk_hdr(pointer header_address, 
 
 // HK: prev is unused? what is for?
 // -> HK: important for sanity check of linked list (e.g. node->next->prev == node)
-predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last)
+predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last)
 {
         if (ptr_eq(p,last)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
@@ -296,7 +346,7 @@ predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp
         }
 }
 
-predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer next, cn_hyp_allocator_core ha,  pointer first)
+predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer next, cn_hyp_allocator_core ha,  pointer first)
 {
         if (ptr_eq(p,first)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
