@@ -1783,6 +1783,12 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         struct chunk_hdr *new_chunk = NULL;
         int ret;
 
+        /*@
+        split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        @*/
+
         /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct chunk_hdr>(chunk, node), Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head); @*/
 
@@ -2304,6 +2310,17 @@ void *hyp_alloc(unsigned long size)
         /* CN DIFF */
         // this variable is used to split the case later in this function.
         int cn_flag = list_empty(&hyp_allocator.chunks);
+        /*@ split_case(
+                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )); @*/
+        /*@
+        unpack Cn_chunk_hdrs(
+                member_shift<struct hyp_allocator>(allocator, chunks)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks),
+                Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head
+        );
+        @*/
         if (cn_flag) {
                 ret = setup_first_chunk(allocator, size);
 		/*@ split_case(ret == 0i32); @*/
@@ -2325,8 +2342,20 @@ void *hyp_alloc(unsigned long size)
         no_free_chunk = 1;
         LemmaGetLastChunk(allocator);
 
+
         last_chunk = chunk_get(list_last_entry(&allocator->chunks, struct chunk_hdr, node));
 
+        /*@ split_case(
+                ptr_eq(member_shift<struct chunk_hdr>(last_chunk, node)->next,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )); @*/
+        /*@
+        unpack Cn_chunk_hdrs(
+                member_shift<struct chunk_hdr>(last_chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks),
+                Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head
+        );
+        @*/
         chunk_addr = (unsigned long)last_chunk + chunk_size(last_chunk->alloc_size);
         chunk_addr = chunk_addr_fixup(chunk_addr);
         chunk = (struct chunk_hdr *)chunk_addr;
@@ -2352,10 +2381,6 @@ end:
 
         *(this_cpu_ptr(&hyp_allocator_errno)) = ret;
 
-        /*@ split_case(
-                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                        member_shift<struct hyp_allocator>(allocator, chunks)
-                )); @*/
         /* CN DIFF for proof */
         if ((!ret || !cn_flag) && !no_free_chunk) {
                 LemmaLsegToChunkHdrs(allocator, chunk);
