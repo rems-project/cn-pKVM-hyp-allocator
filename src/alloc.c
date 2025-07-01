@@ -331,6 +331,8 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
 /*@
         requires
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let ha_full = HA_pre.ha;
+                let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
                 let B_pre = HA_pre.lseg.chunk;
                 let After_pre = HA_pre.lseg.after;
         ensures
@@ -355,6 +357,8 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
+        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct chunk_hdr>(chunk, node), ha, HA_pre.ha.head); @*/
         struct chunk_hdr *next = __chunk_next(chunk, allocator);
         chunk_hash_validate(next);
         return next;
@@ -2104,47 +2108,6 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         return chunk_get(best_chunk);
 }
 
-/*@
-predicate void Cn_char_array(pointer p, u64 size)
-{
-        take U = each(u64 i; i < size){
-                W<char>(array_shift<char>(p, i))
-        };
-        return;
-}
-predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
-{
-        take U = each(u64 i; offset <= i && i < offset + size){
-                W<char>(array_shift<char>(p, i))
-        };
-        return;
-}
-
-predicate void Conditional_Cn_char_array(pointer p, u64 size, boolean cond)
-{
-        if (cond) {
-                take U = each(u64 i; i < size){
-                        W<char>(array_shift<char>(p, i))
-                };
-                return;
-        }
-        else {
-                return;
-        }
-}
-
-predicate void MaybeCn_char_array(pointer p, u64 size)
-{
-        if (ptr_eq(p, NULL)) {
-                return;
-        } else {
-                take U = Cn_char_array(p, size);
-                return;
-        }
-}
-
-
-@*/
 /*@
 predicate (void) FirstAllocation(pointer start, u32 size, u64 alloc_size, boolean cond)
 {
