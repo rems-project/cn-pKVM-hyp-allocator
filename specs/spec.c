@@ -124,7 +124,7 @@ datatype option_u64 {
 }
 
 
-predicate void Cn_char_array(pointer p, u64 size)
+predicate [rec] void Cn_char_array(pointer p, u64 size)
 {
         take U = each(u64 i; i < size){
                 W<char>(array_shift<char>(p, i))
