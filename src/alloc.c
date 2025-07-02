@@ -2000,89 +2000,76 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
 
 predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, u64 best_available_size, u64 size)
 {
-        // let best_chunk_valid = !is_null(best_chunk);
-        // let is_last_chunk = my_list_is_last(chunk, allocator);
-        // let ha = Cn_hyp_allocator_only(allocator);
-        //  // predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last)
-        // take hdrs1 = Cn_chunk_hdrs(ha.first, ha.head, ha, best_chunk_valid ? best_chunk : chunk);
-        // take C = Maybe_Cn_chunk_hdr(best_chunk, ha, best_chunk_valid);
-        //take hdrs2 =
+        // phase 3
+        if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
 
+                assert(!is_null(best_chunk));
+                take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
+                assert(!is_null(BestChunk.Node.next));
+                assert(!is_null(BestChunk.Node.prev));
+                let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
 
-        return;
-        //if (ptr_eq(member_shift<struct chunk_hdr_only>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
-        //        take HA = Cn_hyp_allocator(allocator);
-        //        assert(is_null(best_chunk) ||
-        //                GetFreeChunkInvAux(HA.hdrs, chunk, best_chunk, best_available_size));
-        //        return;
-        //} else {
-        //        take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
-        //        let lseg = HA.lseg;
-        //        assert(is_null(best_chunk) ||
-        //                GetFreeChunkInvAux(lseg.before, chunk, best_chunk, best_available_size));
-        //        return;
-        //}
-}
-@*/
-
-void sanity_lseg_empty(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
-/*@
-    requires
-        take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
-        let lseg = C.lseg;
-        // let next_chunk_node = *member_shift<struct chunk_hdr>(chunk, node);
-        // let next_chunk = array_shift<char>(next_chunk_node, -offsetof(chunk_hdr, node));
-        // ptr_eq(next_chunk, member_shift<struct hyp_allocator>(allocator, chunks));
-        lseg.after == Chunk_nil {};
-    ensures
-        take C2 = Cn_hyp_allocator(allocator);
-@*/
-{
-        /*@
-        apply ListSeg(allocator, chunk);
-        @*/
-
-}
-
-/*@
-function [rec] (datatype cn_chunk_hdrs) RevChunkHdrs(datatype cn_chunk_hdrs hdrs)
-{
-        match (hdrs) {
-                Chunk_nil {} => { Chunk_nil {} }
-                Chunk_cons { hd: chunk_hdr, tl: tl } => {
-                        Chunk_cons { hd: chunk_hdr, tl: RevChunkHdrs(tl) }
-                }
-        }
-}
-predicate (void) MaybeEndOfIter(pointer allocator, pointer chunk, cn_hyp_allocator ha, cn_lseg pre, pointer next)
-{
-        if (ptr_eq(next, member_shift<struct hyp_allocator>(allocator, chunks))) {
-                // thing
+                take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
+                take hdrs2 = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk_node, ha.last, ha_core);
                 return;
+        }
+        else
+        {
+        // phase 1
+        if (is_null(best_chunk)) {
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+                take Chunk = Cn_chunk_hdr(chunk, ha_core);
+                assert(!is_null(Chunk.Node.next));
+                assert(!is_null(Chunk.Node.prev));
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+
+                let ha_core2 = {
+                        start: ha_core.start,
+                        size: ha_core.size,
+                        head: chunk_node,
+                        first: ha.first
+                };
+
+                take hdrs2 = Cn_chunk_hdrs(ha.first, ha.head, Chunk.Node.prev, ha_core2);
+                take hdrs3 = Cn_chunk_hdrs(Chunk.Node.next, chunk_node, ha.last, ha_core);
+                return;
+        // phase 2
         } else {
-                // nothing
-                take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                assert(C.ha == ha);
-                assert(C.lseg == pre);
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+
+                take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
+                assert(!is_null(BestChunk.Node.next));
+                assert(!is_null(BestChunk.Node.prev));
+                assert(size <= (u64)BestChunk.Hdr.va_size);
+
+                take Chunk = Cn_chunk_hdr(chunk, ha_core);
+                assert(!is_null(Chunk.Node.next));
+                assert(!is_null(Chunk.Node.prev));
+
+                let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+
+                take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
+                // a bit hack? set the last chunk to chunk_node
+                let ha_core2 = {
+                        start: ha_core.start,
+                        size: ha_core.size,
+                        head: chunk_node,
+                        first: ha.first
+                };
+                take hdrs2 = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk_node, Chunk.Node.prev, ha_core2);
+
+                take hdrs3 = Cn_chunk_hdrs(Chunk.Node.next, chunk_node, ha.last, ha_core);
                 return;
         }
+        }
 }
-
 @*/
 
-void LemmaConvertLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chunk)
-/*@
-requires
-        take C = Cn_hyp_allocator_focusing_on(allocator, chunk);
-    ensures
-        take C2 = Cn_hyp_allocator(allocator);
-        C2.ha == C.ha;
-        C.lseg.after == Chunk_nil {};
-        C2.hdrs == RevChunkHdrs(Chunk_cons{ hd: C.lseg.chunk, tl: C.lseg.before });
-@*/
-{
-
-}
 
 static struct chunk_hdr *get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // should the spec of this characterise "best", or just ensure that this returns a legit chunk?  We guess the latter is sufficient for functional correctness and we'll do that
