@@ -2184,7 +2184,6 @@ predicate void LemmaGetLastChunkInv(pointer chunk, cn_hyp_allocator ha)
         if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
                 ha.head)) {
                 let ha_core = Cn_hyp_allocator_core(ha);
-                assert(false);
                 take hdrs = Cn_chunk_hdrs_rev(ha.last, ha.head, ha.first, ha_core);
                 return;
         } else {
@@ -2279,19 +2278,25 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
                 );
-                unpack Cn_chunk_hdrs(
-                        member_shift<struct chunk_hdr>(chunk, node)->next,
-                        member_shift<struct chunk_hdr>(chunk, node), ha_full.last,
-                        Cn_hyp_allocator_core(ha_full)
-                );
-                split_case(
-                        ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->prev,
-                                member_shift<struct hyp_allocator>(allocator, chunks)
-                        )
-                );
-                unpack Cn_chunk_hdrs_rev(ha_full.last, ha.first, ha_full.first, Cn_hyp_allocator_core(ha_full));
                 @*/
+                if (!list_entry_is_head(chunk, &allocator->chunks, node)) {
+                        /*@
+                        unpack Cn_chunk_hdrs(
+                                member_shift<struct chunk_hdr>(chunk, node)->next,
+                                member_shift<struct chunk_hdr>(chunk, node), ha_full.last,
+                                Cn_hyp_allocator_core(ha_full)
+                        );
+                        @*/
+                }
         }
+        /*@
+        split_case(
+                ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->prev,
+                        member_shift<struct hyp_allocator>(allocator, chunks)
+                )
+        );
+        unpack Cn_chunk_hdrs_rev(ha_full.last, ha.first, ha_full.first, Cn_hyp_allocator_core(ha_full));
+        @*/
 }
 
 
