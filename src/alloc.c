@@ -340,23 +340,34 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                                                struct hyp_allocator *allocator)
 /*@
         requires
-                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let ha_full = HA_pre.ha;
-                let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
-                let B_pre = HA_pre.lseg.chunk;
-                let After_pre = HA_pre.lseg.after;
+                !is_null(chunk);
+                (u64)chunk & 0x7u64 == 0u64;
+                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+                take A_pre = RW<struct hyp_allocator>(allocator);
+                !is_null(node.next);
+                (u64)node.next & 0x7u64 == 0u64;
+                let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
+                let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node));
+                take Next = MaybeChunkHdr(next_chunk, cond);
         ensures
-                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let B_post = HA_post.lseg.chunk;
-                HA_post == HA_pre;
-
-                match After_pre {
-                        Chunk_nil {} => {
-                                is_null(return)
-                        }
-                        Chunk_cons {hd:hdr, tl:tl} => {
-                                ptr_eq(return, (pointer)hdr.header_address)
-                        }
+                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take hash2 = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+                take A_post = RW<struct hyp_allocator>(allocator);
+                alloc_size == alloc_size2 &&
+                mapped_size == mapped_size2 &&
+                node == node2;
+                A_pre == A_post;
+                take Next_post = MaybeChunkHdr(next_chunk, cond);
+                if (cond) {
+                        !is_null(return) &&
+                        ptr_eq(member_shift<struct chunk_hdr>(return, node), node.next)
+                } else {
+                        is_null(return)
                 };
 @*/
 {
@@ -367,9 +378,8 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
-        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
-                member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.last, ha); @*/
         struct chunk_hdr *next = __chunk_next(chunk, allocator);
+        /*@ split_case(cond); @*/
         chunk_hash_validate(next);
         return next;
 }
