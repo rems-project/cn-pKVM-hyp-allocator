@@ -2381,7 +2381,7 @@ void *hyp_alloc(unsigned long size)
         /*@
         unpack Cn_chunk_hdrs(
                 member_shift<struct chunk_hdr>(last_chunk, node)->next,
-                member_shift<struct hyp_allocator>(allocator, chunks),
+                member_shift<struct chunk_hdr>(last_chunk, node),
                 Cn_hyp_allocator_core(HA_pre.ha), HA_pre.ha.head
         );
         @*/
