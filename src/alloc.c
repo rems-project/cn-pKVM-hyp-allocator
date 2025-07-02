@@ -348,7 +348,6 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(node.next);
-                (u64)node.next & 0x7u64 == 0u64;
                 let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node));
                 take Next = MaybeChunkHdr(next_chunk, cond);
@@ -363,6 +362,7 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 node == node2;
                 A_pre == A_post;
                 take Next_post = MaybeChunkHdr(next_chunk, cond);
+                Next == Next_post;
                 if (cond) {
                         !is_null(return) &&
                         ptr_eq(member_shift<struct chunk_hdr>(return, node), node.next)
@@ -371,8 +371,8 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 };
 @*/
 {
-        struct chunk_hdr *next = __chunk_next(chunk, allocator);
         /*@ split_case(cond); @*/
+        struct chunk_hdr *next = __chunk_next(chunk, allocator);
         chunk_hash_validate(next);
         return next;
 }
@@ -456,7 +456,6 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 A_pre.start < A_pre.start + (u64)A_pre.size;
                 !is_null(node.next);
-                (u64)node.next & 0x7u64 == 0u64;
                 let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node));
                 take Next = MaybeChunkHdr(next_chunk, cond);
@@ -471,6 +470,7 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 node == node2;
                 A_pre == A_post;
                 take Next_post = MaybeChunkHdr(next_chunk, cond);
+                Next == Next_post;
 
                 let end = match (Next_post) {
                         ChunkHdr_none {} => {
@@ -483,10 +483,10 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 return == end - (u64)chunk - (u64)mapped_size;
 @*/
 {
+        /*@ split_case(cond); @*/
         struct chunk_hdr *next = chunk_get_next(chunk, allocator);
         unsigned long allocator_end = (allocator)->start +
                                       (allocator)->size;
-        /*@ split_case(cond); @*/
         return next ? (unsigned long)next - chunk_unmapped_region(chunk) :
                 allocator_end - chunk_unmapped_region(chunk);
 }
@@ -1447,6 +1447,23 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
 {
         int ret;
 
+        // HK: we need this because of `chunk_hash_validate` in get_next_chunk...
+        /*@
+        split_case(ptr_eq(
+                    member_shift<struct chunk_hdr>(chunk, node)->next,
+                    member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
+        @*/
+        //if (chunk->node.next != &allocator->chunks) {
+        //        /*@
+        //        split_case(ptr_eq(
+        //                (member_shift<struct chunk_hdr>(chunk, node)->next)->next,
+        //                member_shift<struct hyp_allocator>(allocator, chunks)));
+        //        unpack Cn_chunk_hdrs((member_shift<struct chunk_hdr>(chunk, node)->next)->next,
+        //        (member_shift<struct chunk_hdr>(chunk, node)->next), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
+        //        @*/
+        //}
         if (chunk_unmapped_size(chunk, allocator) < map_size) {
                 return -EINVAL;
         }
