@@ -2228,19 +2228,23 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )
         );
+            unpack Cn_chunk_hdrs(ha.first, ha_full.head, Cn_hyp_allocator_core(ha_full), ha_full.head);
         split_case(
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->prev,
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )
-        );@*/
+        );
+        unpack Cn_chunk_hdrs_rev(ha_full.head, ha.first, Cn_hyp_allocator_core(ha_full), ha_full.head);
+        @*/
         if (allocator->chunks.next != &allocator->chunks) {
           /*@
-            unpack Cn_chunk_hdrs(ha.first, ha_full.head, Cn_hyp_allocator_core(ha_full), ha_full.head);
-            unpack Cn_chunk_hdrs(ha_full.head, ha.first, Cn_hyp_allocator_core(ha_full), ha_full.head);
+          assert(true);
            @*/
         }
         struct chunk_hdr *chunk = list_first_entry(&allocator->chunks, struct chunk_hdr, node);
+        /*@ assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node), ha.head)); @*/
 
+        /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), ha.head)); @*/
 
         while(!list_entry_is_head(chunk, &allocator->chunks, node))
         /*@ inv {allocator} unchanged;
