@@ -65,6 +65,7 @@ run_test() {
 
 date
 git log -1 --format="%H"
+cn --version
 
 export -f run_test
 
