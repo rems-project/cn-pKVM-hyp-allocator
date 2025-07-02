@@ -733,7 +733,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(prev, node)->prev,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(prev, node)->prev,
-                member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
+                member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.first, Cn_hyp_allocator_core(HA_pre.ha));
         @*/
         list_add(&chunk->node, &prev->node);
 
@@ -2208,7 +2208,6 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                 C.hdrs != Chunk_nil {};
                 let ha_full = C.ha;
                 let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
-                !is_null(C.ha.last);
         ensures
                 let last = array_shift<char>(C.ha.last, -offsetof(chunk_hdr, node));
                 take C2 = Cn_hyp_allocator_focusing_on(allocator, last);
