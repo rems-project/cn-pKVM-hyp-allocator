@@ -627,7 +627,7 @@ void LemmaPrevChunk(struct chunk_hdr *chunk,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->prev));@*/
         /*@ unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
-                member_shift<struct chunk_hdr>(chunk, node), X.ha.last, Cn_hyp_allocator_core(X.ha)); @*/
+                member_shift<struct chunk_hdr>(chunk, node), X.ha.first, Cn_hyp_allocator_core(X.ha)); @*/
 }
 
 
@@ -2295,7 +2295,7 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )
         );
-        unpack Cn_chunk_hdrs_rev(ha_full.last, ha.first, ha_full.first, Cn_hyp_allocator_core(ha_full));
+        unpack Cn_chunk_hdrs_rev(ha_full.last, ha.head, ha_full.first, Cn_hyp_allocator_core(ha_full));
         @*/
 }
 
