@@ -63,6 +63,9 @@ run_test() {
   [[ $status != "passed" ]] && exit 1
 }
 
+date
+git log -1 --format="%H"
+
 export -f run_test
 
 printf "%s\n" "${targets[@]}" | xargs -n1 -P "$JOBS" bash -c 'run_test "$@"' _
