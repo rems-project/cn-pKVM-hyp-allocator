@@ -2218,16 +2218,6 @@ void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chu
         @*/
         {
                 /*@
-                // split_case(
-                //         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
-                //                 member_shift<struct hyp_allocator>(allocator, chunks)
-                //         )
-                // );
-                // unpack Cn_chunk_hdrs(
-                //         member_shift<struct chunk_hdr>(chunk, node)->next,
-                //         member_shift<struct chunk_hdr>(chunk, node), ha_full.last,
-                //         Cn_hyp_allocator_core(ha_full)
-                // );
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct hyp_allocator>(allocator, chunks)
