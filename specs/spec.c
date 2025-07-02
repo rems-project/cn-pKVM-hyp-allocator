@@ -318,10 +318,11 @@ predicate (datatype cn_chunk_option) Maybe_Cn_chunk_hdr(pointer header_address, 
 
 // HK: prev is unused? what is for?
 // -> HK: important for sanity check of linked list (e.g. node->next->prev == node)
-predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, cn_hyp_allocator_core ha,  pointer last)
+predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev,  pointer last_node, cn_hyp_allocator_core ha)
 {
-        if (ptr_eq(p,last)) {
+        if (ptr_eq(p,ha.head)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
+                assert(ptr_eq(prev, last_node));
                 // I think this is incorrect, because now that we use this predicate
                 // for list segments, `last` no longer necesarily refers to
                 // the last element of the hyp_allocator.
@@ -337,17 +338,18 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, 
                 // c.f. https://github.com/rems-project/cn/issues/135
                 assert(!is_null(cn_hdr.Node.next));
                 assert(!is_null(cn_hdr.Node.prev));
-                take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, ha, last);
+                take tl = Cn_chunk_hdrs(cn_hdr.Node.next, p, last_node, ha);
 
                 // do we want to use resources to track the va-address-space "ownership" of any unmapped part of va address space between this chunk and the next (or the end)? unclear. pretend not for now
                 return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
         }
 }
 
-predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer next, cn_hyp_allocator_core ha,  pointer first)
+predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer next, pointer first_chunk_node, cn_hyp_allocator_core ha)
 {
-        if (ptr_eq(p,first)) {
+        if (ptr_eq(p,ha.head)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
+                assert(ptr_eq(next, first_chunk_node));
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));
@@ -358,7 +360,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
                 // c.f. https://github.com/rems-project/cn/issues/135
                 assert(!is_null(cn_hdr.Node.next));
                 assert(!is_null(cn_hdr.Node.prev));
-                take tl = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, p, ha, first);
+                take tl = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, p, first_chunk_node, ha);
 
                 return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
         }
@@ -399,8 +401,8 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
 
   // chunk must be a valid chunk in the allocator
   let chunk_node = member_shift<struct chunk_hdr_only>(chunk, node);
-  take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha, ha.head);
-  take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha, ha.head);
+  take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
+  take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
   let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
   return( {ha:ha_full, lseg: lseg} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
@@ -439,8 +441,8 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, u64 va_size}) Cn_hyp_allocator_fo
 
   // chunk must be a valid chunk in the allocator
   let chunk_node = member_shift<struct chunk_hdr_only>(prev, node);
-  take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha, ha.head);
-  take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha, ha.head);
+  take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
+  take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
   let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
   return ( {ha:ha_full, lseg:lseg, va_size: cn_hdr.va_size} );
 
@@ -498,7 +500,7 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   let ha = {head: ha_full.head, first: ha_full.first, start: ha_full.start, size: ha_full.size};
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
-  take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha, ha.head);
+  take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha_full.last, ha);
   return( {ha:ha_full, hdrs:hdrs} );
 }
 
