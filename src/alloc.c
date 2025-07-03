@@ -1193,16 +1193,13 @@ ensures
 {
         /*@
                 split_case(ptr_eq(
-                        member_shift<struct chunk_hdr>(prev, node),
-                        member_shift<struct hyp_allocator>(allocator, chunks)));
-        @*/
-        /*@
-                split_case(ptr_eq(
                         member_shift<struct chunk_hdr>(prev, node)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)));
         @*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)));@*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(prev, node)->next));@*/
+        // maybe? for chunk_unmapped_size
+        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
+                member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
+        @*/
         unsigned long chunk_end = (unsigned long)prev + prev->mapped_size +
                                   chunk_unmapped_size(prev, allocator);
         size_t size_1 = (u64)chunk - (u64)prev - chunk_hdr_size() - prev->alloc_size;
