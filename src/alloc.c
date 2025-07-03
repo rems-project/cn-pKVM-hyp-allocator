@@ -2144,13 +2144,6 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 assert(!is_null(Chunk.Node.prev));
                 let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
 
-                let ha_core2 = {
-                        start: ha_core.start,
-                        size: ha_core.size,
-                        head: chunk_node,
-                        first: ha.first
-                };
-
                 take hdrs1 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, ha.first, ha_core);
                 take hdrs3 = Cn_chunk_hdrs(Chunk.Node.next, chunk_node, ha.last, ha_core);
                 return ha;
@@ -2181,6 +2174,7 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                         first: ha.first
                 };
                 take hdrs2 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, BestChunk.Node.next, ha_core2);
+                assert(hdrs2 == Chunk_nil{} implies (Chunk.Node.prev == best_chunk_node && BestChunk.Node.next == chunk_node));
 
                 take hdrs3 = Cn_chunk_hdrs(Chunk.Node.next, chunk_node, ha.last, ha_core);
                 return ha;
@@ -2271,16 +2265,16 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                         @*/
                 }
                 if (best_chunk) {
-                        /*@
-                        split_case(ptr_eq(member_shift<struct chunk_hdr>(best_chunk, node)->next,
-                                member_shift<struct hyp_allocator>(allocator, chunks)
-                        ));
-                        unpack Cn_chunk_hdrs(
-                                member_shift<struct chunk_hdr>(best_chunk, node)->next,
-                                member_shift<struct chunk_hdr>(best_chunk, node), ha_full.last,
-                                Cn_hyp_allocator_core(ha_full)
-                        );
-                        @*/
+                        // /*@
+                        // split_case(ptr_eq(member_shift<struct chunk_hdr>(best_chunk, node)->next,
+                        //         member_shift<struct hyp_allocator>(allocator, chunks)
+                        // ));
+                        // unpack Cn_chunk_hdrs(
+                        //         member_shift<struct chunk_hdr>(best_chunk, node)->next,
+                        //         member_shift<struct chunk_hdr>(best_chunk, node), ha_full.last,
+                        //         Cn_hyp_allocator_core(ha_full)
+                        // );
+                        // @*/
                 }
                 size_t available_size = chunk->mapped_size +
 					chunk_unmapped_size(chunk, allocator);
