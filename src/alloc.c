@@ -2001,6 +2001,30 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
         /*@ split_case(is_null(NULL)); @*/
         return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
 }
+/*@
+// This is for get_free_chunk
+predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev_alt(pointer p, pointer next, pointer first_chunk_node, cn_hyp_allocator_core ha, pointer head)
+{
+        if (ptr_eq(p,head)) {
+                assert(ha.start <= ha.start + (u64)ha.size);
+                assert(ptr_eq(next, first_chunk_node));
+                return Chunk_nil {};
+        } else {
+                assert(!is_null(p));
+                let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
+                take cn_hdr = Cn_chunk_hdr(header_address, ha);
+                assert(ptr_eq(cn_hdr.Node.next, next));
+                // HK: I think this assertion is not needed, if CN handles NULL "properly"
+                // c.f. https://github.com/rems-project/cn/issues/135
+                assert(!is_null(cn_hdr.Node.next));
+                assert(!is_null(cn_hdr.Node.prev));
+                take tl = Cn_chunk_hdrs_rev_alt(cn_hdr.Node.prev, p, first_chunk_node, ha, head);
+
+                return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
+        }
+}
+
+@*/
 
 void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *best_chunk)
 /*@
@@ -2015,13 +2039,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
 
                 let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
 
-                let ha_core2 = {
-                        start: ha_core.start,
-                        size: ha_core.size,
-                        head: best_chunk_node,
-                        first: ha.first
-                };
-                take hdrs2 = Cn_chunk_hdrs_rev(ha.last, ha_core.head, BestChunk.Node.next, ha_core2);
+                take hdrs2 = Cn_chunk_hdrs_rev_alt(ha.last, ha_core.head, BestChunk.Node.next, ha_core, best_chunk_node);
         ensures
                 take ha2 = Cn_hyp_allocator_only(allocator);
                 ha == ha2;
@@ -2059,13 +2077,7 @@ void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr
 
                 take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
                 // a bit hack? set the last chunk to chunk_node
-                let ha_core2 = {
-                        start: ha_core.start,
-                        size: ha_core.size,
-                        head: best_chunk_node,
-                        first: ha.first
-                };
-                take hdrs2 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, BestChunk.Node.next, ha_core2);
+                take hdrs2 = Cn_chunk_hdrs_rev_alt(Chunk.Node.prev, chunk_node, BestChunk.Node.next, ha_core, best_chunk_node);
         ensures
                 take ha2 = Cn_hyp_allocator_only(allocator);
                 ha == ha2;
@@ -2124,15 +2136,8 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 assert(!is_null(BestChunk.Node.prev));
                 let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
 
-                let ha_core2 = {
-                        start: ha_core.start,
-                        size: ha_core.size,
-                        head: best_chunk_node,
-                        first: ha.first
-                };
-
                 take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
-                take hdrs2 = Cn_chunk_hdrs_rev(ha.last, ha.head, BestChunk.Node.next, ha_core2);
+                take hdrs2 = Cn_chunk_hdrs_rev_alt(ha.last, ha.head, BestChunk.Node.next, ha_core, best_chunk_node);
                 return ha;
         }
         // phase 1
@@ -2166,14 +2171,7 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
 
                 take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
-                // a bit hack? set the last chunk to chunk_node
-                let ha_core2 = {
-                        start: ha_core.start,
-                        size: ha_core.size,
-                        head: best_chunk_node,
-                        first: ha.first
-                };
-                take hdrs2 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, BestChunk.Node.next, ha_core2);
+                take hdrs2 = Cn_chunk_hdrs_rev_alt(Chunk.Node.prev, chunk_node, BestChunk.Node.next, ha_core, best_chunk_node);
                 assert(hdrs2 == Chunk_nil{} implies (Chunk.Node.prev == best_chunk_node && BestChunk.Node.next == chunk_node));
 
                 take hdrs3 = Cn_chunk_hdrs(Chunk.Node.next, chunk_node, ha.last, ha_core);
