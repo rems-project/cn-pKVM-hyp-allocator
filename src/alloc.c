@@ -2124,8 +2124,15 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 assert(!is_null(BestChunk.Node.prev));
                 let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
 
+                let ha_core2 = {
+                        start: ha_core.start,
+                        size: ha_core.size,
+                        head: best_chunk_node,
+                        first: ha.first
+                };
+
                 take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
-                take hdrs2 = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk_node, ha.last, ha_core);
+                take hdrs2 = Cn_chunk_hdrs_rev(ha.last, ha.head, BestChunk.Node.next, ha_core2);
                 return ha;
         }
         // phase 1
@@ -2259,6 +2266,18 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                         unpack Cn_chunk_hdrs(
                                 member_shift<struct chunk_hdr>(chunk, node)->next->next,
                                 member_shift<struct chunk_hdr>(chunk, node)->next, ha_full.last,
+                                Cn_hyp_allocator_core(ha_full)
+                        );
+                        @*/
+                }
+                if (best_chunk) {
+                        /*@
+                        split_case(ptr_eq(member_shift<struct chunk_hdr>(best_chunk, node)->next,
+                                member_shift<struct hyp_allocator>(allocator, chunks)
+                        ));
+                        unpack Cn_chunk_hdrs(
+                                member_shift<struct chunk_hdr>(best_chunk, node)->next,
+                                member_shift<struct chunk_hdr>(best_chunk, node), ha_full.last,
                                 Cn_hyp_allocator_core(ha_full)
                         );
                         @*/
