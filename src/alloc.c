@@ -1839,6 +1839,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 }
         }
 
+        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha)); @*/
         LemmaSplitAndNewChunk(chunk_data(chunk), size, chunk->mapped_size +
                                                         chunk_unmapped_size(chunk, allocator)- size - chunk_hdr_size());
         chunk->alloc_size = size;
