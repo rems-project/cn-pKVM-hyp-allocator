@@ -2120,6 +2120,7 @@ requires
         let ha_full = HA_in.ha;
         let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
         !ptr_eq(ha.first, ha.head);
+        PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)ha.size;
 ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
@@ -2445,7 +2446,11 @@ void *hyp_alloc(unsigned long size)
 
                 // The following check is done in memcache functions,
                 // which we ignore in this verification.
-                // So, we explicitly state the following
+                // So, we explicitly state the following.
+                // More precicely, only the first allocation requires
+                // `PAGE_ALIGN(Cn_chunk_size(actual_size))`. For the other allocations,
+                // we can allocate Cn_chunk_size(actual_size).
+                // However, for simplicity, we require this for all allocations.
                 PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
 
                 // For the first allocation, we have a special ownership structure
