@@ -272,7 +272,6 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(node.next);
                 (u64)node.next & 0x7u64 == 0u64;
@@ -280,7 +279,6 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take hash2 = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_post = RW<struct hyp_allocator>(allocator);
                 alloc_size == alloc_size2 &&
                 mapped_size == mapped_size2 &&
@@ -306,18 +304,16 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
         requires
                 !is_null(chunk);
                 (u64)chunk & 0x7u64 == 0u64;
+                take A_pre = RW<struct hyp_allocator>(allocator);
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
-                take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(node.prev);
                 (u64)node.prev & 0x7u64 == 0u64;
         ensures
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take hash2 = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_post = RW<struct hyp_allocator>(allocator);
                 alloc_size == alloc_size2 &&
                 mapped_size == mapped_size2 &&
@@ -345,7 +341,6 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(node.next);
                 let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
@@ -355,7 +350,6 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take hash2 = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_post = RW<struct hyp_allocator>(allocator);
                 alloc_size == alloc_size2 &&
                 mapped_size == mapped_size2 &&
@@ -452,7 +446,6 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 A_pre.start < A_pre.start + (u64)A_pre.size;
                 !is_null(node.next);
@@ -463,7 +456,6 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take hash2 = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take A_post = RW<struct hyp_allocator>(allocator);
                 alloc_size == alloc_size2 &&
                 mapped_size == mapped_size2 &&
