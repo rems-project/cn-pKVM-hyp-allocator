@@ -2,8 +2,20 @@
 
 JOBS=${1:-1}
 
+# CN cannot prove?
+# chunk_hash_compute
 # chunk_list_insert and LemmaCreateNewChunk should be very heavy
 targets=(
+  min_u32
+  min_u64
+  max_u64
+  list_empty
+  INIT_LIST_HEAD
+  list_is_first
+  list_is_last
+  __list_del
+  __list_del_entry
+  list_del
   chunk_unmapped_size
   setup_first_chunk
   chunk_inc_map
@@ -23,6 +35,7 @@ targets=(
   LemmaCreateNewChunk
   LemmaCreateNewChunkAux
   LemmaSplitAndNewChunk
+  chunk_needs_mapping
   chunk_install
   get_free_chunk
   chunk_recycle

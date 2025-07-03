@@ -203,7 +203,7 @@ predicate (cn_chunk_hdr_raw) Own_chunk_hdr(pointer chunk)
         take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
         take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
         take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-        take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+        take hash = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
         take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk, explicit_padding));
         let cn_hdr = {
                 alloc_size: alloc_size,
