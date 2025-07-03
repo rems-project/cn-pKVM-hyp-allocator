@@ -2002,12 +2002,11 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
         return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
 }
 
-/*@
-// datatype free_chunk_option {
-//         FreeChunk_none {},
-//         FreeChunk_some { cn_hyp_allocator ha, cn_free_chunk free_chunk}
-// }
+void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr *chunk, struct chunk_hdr *best_chunk, u64 best_available_size, u64 size)
+{
 
+}
+/*@
 
 predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
 {
@@ -2030,10 +2029,34 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
 
 /*@
 
-predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, u64 best_available_size, u64 size)
+predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, u64 best_available_size, u64 size)
 {
+        // phase1: best_chunk not found yet
+        // phase2: at least one best_chunk found
+
+        // Since CN cannot write nested ifs, the predicate definition looks a bit weird.
+        // phase 1 end
+        if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks)) && is_null(best_chunk)) {
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+                take hdrs1 = Cn_chunk_hdrs_rev(ha.last, ha.head, ha.first, ha_core);
+                return ha;
+        // phase 2 end
+        } else { if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+
+                take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
+                assert(!is_null(BestChunk.Node.next));
+                assert(!is_null(BestChunk.Node.prev));
+                let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
+
+                take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
+                take hdrs2 = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk_node, ha.last, ha_core);
+                return ha;
+        }
         // phase 1
-        if (is_null(best_chunk)) {
+        else { if (is_null(best_chunk)) {
                 take ha = Cn_hyp_allocator_only(allocator);
                 let ha_core = Cn_hyp_allocator_core(ha);
                 take Chunk = Cn_chunk_hdr(chunk, ha_core);
@@ -2048,26 +2071,9 @@ predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_
                         first: ha.first
                 };
 
-                take hdrs2 = Cn_chunk_hdrs(ha.first, ha.head, Chunk.Node.prev, ha_core2);
+                take hdrs1 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, ha.first, ha_core);
                 take hdrs3 = Cn_chunk_hdrs(Chunk.Node.next, chunk_node, ha.last, ha_core);
-                return;
-        }
-        else
-        {
-        // phase 3
-        if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
-                take ha = Cn_hyp_allocator_only(allocator);
-                let ha_core = Cn_hyp_allocator_core(ha);
-
-                assert(!is_null(best_chunk));
-                take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
-                assert(!is_null(BestChunk.Node.next));
-                assert(!is_null(BestChunk.Node.prev));
-                let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
-
-                take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
-                take hdrs2 = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk_node, ha.last, ha_core);
-                return;
+                return ha;
         // phase 2
         } else {
                 take ha = Cn_hyp_allocator_only(allocator);
@@ -2090,18 +2096,18 @@ predicate (void) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_
                 let ha_core2 = {
                         start: ha_core.start,
                         size: ha_core.size,
-                        head: chunk_node,
+                        head: best_chunk_node,
                         first: ha.first
                 };
-                take hdrs2 = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk_node, Chunk.Node.prev, ha_core2);
+                take hdrs2 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, BestChunk.Node.next, ha_core2);
 
                 take hdrs3 = Cn_chunk_hdrs(Chunk.Node.next, chunk_node, ha.last, ha_core);
-                return;
+                return ha;
+        }
         }
         }
 }
 @*/
-
 
 static struct chunk_hdr *get_free_chunk(struct hyp_allocator *allocator, size_t size)
 // should the spec of this characterise "best", or just ensure that this returns a legit chunk?  We guess the latter is sufficient for functional correctness and we'll do that
@@ -2140,32 +2146,49 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         //   - Chunk_hdr Cur    ; cur
         //   - List Remaining   ; from next of cur to last
         // where ListSeg is a reversed list
-        // if (best_chunk is not NULL) {
-        //   take Fst  = ListSeg(ha.first, best_chunk);
-        //   take Best = Chunk_hdr(best_chunk);
-        //   take
-        // }
+
         // HK: Unfolding GetFreeChunkInv for the loop entry
-        /*@
-        unpack Cn_chunk_hdrs(ha.first, ha_full.head, ha_full.last, Cn_hyp_allocator_core(ha_full));
-        // split_case(ptr_eq(ha_full.last, ha.head));
-        // unpack Cn_chunk_hdrs_rev(ha_full.head, ha.first, ha_full.first, Cn_hyp_allocator_core(ha_full));
-        split_case(is_null(best_chunk));
-        @*/
+        /*@ unpack Cn_chunk_hdrs(ha.first, ha_full.head, ha_full.last, Cn_hyp_allocator_core(ha_full)); @*/
 
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
                 {size} unchanged;
                 take I = GetFreeChunkInv(allocator, chunk, best_chunk, best_available_size, size);
+                I == ha_full;
                 !is_null(chunk);
-                //take Fst = Cn_chunk_hdrs_rev(ha.first, ha.head, ha, Chunk_nil{});
         @*/
         {
+                // needs to split the following:
+                // https://github.com/rems-project/cn/issues/245
+                /*@ split_case(is_null(best_chunk)); @*/
                 /*@
-                split_case(is_null(best_chunk));
-                split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks)));
+                split_case(
+                        ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
+                                member_shift<struct hyp_allocator>(allocator, chunks)
+                        )
+                );
+                unpack Cn_chunk_hdrs(
+                        member_shift<struct chunk_hdr>(chunk, node)->next,
+                        member_shift<struct chunk_hdr>(chunk, node), ha_full.last,
+                        Cn_hyp_allocator_core(ha_full)
+                ); @*/ /*@
+                split_case(
+                        ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next->next,
+                                member_shift<struct hyp_allocator>(allocator, chunks)
+                        )
+                );
                 @*/
-		size_t available_size = chunk->mapped_size +
+                if (!list_entry_is_head(list_next_entry(chunk, node), &allocator->chunks, node))
+                {
+                        /*@
+                        unpack Cn_chunk_hdrs(
+                                member_shift<struct chunk_hdr>(chunk, node)->next->next,
+                                member_shift<struct chunk_hdr>(chunk, node)->next, ha_full.last,
+                                Cn_hyp_allocator_core(ha_full)
+                        );
+                        @*/
+                }
+                size_t available_size = chunk->mapped_size +
 					chunk_unmapped_size(chunk, allocator);
 		if (chunk_is_used(chunk)) {
 			continue;
@@ -2178,7 +2201,11 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 }
 		best_chunk = chunk;
 		best_available_size = available_size;
+                // ghost state manipulation
+                // (concat) hdrs1 <- hdrs1 + hdrs2
+                // (empty)  hdrs2 <- Chunk_nil {}
         }
+        /*@ split_case(is_null(best_chunk)); @*/
 
         return chunk_get(best_chunk);
 }
