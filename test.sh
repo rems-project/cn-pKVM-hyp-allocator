@@ -22,6 +22,7 @@ targets=(
   chunk_list_insert
   LemmaCreateNewChunk
   LemmaCreateNewChunkAux
+  LemmaSplitAndNewChunk
   chunk_install
   get_free_chunk
   chunk_recycle

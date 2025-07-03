@@ -1054,6 +1054,9 @@ ensures
         take X2 = Cn_char_array(owned_by_ha, (u64)size2);
 @*/
 {
+        /*@
+        unpack Cn_char_array(p, (u64)size1 + (u64)size2);
+        @*/
         unsigned long i;
         for (i = 0; i < (unsigned long)size2; i++)
         /*@
@@ -1067,8 +1070,11 @@ ensures
                 i <= (u64)size2;
         @*/
         {
-                /*@ focus W<char>, i; @*/
-                /*@ focus W<char>, ((u64)size1 + i); @*/
+                /*@
+                  unpack Cn_char_array(owned_by_ha, i);
+                  focus W<char>, i;
+                  focus W<char>, ((u64)size1 + i);
+                @*/
         }
 }
 
