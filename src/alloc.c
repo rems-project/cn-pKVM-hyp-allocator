@@ -2002,7 +2002,87 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
         return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
 }
 
+void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *best_chunk)
+/*@
+        requires
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+
+                take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
+                assert(!is_null(BestChunk.Node.next));
+                assert(!is_null(BestChunk.Node.prev));
+
+
+                let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+
+                let ha_core2 = {
+                        start: ha_core.start,
+                        size: ha_core.size,
+                        head: best_chunk_node,
+                        first: ha.first
+                };
+                take hdrs2 = Cn_chunk_hdrs_rev(ha_core.last, ha_core.head, BestChunk.Node.next, ha_core2);
+        ensures
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+
+                take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
+                assert(!is_null(BestChunk.Node.next));
+                assert(!is_null(BestChunk.Node.prev));
+
+
+                let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+
+                take hdrs2 = Cn_chunk_hdrs_rev(BestChunk.Node.next, best_chunk, ha.last, ha_core);
+
+@*/
+{
+
+}
+
 void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr *chunk, struct chunk_hdr *best_chunk, u64 best_available_size, u64 size)
+/*@
+        requires
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+
+                take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
+                assert(!is_null(BestChunk.Node.next));
+                assert(!is_null(BestChunk.Node.prev));
+                assert(size <= (u64)BestChunk.Hdr.va_size);
+                assert(best_available_size == (u64)BestChunk.Hdr.va_size);
+
+                take Chunk = Cn_chunk_hdr(chunk, ha_core);
+                assert(!is_null(Chunk.Node.next));
+                assert(!is_null(Chunk.Node.prev));
+
+                let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+
+                take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
+                // a bit hack? set the last chunk to chunk_node
+                let ha_core2 = {
+                        start: ha_core.start,
+                        size: ha_core.size,
+                        head: best_chunk_node,
+                        first: ha.first
+                };
+                take hdrs2 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, BestChunk.Node.next, ha_core2);
+        ensures
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+
+                take Chunk = Cn_chunk_hdr(chunk, ha_core);
+                assert(!is_null(Chunk.Node.next));
+                assert(!is_null(Chunk.Node.prev));
+                assert(size <= (u64)Chunk.Hdr.va_size);
+                assert(best_available_size == (u64)Chunk.Hdr.va_size);
+
+                take hdrs1 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, ha.first, ha_core);
+
+@*/
 {
 
 }
@@ -2083,6 +2163,7 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 assert(!is_null(BestChunk.Node.next));
                 assert(!is_null(BestChunk.Node.prev));
                 assert(size <= (u64)BestChunk.Hdr.va_size);
+                assert(best_available_size == (u64)BestChunk.Hdr.va_size);
 
                 take Chunk = Cn_chunk_hdr(chunk, ha_core);
                 assert(!is_null(Chunk.Node.next));
@@ -2120,7 +2201,7 @@ requires
         let ha_full = HA_in.ha;
         let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
         !ptr_eq(ha.first, ha.head);
-        PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)ha.size;
+        size <= (u64)ha.size && PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)ha.size;
 ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
@@ -2205,8 +2286,11 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 // ghost state manipulation
                 // (concat) hdrs1 <- hdrs1 + hdrs2
                 // (empty)  hdrs2 <- Chunk_nil {}
+                LemmaConcatCnChunkHdrsRev(allocator, chunk, best_chunk, best_available_size, size);
         }
         /*@ split_case(is_null(best_chunk)); @*/
+
+
 
         return chunk_get(best_chunk);
 }
