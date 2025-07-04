@@ -2071,7 +2071,6 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                 let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
 
                 take hdrs2 = Cn_chunk_hdrs_rev_alt(ha.last, ha_core.head, BestChunk.Node.next, ha_core, best_chunk_node);
-                !ptr_eq(ha.last, ha.head);
         ensures
                 take ha2 = Cn_hyp_allocator_only(allocator);
                 ha == ha2;
