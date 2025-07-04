@@ -2089,7 +2089,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
         struct chunk_hdr *chunk;
 
         for (chunk = list_last_entry(&allocator->chunks, struct chunk_hdr, node);
-             chunk != best_chunk;
+             &chunk->node != &best_chunk->node;
              chunk = list_prev_entry(chunk, node))
         /*@ inv {allocator} unchanged;
                 {best_chunk} unchanged;
@@ -2099,6 +2099,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                 BestChunk.Node == Inv.node;
         @*/
         {
+                ///*@ assert(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct chunk_hdr>(best_chunk, node))); @*/
                 /*@
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
@@ -2117,7 +2118,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                         )
                 );
                 @*/
-                if (!list_entry_is_head(list_prev_entry(chunk, node), &allocator->chunks, node))
+                if (chunk->node.prev != &best_chunk->node)
                 {
                         /*@
                         unpack Cn_chunk_hdrs_rev_alt(
