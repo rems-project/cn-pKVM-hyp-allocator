@@ -2229,13 +2229,22 @@ ensures
         ha == ha2;
 @*/
 {
-
+        if (!list_entry_is_head(list_prev_entry(chunk, node), &allocator->chunks, node))
+        {
+                return;
+        } else {
+                /*@
+                unpack Cn_chunk_hdrs_rev_alt(Chunk.Node.prev, chunk_node, ha.first, ha_core, ha.head);
+                @*/
+                chunk = list_prev_entry(chunk, node);
+                LemmaAlt2Normal(allocator, chunk);
+        }
 }
 
 /*@
 predicate ({cn_hyp_allocator ha, cn_chunk_hdr chunk, struct list_head node}) LemmaConcatCnChunkHdrsRevInv(pointer allocator, pointer chunk, pointer cur)
 {
-        if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
+        if (ptr_eq(member_shift<struct chunk_hdr>(cur, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
                 take ha = Cn_hyp_allocator_only(allocator);
                 let ha_core = Cn_hyp_allocator_core(ha);
                 take Chunk = Cn_chunk_hdr(chunk, ha_core);
@@ -2303,11 +2312,11 @@ void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr
         /*@ split_case(ptr_eq(BestChunk.Node.prev, ha.head)); @*/
         /*@ unpack Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core); @*/
         struct chunk_hdr *cur = best_chunk;
-        for (; !list_is_first(&cur->node, &allocator->chunks); cur = list_prev_entry(cur, node))
+        for (; !list_entry_is_head(cur, &allocator->chunks, node); cur = list_prev_entry(cur, node))
         /*@ inv {allocator} unchanged;
                 {best_chunk} unchanged;
                 {chunk} unchanged;
-                take Inv = LemmaConcatCnChunkHdrsRevInv(allocator, chunk, best_chunk);
+                take Inv = LemmaConcatCnChunkHdrsRevInv(allocator, chunk, cur);
                 ha == Inv.ha;
                 Chunk.Hdr == Inv.chunk;
                 Chunk.Node == Inv.node;
@@ -2332,6 +2341,7 @@ void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr
                         )
                 );
                 @*/
+                // TODO: needs Snoc(cur, hdrs2)?
                 if (!list_entry_is_head(list_prev_entry(cur, node), &allocator->chunks, node))
                 {
                         /*@
