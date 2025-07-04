@@ -2210,6 +2210,43 @@ void LemmaCnChunkHdrsRevToCnHypAllocator(struct hyp_allocator *allocator)
         }
 }
 
+/*@
+predicate ({cn_hyp_allocator ha, cn_chunk_hdr best_chunk, struct list_head node}) LemmaConcatCnChunkHdrsRevInv(pointer allocator, pointer chunk, pointer best_chunk)
+{
+        if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct chunk_hdr>(best_chunk, node))) {
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+                take Chunk = Cn_chunk_hdr(chunk, ha_core);
+                assert(!is_null(Chunk.Node.next));
+                assert(!is_null(Chunk.Node.prev));
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+
+                take hdrs3 = Cn_chunk_hdrs_rev(Chunk.Node.prev, chunk_node, ha.first, ha_core);
+                return {ha: ha, best_chunk: Chunk.Hdr, node: Chunk.Node};
+        }
+        else
+        {
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+
+                take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
+                assert(!is_null(BestChunk.Node.next));
+                assert(!is_null(BestChunk.Node.prev));
+                let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
+
+                take cn_hdr = Cn_chunk_hdr(chunk, ha_core);
+                assert(!is_null(cn_hdr.Node.next));
+                assert(!is_null(cn_hdr.Node.prev));
+
+                let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
+                take hdrs1 = Cn_chunk_hdrs_rev_alt(cn_hdr.Node.prev, chunk_node, BestChunk.Node.next, ha_core, best_chunk_node);
+                take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha.last, ha_core);
+                return {ha: ha, best_chunk: BestChunk.Hdr, node: BestChunk.Node};
+        }
+}
+
+@*/
+
 void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr *chunk, struct chunk_hdr *best_chunk, u64 best_available_size, u64 size)
 /*@
         requires
@@ -2243,7 +2280,49 @@ void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr
 
 @*/
 {
-
+        /*@ split_case(ptr_eq(ha.last, best_chunk_node)); @*/
+        /*@ unpack Cn_chunk_hdrs_rev_alt(ha.last, ha_core.head, BestChunk.Node.next, ha_core, best_chunk_node); @*/
+        struct chunk_hdr *chunk;
+        for (chunk = list_last_entry(&allocator->chunks, struct chunk_hdr, node);
+             &chunk->node != &best_chunk->node;
+             chunk = list_prev_entry(chunk, node))
+        /*@ inv {allocator} unchanged;
+                {best_chunk} unchanged;
+                take Inv = LemmaConcatCnChunkHdrsRevInv(allocator, chunk, best_chunk);
+                ha == Inv.ha;
+                BestChunk.Hdr == Inv.best_chunk;
+                BestChunk.Node == Inv.node;
+        @*/
+        {
+                ///*@ assert(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct chunk_hdr>(best_chunk, node))); @*/
+                /*@
+                split_case(
+                        ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                                member_shift<struct chunk_hdr>(best_chunk, node)
+                        )
+                );
+                unpack Cn_chunk_hdrs_rev_alt(
+                        member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct chunk_hdr>(chunk, node), BestChunk.Node.next, ha_core, best_chunk_node
+                );
+                @*/
+                /*@
+                split_case(
+                        ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev->prev,
+                                member_shift<struct chunk_hdr>(best_chunk, node)
+                        )
+                );
+                @*/
+                if (chunk->node.prev != &best_chunk->node)
+                {
+                        /*@
+                        unpack Cn_chunk_hdrs_rev_alt(
+                                member_shift<struct chunk_hdr>(chunk, node)->prev->prev,
+                                member_shift<struct chunk_hdr>(chunk, node)->prev, BestChunk.Node.next, ha_core, best_chunk_node
+                        );
+                        @*/
+                }
+        }
 }
 /*@
 
