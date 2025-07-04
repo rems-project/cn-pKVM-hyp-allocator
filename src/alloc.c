@@ -1034,12 +1034,18 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 take a_in=Cn_hyp_allocator(allocator);
                 let ha = a_in.ha;
                 assert(ptr_eq(ha.head,ha.first));
+                let real_size = PAGE_ALIGN(Cn_chunk_size(size));
 
                 assert(size != 0u64);
                 assert(size <= (u64)ha.size);
                 assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)MAXu32());
                 assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
+
+                // needs the ownership of the remaining
+                let chunk_data = array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + size);
+                let remaining = (u64)real_size - Cn_chunk_hdr_size() - size;
+                take Arr = Cn_char_array(chunk_data, remaining);
 
                 let dummy = {
                         header_address: 0u64,
@@ -1325,8 +1331,8 @@ ensures
         HA_post.lseg.chunk.alloc_size == HA_pre.lseg.chunk.alloc_size;
         (u64)HA_post.lseg.chunk.va_size + (u64)HA_post.va_size == (u64)HA_pre.lseg.chunk.va_size;
 
-         take chunk_hdr_only_u = W<struct chunk_hdr_only>(chunk);
-        take X = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + (u64)size), (u64)HA_post.va_size - (u64)size - Cn_chunk_hdr_size());
+        take chunk_hdr_only_u = W<struct chunk_hdr_only>(chunk);
+        take X = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + (u64)size), (u64)HA_post.lseg.chunk.mapped_size - (u64)size - Cn_chunk_hdr_size());
 
 
         take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)size);
@@ -1341,8 +1347,7 @@ ensures
         /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
                 member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
         @*/
-        unsigned long chunk_end = (unsigned long)prev + prev->mapped_size +
-                                  chunk_unmapped_size(prev, allocator);
+        unsigned long chunk_end = (unsigned long)prev + prev->mapped_size;
         size_t size_1 = (u64)chunk - (u64)prev - chunk_hdr_size() - prev->alloc_size;
         size_t size_2 = chunk_end - (u64)chunk - chunk_hdr_size() - size;
         LemmaCreateNewChunkAux((char*)chunk_data(prev) + prev->alloc_size, size_1, size, size_2);
@@ -1974,8 +1979,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         }
 
         /*@ unpack Cn_chunk_hdrs(...); @*/
-        LemmaSplitAndNewChunk(chunk_data(chunk), size, chunk->mapped_size +
-                                                        chunk_unmapped_size(chunk, allocator)- size - chunk_hdr_size());
+        LemmaSplitAndNewChunk(chunk_data(chunk), size, (u64)chunk->mapped_size - size - chunk_hdr_size());
         chunk->alloc_size = size;
 
         chunk_hash_update(chunk);
