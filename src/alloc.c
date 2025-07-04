@@ -152,11 +152,18 @@ ensures
     Z == MergeU32s(X, Y);
 @*/
 {
-        // /*@
-        //     to_bytes RW<unsigned>(mapped_size);
-        //     to_bytes RW<unsigned>(alloc_size);
-        //     assert(false);
-        // @*/
+        /*@ to_bytes RW<unsigned>(a); @*/
+        /*@ to_bytes RW<unsigned>(b); @*/
+
+        /*@ focus RW<unsigned char>, 0u64; @*/
+        /*@ focus RW<unsigned char>, 1u64; @*/
+        /*@ focus RW<unsigned char>, 2u64; @*/
+        /*@ focus RW<unsigned char>, 3u64; @*/
+        /*@ focus RW<unsigned char>, 4u64; @*/
+        /*@ focus RW<unsigned char>, 5u64; @*/
+        /*@ focus RW<unsigned char>, 6u64; @*/
+        /*@ focus RW<unsigned char>, 7u64; @*/
+        /*@ from_bytes RW<unsigned long long>(a); @*/
 }
 
 void LemmaTurnU64ToU32s(unsigned *a, unsigned *b)
@@ -170,11 +177,18 @@ ensures
     Z == MergeU32s(X, Y);
 @*/
 {
-        // /*@
-        //     to_bytes RW<unsigned>(mapped_size);
-        //     to_bytes RW<unsigned>(alloc_size);
-        //     assert(false);
-        // @*/
+        /*@ to_bytes RW<unsigned long long>(a); @*/
+
+        /*@ focus RW<unsigned char>, 0u64; @*/
+        /*@ focus RW<unsigned char>, 1u64; @*/
+        /*@ focus RW<unsigned char>, 2u64; @*/
+        /*@ focus RW<unsigned char>, 3u64; @*/
+        /*@ focus RW<unsigned char>, 4u64; @*/
+        /*@ focus RW<unsigned char>, 5u64; @*/
+        /*@ focus RW<unsigned char>, 6u64; @*/
+        /*@ focus RW<unsigned char>, 7u64; @*/
+        /*@ from_bytes RW<unsigned>(a); @*/
+        /*@ from_bytes RW<unsigned>(b); @*/
 }
 
 void LemmaPtrToU64(struct list_head **a)
