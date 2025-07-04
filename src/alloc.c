@@ -2319,7 +2319,7 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 assert(!is_null(BestChunk.Node.prev));
                 let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
                 assert(BestChunk.Hdr.alloc_size == 0u32);
-                assert(Cn_chunk_hdr_size() + size <= (u64)BestChunk.Hdr.va_size);
+                assert(Cn_chunk_size(size)  <= (u64)BestChunk.Hdr.va_size);
                 assert(best_available_size == (u64)BestChunk.Hdr.va_size);
 
                 take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
@@ -2347,7 +2347,7 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 assert(!is_null(BestChunk.Node.next));
                 assert(!is_null(BestChunk.Node.prev));
                 assert(BestChunk.Hdr.alloc_size == 0u32);
-                assert(Cn_chunk_hdr_size() + size <= (u64)BestChunk.Hdr.va_size);
+                assert(Cn_chunk_size(size) <= (u64)BestChunk.Hdr.va_size);
                 assert(best_available_size == (u64)BestChunk.Hdr.va_size);
 
                 take Chunk = Cn_chunk_hdr(chunk, ha_core);
