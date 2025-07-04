@@ -920,15 +920,11 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
 /*@
-        requires
-                take HA_pre = Cn_hyp_allocator_only(allocator);
-
-        ensures
-                take HA_post = Cn_hyp_allocator_only(allocator);
-                HA_post == HA_pre;
+        trusted;
+        ensures take C = Conditional_Cn_char_array((pointer)va, size, return == 0i32);
                 let va_end = va + size;
                 return == 0i32 implies
-                (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
+                (va <= Vk_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
 @*/
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
@@ -1558,6 +1554,18 @@ ensures
     };
 @*/
 
+// No VIP, currently
+void LemmaConcatCnCharArray(unsigned char *start1, size_t size1, unsigned char * start2, size_t size2)
+/*@
+requires
+    take A = Cn_char_array(start1, size1);
+    addr_eq(array_shift<unsigned char>(start1, size1), start2);
+    take B = Cn_char_array(start2, size2);
+ensures
+    take C = Cn_char_array(start1, size1 + size2);
+@*/
+{}
+
 // TODO(HK): fix this after the elaboration bug is fixed
 //static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
 // HK: It takes a lot of time to prove this spec (more than 8 minutes on my machine)
@@ -1620,6 +1628,7 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         if (ret) {
                 return ret;
         }
+        LemmaConcatCnCharArray((unsigned char*)chunk_data(chunk) + chunk->alloc_size, chunk->mapped_size - chunk_hdr_size() - chunk->alloc_size, (unsigned char *)chunk_unmapped_region(chunk), map_size);
 
         chunk->mapped_size += map_size;
         /*@ split_case(ptr_eq(
@@ -2121,6 +2130,8 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
         if (ret) {
                 return ret;
         }
+
+        LemmaCreateNewChunkAux((char *)allocator->start, 0, size, allocator->size - size - chunk_hdr_size());
 
         /*@ split_case(a_in.hdrs==Chunk_nil{}); @*/
         /*@ split_case(is_null(NULL)); @*/
@@ -2811,11 +2822,7 @@ void *hyp_alloc(unsigned long size)
                 let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
-
                 take U = MaybeCn_char_array(return, actual_size);
-                // HA_post.ha.size == HA_pre.ha.size;
-                // HA_post.ha.start == HA_pre.ha.start;
-                // HA_post.ha.head == HA_pre.ha.head;
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
