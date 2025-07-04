@@ -2301,6 +2301,7 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 assert(!is_null(BestChunk.Node.next));
                 assert(!is_null(BestChunk.Node.prev));
                 let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
+                assert(BestChunk.Hdr.alloc_size == 0u32);
                 assert(size <= (u64)BestChunk.Hdr.va_size);
                 assert(best_available_size == (u64)BestChunk.Hdr.va_size);
 
@@ -2328,6 +2329,7 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
                 assert(!is_null(BestChunk.Node.next));
                 assert(!is_null(BestChunk.Node.prev));
+                assert(BestChunk.Hdr.alloc_size == 0u32);
                 assert(size <= (u64)BestChunk.Hdr.va_size);
                 assert(best_available_size == (u64)BestChunk.Hdr.va_size);
 
