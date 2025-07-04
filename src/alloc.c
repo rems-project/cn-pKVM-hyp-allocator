@@ -133,55 +133,155 @@ function (boolean) bind_hash_change_only_u (datatype chunk_hdr_u_option pre, dat
 }
 @*/
 
+/*@
+function (u64) MergeU32s(u32 x, u32 y)
+{
+        shift_left((u64)y, 32u64) | (u64)x
+}
+
+@*/
+void TurnU32sToU64(unsigned *a, unsigned *b)
+/*@
+requires
+    !is_null(a);
+    take X = RW<unsigned>(a);
+    take Y = RW<unsigned>(b);
+    ptr_eq(array_shift<unsigned>(a, 1u32), b);
+ensures
+    take Z = RW<unsigned long long>(a);
+    Z == MergeU32s(X, Y);
+@*/
+{
+        // /*@
+        //     to_bytes RW<unsigned>(mapped_size);
+        //     to_bytes RW<unsigned>(alloc_size);
+        //     assert(false);
+        // @*/
+}
+
+void TurnU64ToU32s(unsigned *a, unsigned *b)
+/*@
+requires
+    take Z = RW<unsigned long long>(a);
+    ptr_eq(array_shift<unsigned>(a, 1u32), b);
+ensures
+    take X = RW<unsigned>(a);
+    take Y = RW<unsigned>(b);
+    Z == MergeU32s(X, Y);
+@*/
+{
+        // /*@
+        //     to_bytes RW<unsigned>(mapped_size);
+        //     to_bytes RW<unsigned>(alloc_size);
+        //     assert(false);
+        // @*/
+}
+
+void PtrToU64(struct list_head **a)
+/*@
+requires
+    take P = RW<struct list_head*>(a);
+ensures
+    take Q = RW<unsigned long long>(a);
+    (u64)P == Q;
+@*/
+{}
+
+void U64ToPtr(struct list_head **a)
+/*@
+requires
+    take Q = RW<unsigned long long>(a);
+ensures
+    take P = RW<struct list_head*>(a);
+    (u64)P == Q;
+@*/
+{}
+
 // HK: This requires CN to have a normal conjunction in addition to the
 // separating conjunction.
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     requires
         !is_null(chunk);
-        take alloc_size_pre = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-        take mapped_size_pre = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-        take node_pre = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+        let alloc_size = member_shift<struct chunk_hdr>(chunk, alloc_size);
+        let mapped_size = member_shift<struct chunk_hdr>(chunk, mapped_size);
+        let node = member_shift<struct chunk_hdr>(chunk, node);
+        take alloc_size_pre = RW<unsigned>(alloc_size);
+        take mapped_size_pre = RW<unsigned>(mapped_size);
+        take node_pre = RW<struct list_head>(node);
+        (u64)node_pre.next != 0u64;
+        (u64)node_pre.prev != 0u64;
     ensures
         take alloc_size_post = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
         take mapped_size_post = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
         take node_post = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-        alloc_size_pre == alloc_size_post &&
-        mapped_size_pre == mapped_size_post &&
+        alloc_size_pre == alloc_size_post;
+        mapped_size_pre == mapped_size_post;
         node_pre == node_post;
 
 @*/
 {
+
         size_t len = offsetof(struct chunk_hdr, hash);
         // HK: How do I handle this cast while having the ownership to chunk??
         u64 *data = (u64 *)chunk;
+
         u32 hash = 0;
+        TurnU32sToU64(&chunk->alloc_size, &chunk->mapped_size);
+        // /*@ inv {&hash} unchanged; {&len} unchanged; {&data} unchanged;
+        //         take X = each(u64 i; i < 4u64 + j) { RW<unsigned char>(array_shift<unsigned char>(alloc_size, i)) };
+        //         take Y = each(u64 i; j <= i && i < 4u64) { RW<unsigned char>(array_shift<unsigned char>(mapped_size, i)) };
+        //         take N_inv = RW<struct list_head>(node);
+        //         N_inv == node_pre;
+        //         //X == [alloc_size / 8 & 0xff, alloc_size / (8*8) & 0xff , ...]
+        // @*/
+        // {
+        //         /*@ focus RW<unsigned char>, j; @*/
+        // }
+        // /*@
+        //     to_bytes RW<struct list_head*>(member_shift<struct list_head>(node, next));
+        //     to_bytes RW<struct list_head*>(member_shift<struct list_head>(node, prev));
+        // @*/
 
         BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
+        /*@ assert(ptr_eq(data, alloc_size)); @*/
+        PtrToU64(&chunk->node.next);
+        PtrToU64(&chunk->node.prev);
 
     while (len >= sizeof(u64))
     /*@
         inv
-        let L = (u64)offsetof(chunk_hdr, hash);
-        take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-        take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-        take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-        (u64)chunk <= (u64)data;
-        len <= L;
-        (u64)data + len == (u64)chunk + L;
         {chunk} unchanged;
+        !is_null(data);
+        (u64)chunk <= (u64)data;
+        let size = offsetof(chunk_hdr, hash);
+        len <= size;
+        (u64)data + len == (u64)chunk + size;
+        (u64)data & 7u64 == 0u64;
+        take X1 = RW<unsigned long long>(alloc_size);
+        MergeU32s(alloc_size_pre, mapped_size_pre) == X1;
+
+        take X2 = RW<unsigned long long>(member_shift<struct list_head>(node, next));
+        (u64)X2 == (u64)node_pre.next;
+        take X3 = RW<unsigned long long>(member_shift<struct list_head>(node, prev));
+        (u64)X3 == (u64)node_pre.prev;
+        //take L = each(u64 i; i < 3u64) { RW<unsigned long long>(array_shift<unsigned long long>(alloc_size, i))};
     @*/
     {
-        // HK: I don't know how to say we have the ownership of data
-        // because we see the struct into just a sequence of bytes.
-        hash ^= hash_64(*data, 32);
-        len -= sizeof(u64);
-        data++;
+            /*@ split_case(ptr_eq(alloc_size, data));@*/
+            /*@ split_case(ptr_eq(member_shift<struct list_head>(node, next), data));@*/
+            ///*@ split_case(ptr_eq(alloc_size, data));@*/
+            hash ^= hash_64(*data, 32);
+            len -= sizeof(u64);
+            data++;
     }
 
         if (len) {
                 hash ^= hash_32(*(u32 *)data, 32);
         }
+        U64ToPtr(&chunk->node.next);
+        U64ToPtr(&chunk->node.prev);
+        TurnU64ToU32s(&chunk->alloc_size, &chunk->mapped_size);
 
         return hash;
 }
