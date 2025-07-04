@@ -127,14 +127,14 @@ datatype option_u64 {
 predicate [rec] void Cn_char_array(pointer p, u64 size)
 {
         take U = each(u64 i; i < size){
-                W<char>(array_shift<char>(p, i))
+                W<unsigned char>(array_shift<unsigned char>(p, i))
         };
         return;
 }
 predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
 {
         take U = each(u64 i; offset <= i && i < offset + size){
-                W<char>(array_shift<char>(p, i))
+                W<unsigned char>(array_shift<unsigned char>(p, i))
         };
         return;
 }
@@ -331,7 +331,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, 
         } else {
                 assert(!is_null(p));
 
-                let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
+                let header_address = array_shift<unsigned char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.prev, prev));
                 // HK: I think this assertion is not needed, if CN handles NULL "properly"
@@ -353,7 +353,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));
-                let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
+                let header_address = array_shift<unsigned char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.next, next));
                 // HK: I think this assertion is not needed, if CN handles NULL "properly"

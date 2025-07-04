@@ -1085,6 +1085,23 @@ lemma CreateChunkHdr(pointer chunk_data)
         take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, hash));
         take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, explicit_padding));
 @*/
+void LemmaCreateChunkHdr(char *chunk_data)
+/*@
+    requires
+        !is_null(chunk_data);
+        take X = Cn_char_array(chunk_data, Cn_chunk_hdr_size());
+        let p = chunk_data;
+    ensures
+        take Y = W<struct chunk_hdr_only>(p);
+@*/
+{
+        //LemmaSplitAndNewChunk(chunk_data, sizeof(unsigned), cur_size);
+        /*@ unpack Cn_char_array(chunk_data, Cn_chunk_hdr_size()); @*/
+        /*@
+        from_bytes W<struct chunk_hdr_only>(chunk_data);
+        @*/
+
+}
 
 void LemmaCreateNewChunkAux(char *chunk_data, size_t size1, size_t size, size_t size2)
 /*@
@@ -1133,7 +1150,10 @@ ensures
         LemmaSplitAndNewChunk(chunk, size, size_all - size);
 
         /*@ unpack Cn_char_array(chunk_hdr, Cn_chunk_hdr_size());@*/
-        /*@ apply CreateChunkHdr(chunk_hdr); @*/
+
+        /*@ unpack Cn_char_array(chunk_hdr, Cn_chunk_hdr_size()); @*/
+        /*@ from_bytes W<struct chunk_hdr_only>(chunk_hdr); @*/
+
         /*@ unpack Cn_char_array(chunk_data, size1); @*/
         /*@ unpack Cn_char_array(chunk, size); @*/
         /*@ unpack Cn_char_array(remaining, size2); @*/
