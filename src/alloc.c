@@ -140,7 +140,7 @@ function (u64) MergeU32s(u32 x, u32 y)
 }
 
 @*/
-void TurnU32sToU64(unsigned *a, unsigned *b)
+void LemmaTurnU32sToU64(unsigned *a, unsigned *b)
 /*@
 requires
     !is_null(a);
@@ -159,7 +159,7 @@ ensures
         // @*/
 }
 
-void TurnU64ToU32s(unsigned *a, unsigned *b)
+void LemmaTurnU64ToU32s(unsigned *a, unsigned *b)
 /*@
 requires
     take Z = RW<unsigned long long>(a);
@@ -177,7 +177,7 @@ ensures
         // @*/
 }
 
-void PtrToU64(struct list_head **a)
+void LemmaPtrToU64(struct list_head **a)
 /*@
 requires
     take P = RW<struct list_head*>(a);
@@ -185,9 +185,12 @@ ensures
     take Q = RW<unsigned long long>(a);
     (u64)P == Q;
 @*/
-{}
+{
+        /*@ to_bytes RW<struct list_head*>(a); @*/
+        /*@ from_bytes RW<unsigned long long>(a); @*/
+}
 
-void U64ToPtr(struct list_head **a)
+void LemmaU64ToPtr(struct list_head **a)
 /*@
 requires
     take Q = RW<unsigned long long>(a);
@@ -195,7 +198,10 @@ ensures
     take P = RW<struct list_head*>(a);
     (u64)P == Q;
 @*/
-{}
+{
+        /*@ to_bytes RW<unsigned long long>(a); @*/
+        /*@ from_bytes RW<struct list_head*>(a); @*/
+}
 
 // HK: This requires CN to have a normal conjunction in addition to the
 // separating conjunction.
@@ -227,7 +233,7 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         u64 *data = (u64 *)chunk;
 
         u32 hash = 0;
-        TurnU32sToU64(&chunk->alloc_size, &chunk->mapped_size);
+        LemmaTurnU32sToU64(&chunk->alloc_size, &chunk->mapped_size);
         // /*@ inv {&hash} unchanged; {&len} unchanged; {&data} unchanged;
         //         take X = each(u64 i; i < 4u64 + j) { RW<unsigned char>(array_shift<unsigned char>(alloc_size, i)) };
         //         take Y = each(u64 i; j <= i && i < 4u64) { RW<unsigned char>(array_shift<unsigned char>(mapped_size, i)) };
@@ -245,8 +251,8 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 
         BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
         /*@ assert(ptr_eq(data, alloc_size)); @*/
-        PtrToU64(&chunk->node.next);
-        PtrToU64(&chunk->node.prev);
+        LemmaPtrToU64(&chunk->node.next);
+        LemmaPtrToU64(&chunk->node.prev);
 
     while (len >= sizeof(u64))
     /*@
@@ -279,9 +285,9 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         if (len) {
                 hash ^= hash_32(*(u32 *)data, 32);
         }
-        U64ToPtr(&chunk->node.next);
-        U64ToPtr(&chunk->node.prev);
-        TurnU64ToU32s(&chunk->alloc_size, &chunk->mapped_size);
+        LemmaU64ToPtr(&chunk->node.next);
+        LemmaU64ToPtr(&chunk->node.prev);
+        LemmaTurnU64ToU32s(&chunk->alloc_size, &chunk->mapped_size);
 
         return hash;
 }
