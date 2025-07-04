@@ -178,6 +178,8 @@ function (boolean) is_last_chunk(pointer node_address, struct hyp_allocator ha)
 }
 predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 {
+        assert((u64)p > 0u64);
+        assert((u64)p + sizeof<struct hyp_allocator> > (u64)p);
         take ha = RW<struct hyp_allocator>(p);
         let cn_hyp = {
                 head:  member_shift<struct hyp_allocator>(p, chunks),
@@ -203,6 +205,10 @@ predicate (cn_chunk_hdr_raw) Own_chunk_hdr(pointer chunk)
         take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
         take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
         take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+        assert((u64)node.next != 0u64);
+        assert((u64)node.prev != 0u64);
+        assert(!is_null(node.next));
+        assert(!is_null(node.prev));
         take hash = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
         take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk, explicit_padding));
         let cn_hdr = {

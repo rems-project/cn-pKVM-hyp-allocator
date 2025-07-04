@@ -209,8 +209,8 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         take alloc_size_pre = RW<unsigned>(alloc_size);
         take mapped_size_pre = RW<unsigned>(mapped_size);
         take node_pre = RW<struct list_head>(node);
-        (u64)node_pre.next != 0u64;
-        (u64)node_pre.prev != 0u64;
+        !is_null(node_pre.next) && (u64)node_pre.next != 0u64;
+        !is_null(node_pre.prev) && (u64)node_pre.prev != 0u64;
     ensures
         take alloc_size_post = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
         take mapped_size_post = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
