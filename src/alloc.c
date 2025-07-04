@@ -2033,7 +2033,7 @@ predicate ({cn_hyp_allocator ha, cn_chunk_hdr best_chunk, struct list_head node}
         assert(!is_null(BestChunk.Node.next));
         assert(!is_null(BestChunk.Node.prev));
         let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
-        take hdrs2_post = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk, ha.last, ha_core);
+        take hdrs2_post = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk_node, ha.last, ha_core);
         return {ha: ha, best_chunk: BestChunk.Hdr, node: BestChunk.Node};
     }
     else
@@ -2053,7 +2053,7 @@ predicate ({cn_hyp_allocator ha, cn_chunk_hdr best_chunk, struct list_head node}
         let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
         take hdrs1 = Cn_chunk_hdrs_rev_alt(cn_hdr.Node.prev, chunk_node, BestChunk.Node.next, ha_core, best_chunk_node);
         take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha.last, ha_core);
-        return {ha: ha, best_chunk: BestChunk.Hdr, node: cn_hdr.Node};
+        return {ha: ha, best_chunk: BestChunk.Hdr, node: BestChunk.Node};
     }
 }
 @*/
@@ -2080,7 +2080,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                 !is_null(BestChunk.Node.prev);
 
                 BestChunk == BestChunk2;
-                take hdrs2_post = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk, ha.last, ha_core);
+                take hdrs2_post = Cn_chunk_hdrs(BestChunk.Node.next, best_chunk_node, ha.last, ha_core);
 
 @*/
 {
@@ -2092,6 +2092,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
              chunk != best_chunk;
              chunk = list_prev_entry(chunk, node))
         /*@ inv {allocator} unchanged;
+                {best_chunk} unchanged;
                 take Inv = LemmaCnChunkHdrsRevToCnChunkHdrsInv(allocator, chunk, best_chunk);
                 ha == Inv.ha;
                 BestChunk.Hdr == Inv.best_chunk;
