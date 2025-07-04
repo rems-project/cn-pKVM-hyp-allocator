@@ -2,9 +2,6 @@
 
 JOBS=${1:-1}
 
-# CN cannot prove?
-# chunk_hash_compute
-# chunk_list_insert and LemmaCreateNewChunk should be very heavy
 targets=(
   min_u32
   min_u64
@@ -24,6 +21,8 @@ targets=(
   chunk_get_next
   chunk_can_split
   chunk_hash_update
+  chunk_hash_compute
+  chunk_hash_validate
   chunk_addr_fixup
   chunk_get
   __chunk_next

@@ -1040,7 +1040,7 @@ void LemmaSplitAndNewChunk(
 requires
         let size = (u64)size1 + (u64)size2;
         take X = Cn_char_array(p, size);
-        let owned_by_ha = array_shift<char>(p, (u64)size1);
+        let owned_by_ha = array_shift<unsigned char>(p, (u64)size1);
 ensures
         take X1 = Cn_char_array(p, (u64)size1);
         take X2 = Cn_char_array(owned_by_ha, (u64)size2);
@@ -1064,8 +1064,8 @@ ensures
         {
                 /*@
                   unpack Cn_char_array(owned_by_ha, i);
-                  focus W<char>, i;
-                  focus W<char>, ((u64)size1 + i);
+                  focus W<unsigned char>, i;
+                  focus W<unsigned char>, ((u64)size1 + i);
                 @*/
         }
 }
