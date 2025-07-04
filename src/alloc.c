@@ -2250,7 +2250,7 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
 {
         if (ptr_eq(result, NULL)) {
                 take HA_out = Cn_hyp_allocator(allocator);
-                assert(HA_in == HA_out);
+                assert(HA_in.ha == HA_out.ha);
                 return;
         } else {
                 take HA_out = Cn_hyp_allocator_focusing_on(allocator, result);

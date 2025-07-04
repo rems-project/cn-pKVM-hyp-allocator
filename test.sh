@@ -44,6 +44,7 @@ targets=(
   LemmaLsegToChunkHdrs
   LemmaConcatCnChunkHdrsRev
   LemmaCnChunkHdrsRevToCnChunkHdrs
+  LemmaCnChunkHdrsRevToCnHypAllocator
 )
 # unproved: chunk_install, get_free_hunk, chunk_recycle, hyp_alloc
 
