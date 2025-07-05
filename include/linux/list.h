@@ -202,6 +202,7 @@ static inline void __list_add(struct list_head *new,
 		return;
 #endif
 	/*@ split_case(!ptr_eq(head, next)); @*/
+	/*@ unpack CondListHead(next,p); @*/
 	next->prev = new;
 	new->next = next;
 	new->prev = prev;
