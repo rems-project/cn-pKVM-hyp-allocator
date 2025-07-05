@@ -2273,8 +2273,10 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
 predicate (cn_hyp_allocator) LemmaCnChunkHdrsRevToCnHypAllocatorInv(pointer allocator, pointer chunk)
 {
         if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
-                take C2 = Cn_hyp_allocator(allocator);
-                return C2.ha;
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+                take hdrs2 = Cn_chunk_hdrs(ha.first, ha.head, ha.last, ha_core);
+                return ha;
         }
         else
         {
@@ -2299,8 +2301,9 @@ void LemmaCnChunkHdrsRevToCnHypAllocator(struct hyp_allocator *allocator)
         let ha_core = Cn_hyp_allocator_core(ha);
         take hdrs1 = Cn_chunk_hdrs_rev(ha.last, ha.head, ha.first, ha_core);
     ensures
-        take ha2 = Cn_hyp_allocator(allocator);
-        ha == ha2.ha;
+        take ha2 = Cn_hyp_allocator_only(allocator);
+        take hdrs2 = Cn_chunk_hdrs(ha.first, ha.head, ha.last, ha_core);
+        ha == ha2;
 @*/
 {
         /*@ split_case(ptr_eq(ha.last, ha.head)); @*/
