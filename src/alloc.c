@@ -1022,8 +1022,8 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
         {
                 assert(!is_null(chunk));
                 take a_in=Cn_hyp_allocator(allocator);
-                assert(a_in.hdrs==Chunk_nil{});
                 let ha = a_in.ha;
+                assert(ptr_eq(ha.head,ha.first));
 
                 assert(size != 0u64);
                 assert(size <= (u64)ha.size);
@@ -1375,9 +1375,6 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 // See the comments in chunk_list_insert
                 // HK: Currently we encounter the CN issue #148,
                 // so we cannot go further with the spec.
-                /*@ split_case(ptr_eq(
-                        member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
                 @*/
                 list_add(&chunk->node, &allocator->chunks);
@@ -2118,7 +2115,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@
     accesses hyp_allocator_mc;
     requires take a_in=Cn_hyp_allocator(allocator);
-    a_in.hdrs==Chunk_nil{};
+    ptr_eq(a_in.ha.head, a_in.ha.first);
     (u64)a_in.ha.size >= size;
     PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size;
     size >= MIN_ALLOC(); // `hyp_alloc` ensures this.
