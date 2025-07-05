@@ -1025,11 +1025,16 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 assert(a_in.hdrs==Chunk_nil{});
                 let ha = a_in.ha;
 
+                take Chunk = Own_chunk_hdr(chunk);
                 assert(size != 0u64);
                 assert(size <= (u64)ha.size);
-                assert(PAGE_ALIGN(Cn_chunk_size(size)) < (u64)MAXu32());
                 assert(PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
+
+                // needs the ownership of the remaining
+                let chunk_data = array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + size);
+                let remaining = (u64)a_in.ha.size - Cn_chunk_hdr_size() - size;
+                take Arr = Cn_char_array(chunk_data, remaining);
 
                 let dummy = {
                         header_address: 0u64,
@@ -1075,7 +1080,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
         if (is_null(prev))
         {
                 assert(!is_null(chunk));
-                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                take HA_post =Cn_hyp_allocator_focusing_on(allocator, chunk);
                 let allocator_end = (u64)ha.start + (u64)ha.size;
                 let first_chunk = {
                         header_address: (u64)chunk,
@@ -1095,7 +1100,6 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 };
                 assert(HA_post.ha == ha_post);
                 assert(ret == 0i32);
-                take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size);
                 return;
         }
         else
@@ -1366,10 +1370,9 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         /* First chunk, first allocation */
         if (!prev) {
-                LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
-                // Drop the garbage due to the lemma
-                /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
-
+                /*@
+                    split_case(is_null(prev));
+                @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: non-rust ownership type part
                 // See the comments in chunk_list_insert
@@ -2109,6 +2112,7 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
         take a_out=Cn_hyp_allocator(allocator);
         assert(a_out.ha == ha_pre);
         assert(a_out.hdrs == Chunk_nil {});
+        take C = FirstChunk((pointer)a_out.ha.start, a_out.ha.size, size);
         return;
     }
 }
@@ -2122,6 +2126,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     (u64)a_in.ha.size >= size;
     PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size;
     size >= MIN_ALLOC(); // `hyp_alloc` ensures this.
+    take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size, size);
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
 @*/
@@ -2610,6 +2615,18 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 }
 
 /*@
+predicate (void) FirstAllocation(pointer start, u32 size, u64 alloc_size, boolean cond)
+{
+        if (cond) {
+                take C = FirstChunk(start, size, alloc_size);
+                return;
+        } else {
+                return;
+        }
+}
+@*/
+
+/*@
 predicate (cn_hyp_allocator) LemmaLsegToChunkHdrsInv(pointer chunk, pointer allocator)
 {
         if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
@@ -2838,12 +2855,18 @@ void *hyp_alloc(unsigned long size)
                 // we can allocate Cn_chunk_size(actual_size).
                 // However, for simplicity, we require this for all allocations.
                 PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
+
+                // For the first allocation, we have a special ownership structure
+                take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {});
         ensures
                 take U = MaybeCn_char_array(return, actual_size);
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
                 HA_post.ha.size == HA_pre.ha.size;
                 HA_post.ha.start == HA_pre.ha.start;
                 HA_post.ha.head == HA_pre.ha.head;
+
+                // the case where even the first allocation fails
+                take C2 = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {} && return == NULL);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
