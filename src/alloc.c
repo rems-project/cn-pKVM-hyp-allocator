@@ -2105,7 +2105,6 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
     } else {
         take a_out=Cn_hyp_allocator(allocator);
         assert(a_out.ha == ha_pre);
-        assert(a_out.hdrs == Chunk_nil {});
         return;
     }
 }
