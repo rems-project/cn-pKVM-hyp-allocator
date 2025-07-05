@@ -506,7 +506,7 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha_full.last, ha);
-  take C = FirstAllocation((pointer)ha.start, ha.size, hdrs == Chunk_nil {});
+  take C = FirstAllocation((pointer)ha.start, ha.size, ptr_eq(ha.first, ha.head));
   return( {ha:ha_full, hdrs:hdrs} );
 }
 
