@@ -2013,18 +2013,20 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 //(u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size)
                 // chunk must be non null
 		/*@ assert(!is_null(chunk)); @*/
+	        /*@ unpack MaybeChunkHdr(...); @*/
 		/* CN DIFF */
 		/* HK: capturing the return value is needed to unfold `ChunkInstallPost` */
 		    int ret = chunk_install(new_chunk, 0, chunk, allocator);
                     WARN_ON(ret);
                 /*@ split_case(is_null(chunk)); @*/
                 /*@ split_case(ret == 0i32); @*/
+		/*@ unpack ChunkInstallPost(...); @*/
 
                 // destroy the garbage here
-                /*@ unpack Cn_char_array(array_shift<unsigned char>(new_chunk, Cn_chunk_hdr_size()), 0u64); @*/
+                /*@ unpack Cn_char_array(...); @*/
         }
 
-
+	/*@ unpack MaybeChunkHdr(...); @*/
         return 0;
 }
 
