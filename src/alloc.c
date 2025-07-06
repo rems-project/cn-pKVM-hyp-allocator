@@ -2861,7 +2861,7 @@ void *hyp_alloc(unsigned long size)
         size_t missing_map;
 
       	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
-        if (size < 0x100000000) {
+        if (PAGE_ALLIGN(chunk_size(size)) < 0x100000000) {
             ret = -ENOMEM;
             goto end;
         }
