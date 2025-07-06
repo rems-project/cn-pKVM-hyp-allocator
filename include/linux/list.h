@@ -61,7 +61,7 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 	requires
 		take L_pre = W<struct list_head>(list);
 	ensures
-		take L_post = W<struct list_head>(list);
+		take L_post = RW<struct list_head>(list);
 		ptr_eq(L_post.next, list);
 		ptr_eq(L_post.prev, list);
 @*/

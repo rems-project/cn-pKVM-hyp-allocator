@@ -3188,12 +3188,32 @@ int hyp_alloc_refill(struct kvm_hyp_memcache *host_mc)
                                host_mc);
 }
 
-int hyp_alloc_init(size_t size)
+/*@
+
+predicate (void) MaybeHypAlloc(pointer p, boolean cond) 
+{
+    if (cond) {
+        take H = Cn_hyp_allocator(p);
+        return;
+    } else {
+        take HA1 = W<struct hyp_allocator>(&hyp_allocator);
+        return;
+    }
+}
+
+@*/
+
+/* CN DIFF */
+// avoid type mismatch
+//int hyp_alloc_init(size_t size)
+int hyp_alloc_init(unsigned long size)
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
-        requires take HA1 = RW<struct hyp_allocator>(&hyp_allocator);
-        ensures take HA2 = RW<struct hyp_allocator>(&hyp_allocator);
+    requires 
+      (u64)&hyp_allocator > 0u64;
+      take HA1 = W<struct hyp_allocator>(&hyp_allocator);
+    ensures take HA2 = MaybeHypAlloc(&hyp_allocator, return == 0i32);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;

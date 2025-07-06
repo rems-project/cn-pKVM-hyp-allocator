@@ -97,7 +97,9 @@ function (u64) cn_ALIGN(u64 x, u64 a) {
 
 // TODO: spinlock
 typedef u64		hyp_spinlock_t;
-#define hyp_spin_lock_init(X)
+/* CN DIFF */
+// HK: dummy init
+#define hyp_spin_lock_init(X) { *X = 0; } 
 void hyp_spin_lock(hyp_spinlock_t *lock);
 void hyp_spin_unlock(hyp_spinlock_t *lock);
 
