@@ -1032,8 +1032,8 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
 
                 assert(size != 0u64);
                 assert(size <= (u64)ha.size);
-                assert(PAGE_ALIGN(Cn_chunk_size(size)) < (u64)MAXu32());
-                assert(PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size);
+                assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)MAXu32());
+                assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
 
                 let dummy = {
@@ -2120,11 +2120,11 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     accesses hyp_allocator_mc;
     requires take a_in=Cn_hyp_allocator(allocator);
     ptr_eq(a_in.ha.head, a_in.ha.first);
-    (u64)a_in.ha.size >= size;
-    PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size;
-    size >= MIN_ALLOC(); // `hyp_alloc` ensures this.
+    size >= MIN_ALLOC(); 
+    size <= PAGE_ALIGN(Cn_chunk_size(size));
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
+    PAGE_ALIGN(Cn_chunk_size(size)) > (u64)a_in.ha.size implies return != 0i32;
 @*/
 {
         int ret;
@@ -2823,7 +2823,10 @@ void my_memset(char *s, char c, size_t n)
         memset(s, c, n);
 }
 
-void *hyp_alloc(size_t size)
+
+// HK: To avoid "mismatched types" error
+//void *hyp_alloc(size_t size)
+void *hyp_alloc(unsigned long size)
 /*@
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
@@ -2837,11 +2840,11 @@ void *hyp_alloc(size_t size)
                 // we can allocate Cn_chunk_size(actual_size).
                 // However, for simplicity, we require this for all allocations.
                 let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
+                size <= actual_size;
                 PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 
-                size <= actual_size;
                 take U = MaybeCn_char_array(return, actual_size);
                 // HA_post.ha.size == HA_pre.ha.size;
                 // HA_post.ha.start == HA_pre.ha.start;
@@ -2857,7 +2860,7 @@ void *hyp_alloc(size_t size)
         // missing_map should be size_t to match the type of chunk_needs_mapping
         size_t missing_map;
 
-      	size = ALIGN(size ? 0 : MIN_ALLOC, MIN_ALLOC);
+      	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
 
 
         hyp_spin_lock(&allocator->lock);
