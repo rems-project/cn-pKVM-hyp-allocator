@@ -2859,9 +2859,10 @@ void *hyp_alloc(unsigned long size)
         /* CN DIFF */
         // missing_map should be size_t to match the type of chunk_needs_mapping
         size_t missing_map;
+        int cn_flag = 1;
 
       	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
-        if (PAGE_ALIGN(chunk_size(size)) < 0x100000000) {
+        if (size < 0x100000000) {
             ret = -ENOMEM;
             goto end;
         }
@@ -2872,7 +2873,7 @@ void *hyp_alloc(unsigned long size)
         //PS: hyp_spin_lock returns Cn_hyp_allocator(&allocator)
         /* CN DIFF */
         // this variable is used to split the case later in this function.
-        int cn_flag = list_empty(&hyp_allocator.chunks);
+        cn_flag = list_empty(&hyp_allocator.chunks);
         /*@ split_case(
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)
