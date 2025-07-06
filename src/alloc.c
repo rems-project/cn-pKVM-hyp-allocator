@@ -2840,8 +2840,7 @@ void *hyp_alloc(unsigned long size)
                 // we can allocate Cn_chunk_size(actual_size).
                 // However, for simplicity, we require this for all allocations.
                 let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
-                size <= actual_size;
-                PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
+                size <= PAGE_ALIGN(Cn_chunk_size(actual_size)); // no overflow
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 
