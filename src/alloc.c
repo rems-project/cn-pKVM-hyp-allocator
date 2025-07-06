@@ -2841,6 +2841,7 @@ void *hyp_alloc(unsigned long size)
                 // However, for simplicity, we require this for all allocations.
                 let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
                 size <= PAGE_ALIGN(Cn_chunk_size(actual_size)); // no overflow
+                PAGE_ALIGN(Cn_chunk_size(actual_size)) <= (u64)HA_pre.ha.size;
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 
@@ -2860,6 +2861,10 @@ void *hyp_alloc(unsigned long size)
         size_t missing_map;
 
       	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
+        if (PAGE_ALIGN(chunk_size(size)) <= (u64)allocator->size) {
+            ret = -ENOMEM;
+            goto end;
+        }
 
 
         hyp_spin_lock(&allocator->lock);
