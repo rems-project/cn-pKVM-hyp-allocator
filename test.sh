@@ -48,6 +48,8 @@ targets=(
   LemmaU64ToPtr
   LemmaTurnU32sToU64
   LemmaTurnU64ToU32s
+  hyp_alloc_init
+  pkvm_alloc_private_va_range
 )
 # unproved: chunk_install, get_free_hunk, chunk_recycle, hyp_alloc
 

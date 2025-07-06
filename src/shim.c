@@ -58,13 +58,16 @@ void shim_create_hyp_mapping(size_t size)
 	__hyp_vmemmap = __io_map_base + size;
 }
 
-static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
+/* CN DIFF */
+// handle type mismatch
+static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size)
+//static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
 /*@
     trusted;
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
-    requires start != 0u64;
-    ensures return == 0i32; take X = Cn_char_array((pointer)start, PAGE_ALIGN(size));
+	requires start != 0u64; start >= __io_map_base;
+	ensures take X = Conditional_Cn_char_array((pointer)start, PAGE_ALIGN(size), return == 0i32);
 @*/
 {
 	unsigned long cur;
@@ -99,7 +102,9 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
-	requires take v1 = W<unsigned long>(haddr); PAGE_ALIGN(size) == size; __io_map_base > 0u64; __io_map_base + size > __io_map_base;
+    requires
+	__io_map_base != 0u64; __io_map_base + size > __io_map_base;
+	take v1 = W<unsigned long>(haddr); PAGE_ALIGN(size) == size;
 	ensures take v2 = RW<unsigned long>(haddr);
 	take X = Conditional_Cn_char_array ((pointer)v2, size, return == 0i32);
 	v2 > 0u64;

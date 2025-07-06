@@ -918,7 +918,7 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 take HA_post = Cn_hyp_allocator_only(allocator);
                 HA_post == HA_pre;
                 let va_end = va + size;
-                (va > va_end || va_end > (HA_pre.start + (u64)HA_pre.size)) 
+                (va > va_end || va_end > (HA_pre.start + (u64)HA_pre.size))
                    implies return != 0i32;
 @*/
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
@@ -2120,7 +2120,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     accesses hyp_allocator_mc;
     requires take a_in=Cn_hyp_allocator(allocator);
     ptr_eq(a_in.ha.head, a_in.ha.first);
-    size >= MIN_ALLOC(); 
+    size >= MIN_ALLOC();
     size <= PAGE_ALIGN(Cn_chunk_size(size));
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
@@ -3190,7 +3190,7 @@ int hyp_alloc_refill(struct kvm_hyp_memcache *host_mc)
 
 /*@
 
-predicate (void) MaybeHypAlloc(pointer p, boolean cond) 
+predicate (void) MaybeHypAlloc(pointer p, boolean cond)
 {
     if (cond) {
         take H = Cn_hyp_allocator(p);
@@ -3208,9 +3208,11 @@ predicate (void) MaybeHypAlloc(pointer p, boolean cond)
 //int hyp_alloc_init(size_t size)
 int hyp_alloc_init(unsigned long size)
 /*@
-	accesses __io_map_base;
-	accesses __hyp_vmemmap;
-    requires 
+        accesses __io_map_base;
+        accesses __hyp_vmemmap;
+    requires
+      // global variables
+      __io_map_base > 0u64; __io_map_base + PAGE_ALIGN(size) > __io_map_base;
       (u64)&hyp_allocator > 0u64;
       take HA1 = W<struct hyp_allocator>(&hyp_allocator);
     ensures take HA2 = MaybeHypAlloc(&hyp_allocator, return == 0i32);
