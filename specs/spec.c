@@ -248,7 +248,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         assert((valid_chunk && valid_mapped_size) implies (u64)hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)hdr.mapped_size);
         // LemmaCreateNewChunk
         assert(valid_mapped_size implies cn_hdr.mapped_size <= cn_hdr.va_size);
-        assert(valid_chunk implies cn_hdr.alloc_size <= ha.size);
+        assert(valid_chunk implies cn_hdr.va_size <= ha.size);
 
         // own chunk data
         let alloc_size = match alloc_size_opt {
@@ -512,11 +512,11 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
 
 
 
-function (boolean) is_free_chunk(cn_chunk_hdr hdr, u32 size)
+function (boolean) is_free_chunk(cn_chunk_hdr hdr, u64 size)
 {
            hdr.alloc_size == 0u32 // i.e., unused
         && (u64) hdr.va_size // the code's available_size
-        >= Cn_chunk_size((u64) size) // TODO: where chunk_size is a CN copy of their macro
+        >= Cn_chunk_size(size) // TODO: where chunk_size is a CN copy of their macro
         // we ignore the hash check of the chunk_get macro - even though to
         // prove safety of the actual code we would need to check the hash
         // checks succeed.

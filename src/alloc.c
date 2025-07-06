@@ -2410,7 +2410,7 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
                 assert(HA_in.ha.size == HA_out.ha.size);
                 assert(HA_in.ha.start == HA_out.ha.start);
                 assert(HA_in.ha.head == HA_out.ha.head);
-                assert(is_free_chunk(lseg.chunk, (u32)size));
+                assert(is_free_chunk(lseg.chunk, size));
                 return;
         }
 }
