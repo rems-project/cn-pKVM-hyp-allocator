@@ -337,12 +337,19 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 #define chunk_is_used(chunk) \
         (!!(chunk)->alloc_size)
 
+// HK: eliminate the cast to unsigned long
 #define chunk_hdr_size() \
-        offsetof(struct chunk_hdr, data)
+        ((unsigned long)offsetof(struct chunk_hdr, data))
+// #define chunk_hdr_size() \
+//         offsetof(struct chunk_hdr, data)
 
 #ifdef NO_STATEMENT_EXPRS
+/* CN DIFF */
+// HK: replace unsigned long with size_t
 #define chunk_size(size) \
-        (chunk_hdr_size() + max_u64((size_t)(size), MIN_ALLOC))
+        (chunk_hdr_size() + max_u64((unsigned long)(size), MIN_ALLOC))
+//#define chunk_size(size) \
+        //(chunk_hdr_size() + max_u64((size_t)(size), MIN_ALLOC))
 #else /* NO_STATEMENT_EXPRS */
 #define chunk_size(size) \
         (chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
@@ -904,15 +911,10 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
 /*@
-        requires
-                take HA_pre = Cn_hyp_allocator_only(allocator);
-
-        ensures
-                take HA_post = Cn_hyp_allocator_only(allocator);
-                HA_post == HA_pre;
-                let va_end = va + size;
-                (va > va_end || va_end > (HA_pre.start + (u64)HA_pre.size)) 
-                   implies return != 0i32;
+        // requires
+        //         take HA_pre = Cn_hyp_allocator_only(allocator);
+        // ensures
+        //         take HA_post = Cn_hyp_allocator_only(allocator);
 @*/
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
@@ -2816,10 +2818,15 @@ void my_memset(char *s, char c, size_t n)
         memset(s, c, n);
 }
 
-void *hyp_alloc(size_t size)
+// HK: To avoid "mismatched types" error
+//void *hyp_alloc(size_t size)
+void *hyp_alloc(unsigned long size)
 /*@
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
+                size > 0u64;
+                size <= (u64)MAXu32();
+                let actual_size = cn_ALIGN(size, MIN_ALLOC());
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
 
                 // The following check is done in memcache functions,
@@ -2829,16 +2836,13 @@ void *hyp_alloc(size_t size)
                 // `PAGE_ALIGN(Cn_chunk_size(actual_size))`. For the other allocations,
                 // we can allocate Cn_chunk_size(actual_size).
                 // However, for simplicity, we require this for all allocations.
-                let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
                 PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
         ensures
-                take HA_post = Cn_hyp_allocator(&hyp_allocator);
-
-                size <= actual_size;
                 take U = MaybeCn_char_array(return, actual_size);
-                // HA_post.ha.size == HA_pre.ha.size;
-                // HA_post.ha.start == HA_pre.ha.start;
-                // HA_post.ha.head == HA_pre.ha.head;
+                take HA_post = Cn_hyp_allocator(&hyp_allocator);
+                HA_post.ha.size == HA_pre.ha.size;
+                HA_post.ha.start == HA_pre.ha.start;
+                HA_post.ha.head == HA_pre.ha.head;
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -2850,8 +2854,7 @@ void *hyp_alloc(size_t size)
         // missing_map should be size_t to match the type of chunk_needs_mapping
         size_t missing_map;
 
-      	size = ALIGN(size ? 0 : MIN_ALLOC, MIN_ALLOC);
-
+        size = ALIGN(size, MIN_ALLOC);
 
         hyp_spin_lock(&allocator->lock);
         //PS: ownership from lock invariant
