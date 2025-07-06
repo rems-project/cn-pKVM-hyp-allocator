@@ -2501,7 +2501,7 @@ requires
         let ha_full = HA_in.ha;
         let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
         !ptr_eq(ha.first, ha.head);
-        size <= (u64)ha.size && PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)ha.size;
+        size <= Cn_chunk_size(size); // no overflow
 ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
