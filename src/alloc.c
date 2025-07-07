@@ -918,8 +918,8 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 take HA_post = Cn_hyp_allocator_only(allocator);
                 HA_post == HA_pre;
                 let va_end = va + size;
-                (va > va_end || va_end > (HA_pre.start + (u64)HA_pre.size))
-                   implies return != 0i32;
+                return == 0i32 implies
+                (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
 @*/
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
@@ -1881,11 +1881,12 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
         size > 0u64;
-        size < (u64)HA_pre.ha.size;
         C_pre.alloc_size == 0u32;
+        Cn_chunk_size(size) >= size;
 
         // suffix '_' is to avoid the name conflict due to Fulminate
         let new_chunk_addr_ = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
+        new_chunk_addr >= (u64)chunk;
         let chunk_va_size_post = new_chunk_addr_ - (u64)chunk;
         let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
 
@@ -2121,7 +2122,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     requires take a_in=Cn_hyp_allocator(allocator);
     ptr_eq(a_in.ha.head, a_in.ha.first);
     size >= MIN_ALLOC();
-    size <= PAGE_ALIGN(Cn_chunk_size(size));
+    PAGE_ALIGN(Cn_chunk_size(size)) >= size; // no overflow
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
     PAGE_ALIGN(Cn_chunk_size(size)) > (u64)a_in.ha.size implies return != 0i32;
