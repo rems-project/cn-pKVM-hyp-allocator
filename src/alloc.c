@@ -1881,8 +1881,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
         size > 0u64;
+        size < (u64)HA_pre.ha.size;
         C_pre.alloc_size == 0u32;
-        Cn_chunk_size(size) >= size;
 
         // suffix '_' is to avoid the name conflict due to Fulminate
         let new_chunk_addr_ = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
