@@ -2863,7 +2863,7 @@ void *hyp_alloc(unsigned long size)
         int cn_flag = 1;
 
       	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
-        if (size >= 0x100000000) {
+        if (size >= 0x100000000UL) {
             ret = -ENOMEM;
             goto end;
         }
