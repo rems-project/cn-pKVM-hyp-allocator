@@ -813,7 +813,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         (u64)chunk + (u64)HA_pre.va_size <= (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
         let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size);
         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
-        take V = Cn_char_array(array_shift<char>(chunk, Cn_chunk_hdr_size()), (u64)alloc_size);
         take X = Cn_char_array(start, owned_by_ha);
 
         let new_last = lseg_pre.after == Chunk_nil{} ? member_shift<struct chunk_hdr>(chunk, node) : HA_pre.ha.last;
@@ -833,8 +832,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         };
         lseg_post.after == Chunk_cons {hd: Chunk, tl: HA_pre.lseg.after};
         lseg_pre.chunk == Prev_post;
-
-        take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
 @*/
 {
         // HK: non-rust ownership type part
