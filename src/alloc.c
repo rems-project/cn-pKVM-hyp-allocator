@@ -2356,6 +2356,7 @@ void LemmaCnChunkHdrsRevToCnHypAllocator(struct hyp_allocator *allocator)
                         @*/
                 }
         }
+	/*@ unpack LemmaCnChunkHdrsRevToCnHypAllocatorInv(...); @*/
 }
 
 void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr *chunk, struct chunk_hdr *best_chunk)
