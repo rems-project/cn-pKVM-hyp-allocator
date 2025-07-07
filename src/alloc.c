@@ -2862,11 +2862,11 @@ void *hyp_alloc(unsigned long size)
         size_t missing_map;
         int cn_flag = 1;
 
-      	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
         if (size >= 0x100000000UL) {
             ret = -ENOMEM;
             goto end;
         }
+      	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
 
 
         hyp_spin_lock(&allocator->lock);
