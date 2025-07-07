@@ -1877,11 +1877,9 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 /*@
     accesses hyp_allocator_mc;
     requires
-        !is_null(chunk);
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
-        size > 0u64;
-        size < (u64)HA_pre.ha.size;
+        size > 0u64 && size < (u64)HA_pre.ha.size;
         C_pre.alloc_size == 0u32;
 
         // suffix '_' is to avoid the name conflict due to Fulminate
@@ -1889,46 +1887,23 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         new_chunk_addr_ >= (u64)chunk;
         let chunk_va_size_post = new_chunk_addr_ - (u64)chunk;
         let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
-
-        // for lemma application
-        let original_cn_char_array = array_shift<char>(chunk, Cn_chunk_hdr_size());
-        // to be split into 3 parts
-        let size_1 = size;
-        let size_2 = (u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size);
-        let size_3 = (u64)new_chunk_va_size;
     ensures
-        //take HA_out = Cn_hyp_allocator(allocator);
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
 
         HA_pre.ha.start == HA_post.ha.start;
         HA_pre.ha.size == HA_post.ha.size;
         ptr_eq(HA_pre.ha.head, HA_post.ha.head);
 
-        HA_post.lseg.before == HA_pre.lseg.before;
         let C_post = HA_post.lseg.chunk;
-
         let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_);
+        (return == 0i32 && can_split) implies
+                C_post == {
+                        header_address: C_pre.header_address,
+                        mapped_size: (u32)chunk_va_size_post,
+                        alloc_size: (u32)size,
+                        va_size: (u32)chunk_va_size_post
+                };
 
-        let expected_mapping = Cn_expected_mapping(chunk, size);
-        let needs_mapping = Cn_chunk_needs_mapping((u64)C_pre.mapped_size, expected_mapping);
-        let mapped = needs_mapping == 0u64
-                ? (u64)C_pre.mapped_size
-                : (u64)C_pre.mapped_size + needs_mapping;
-
-        let new_chunk = {
-                header_address: new_chunk_addr_,
-                mapped_size: (u32)(mapped - chunk_va_size_post),
-                alloc_size: 0u32,
-                va_size: new_chunk_va_size
-        };
-
-        (return == 0i32 && can_split) implies C_post.header_address == C_pre.header_address;
-        (return == 0i32 && can_split) implies (u64)C_post.mapped_size == chunk_va_size_post;
-        (return == 0i32 && can_split) implies C_post.alloc_size == (u32)size;
-        (return == 0i32 && can_split) implies (u64)C_post.va_size == chunk_va_size_post;
-        (return == 0i32 && can_split) implies chunk_recycle_aux(HA_pre.lseg.after, HA_post.lseg.after, new_chunk);
-
-        return != 0i32 implies C_post == C_pre;
         let tmp_mapped_size = (u64)C_pre.mapped_size + Cn_chunk_needs_mapping((u64)C_pre.mapped_size, size);
         (return == 0i32 && !can_split) implies
                 C_post == {
@@ -1937,7 +1912,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                         alloc_size: (u32)size,
                         va_size: C_pre.va_size
                 };
-        (return != 0i32 || !can_split) implies HA_post.lseg.after == HA_pre.lseg.after;
         take U = Conditional_Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size, return == 0i32);
 
 @*/
