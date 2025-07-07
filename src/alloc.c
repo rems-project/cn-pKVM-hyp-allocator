@@ -1376,13 +1376,13 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         /* First chunk, first allocation */
         if (!prev) {
-                LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
-                // Drop the garbage due to the lemma
-                /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
                 /*@
                     split_case(is_null(prev));
                 @*/
 	        /*@ unpack ChunkInstallPre(...); @*/
+                LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
+                // Drop the garbage due to the lemma
+                /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: non-rust ownership type part
                 // See the comments in chunk_list_insert
