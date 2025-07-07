@@ -316,8 +316,10 @@ static inline void chunk_hash_update(struct chunk_hdr *chunk)
 @*/
 {
         if (chunk) {
+	        /*@ unpack MaybeChunkHdrU(...); @*/
                 chunk->hash = chunk_hash_compute(chunk);
         }
+	/*@ unpack MaybeChunkHdrU(...); @*/
 }
 
 static inline void chunk_hash_validate(struct chunk_hdr *chunk)
@@ -330,6 +332,7 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 @*/
 {
         if (chunk) {
+	        /*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
                 WARN_ON(chunk->hash != chunk_hash_compute(chunk));
         }
 }
@@ -486,8 +489,10 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
 @*/
 {
         /*@ split_case(cond); @*/
+	/*@ unpack MaybeChunkHdr(next_chunk, cond); @*/
         struct chunk_hdr *next = __chunk_next(chunk, allocator);
         chunk_hash_validate(next);
+	/*@ unpack MaybeChunkHdr(next, !is_null(next)); @*/
         return next;
 }
 
@@ -527,6 +532,7 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.first, ha); @*/
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
         chunk_hash_validate(prev);
+	/*@ unpack MaybeChunkHdr(prev, !is_null(prev)); @*/
         return prev;
 }
 
@@ -540,6 +546,8 @@ static inline struct chunk_hdr* chunk_get(void *addr)
                 ptr_eq(return, addr);
 @*/
 {
+	/*@ split_case (!is_null(addr)); @*/
+	/*@ unpack MaybeChunkHdr(addr, !is_null(addr)); @*/
         struct chunk_hdr *chunk = (struct chunk_hdr *)addr;
         chunk_hash_validate(chunk);
         return chunk;
@@ -596,6 +604,7 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
 @*/
 {
         /*@ split_case(cond); @*/
+        /*@ unpack MaybeChunkHdr(next_chunk, cond); @*/
         struct chunk_hdr *next = chunk_get_next(chunk, allocator);
         unsigned long allocator_end = (allocator)->start +
                                       (allocator)->size;
@@ -866,13 +875,16 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.first, Cn_hyp_allocator_core(HA_pre.ha));
         @*/
         list_add(&chunk->node, &prev->node);
+        /*@ unpack CondListHead(...); @*/
 
         /*@ split_case(ptr_eq(
                 member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         chunk_hash_update(prev);
+	/*@ unpack MaybeChunkHdr(prev, !is_null(prev)); @*/
         chunk_hash_update(__chunk_next(chunk, allocator));
         chunk_hash_update(chunk);
+	/*@ unpack MaybeChunkHdr(...); @*/
 }
 
 static inline void chunk_list_del(struct chunk_hdr *chunk,
@@ -1271,14 +1283,9 @@ ensures
         size_all -= chunk_hdr_size();
         LemmaSplitAndNewChunk(chunk, size, size_all - size);
 
-        /*@ unpack Cn_char_array(chunk_hdr, Cn_chunk_hdr_size());@*/
-
-        /*@ unpack Cn_char_array(chunk_hdr, Cn_chunk_hdr_size()); @*/
+        /*@ unpack Cn_char_array(...); @*/
         /*@ from_bytes W<struct chunk_hdr_only>(chunk_hdr); @*/
-
-        /*@ unpack Cn_char_array(chunk_data, size1); @*/
-        /*@ unpack Cn_char_array(chunk, size); @*/
-        /*@ unpack Cn_char_array(remaining, size2); @*/
+	/*@ unpack Cn_char_array(...); @*/
 }
 
 
@@ -1345,6 +1352,7 @@ ensures
         size_t size_1 = (u64)chunk - (u64)prev - chunk_hdr_size() - prev->alloc_size;
         size_t size_2 = chunk_end - (u64)chunk - chunk_hdr_size() - size;
         LemmaCreateNewChunkAux((char*)chunk_data(prev) + prev->alloc_size, size_1, size, size_2);
+	/*@ unpack MaybeChunkHdr(...); @*/
 }
 
 // chunk: the new chunk to install
@@ -1373,6 +1381,7 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 /*@
                     split_case(is_null(prev));
                 @*/
+	        /*@ unpack ChunkInstallPre(...); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: non-rust ownership type part
                 // See the comments in chunk_list_insert
@@ -1389,8 +1398,11 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
                 chunk_hash_update(chunk);
 
+		/*@ unpack MaybeChunkHdr(...); @*/
+		/*@ unpack CondListHead(...); @*/
                 return 0;
         }
+	/*@ unpack ChunkInstallPre(...); @*/
 
         if (chunk_unmapped_region(prev) < (unsigned long)chunk) {
                 return -EINVAL;
@@ -1602,8 +1614,10 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         //        @*/
         //}
         if (chunk_unmapped_size(chunk, allocator) < map_size) {
+	        /*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 return -EINVAL;
         }
+	/*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
 
         ret = hyp_allocator_map(allocator, chunk_unmapped_region(chunk),
                                 map_size);
@@ -1621,7 +1635,7 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         chunk_hash_update(chunk);
-
+	/*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
         return 0;
 }
 
@@ -1797,7 +1811,7 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
 
         chunk_end = (unsigned long)chunk + chunk->mapped_size +
                     chunk_unmapped_size(chunk, allocator);
-
+	/*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         return addr + chunk_size(0UL) < chunk_end;
 }
 /*@
@@ -1979,8 +1993,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 }
         }
 
-        /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
-                member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha)); @*/
+        /*@ unpack Cn_chunk_hdrs(...); @*/
         LemmaSplitAndNewChunk(chunk_data(chunk), size, chunk->mapped_size +
                                                         chunk_unmapped_size(chunk, allocator)- size - chunk_hdr_size());
         chunk->alloc_size = size;
@@ -1994,18 +2007,20 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 //(u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size)
                 // chunk must be non null
 		/*@ assert(!is_null(chunk)); @*/
+	        /*@ unpack MaybeChunkHdr(...); @*/
 		/* CN DIFF */
 		/* HK: capturing the return value is needed to unfold `ChunkInstallPost` */
 		    int ret = chunk_install(new_chunk, 0, chunk, allocator);
                     WARN_ON(ret);
                 /*@ split_case(is_null(chunk)); @*/
                 /*@ split_case(ret == 0i32); @*/
+		/*@ unpack ChunkInstallPost(...); @*/
 
                 // destroy the garbage here
-                /*@ unpack Cn_char_array(array_shift<unsigned char>(new_chunk, Cn_chunk_hdr_size()), 0u64); @*/
+                /*@ unpack Cn_char_array(...); @*/
         }
 
-
+	/*@ unpack MaybeChunkHdr(...); @*/
         return 0;
 }
 
@@ -2141,7 +2156,9 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 
         /*@ split_case(a_in.hdrs==Chunk_nil{}); @*/
         /*@ split_case(is_null(NULL)); @*/
-        return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
+        /*CN*/int retv = chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
+	/*@ unpack ChunkInstallPost((pointer)a_in.ha.start, size, NULL, allocator, a_in.ha, {before: Chunk_nil {}, after: Chunk_nil {}, chunk: {header_address: 0u64, mapped_size: 0u32, alloc_size: 0u32, va_size: 0u32} }, retv); @*/
+	/*CN*/return retv;
 }
 /*@
 // This is for get_free_chunk
@@ -2227,7 +2244,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
 @*/
 {
         /*@ split_case(ptr_eq(ha.last, best_chunk_node)); @*/
-        /*@ unpack Cn_chunk_hdrs_rev_alt(ha.last, ha_core.head, BestChunk.Node.next, ha_core, best_chunk_node); @*/
+        /*@ unpack Cn_chunk_hdrs_rev_alt(...); @*/
         struct chunk_hdr *chunk;
 
         for (chunk = list_last_entry(&allocator->chunks, struct chunk_hdr, node);
@@ -2243,15 +2260,13 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
         {
                 ///*@ assert(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct chunk_hdr>(best_chunk, node))); @*/
                 /*@
+		unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(...);
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct chunk_hdr>(best_chunk, node)
                         )
                 );
-                unpack Cn_chunk_hdrs_rev_alt(
-                        member_shift<struct chunk_hdr>(chunk, node)->prev,
-                        member_shift<struct chunk_hdr>(chunk, node), BestChunk.Node.next, ha_core, best_chunk_node
-                );
+                unpack Cn_chunk_hdrs_rev_alt(...);
                 @*/
                 /*@
                 split_case(
@@ -2263,13 +2278,11 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                 if (chunk->node.prev != &best_chunk->node)
                 {
                         /*@
-                        unpack Cn_chunk_hdrs_rev_alt(
-                                member_shift<struct chunk_hdr>(chunk, node)->prev->prev,
-                                member_shift<struct chunk_hdr>(chunk, node)->prev, BestChunk.Node.next, ha_core, best_chunk_node
-                        );
+                        unpack Cn_chunk_hdrs_rev_alt(...);
                         @*/
                 }
         }
+	/*@ unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(...); @*/
 
 
 
@@ -2309,7 +2322,7 @@ void LemmaCnChunkHdrsRevToCnHypAllocator(struct hyp_allocator *allocator)
 @*/
 {
         /*@ split_case(ptr_eq(ha.last, ha.head)); @*/
-        /*@ unpack  Cn_chunk_hdrs_rev(ha.last, ha.head, ha.first, ha_core); @*/
+        /*@ unpack  Cn_chunk_hdrs_rev(...); @*/
         struct chunk_hdr *chunk;
 
         for (chunk = list_last_entry(&allocator->chunks, struct chunk_hdr, node);
@@ -2321,16 +2334,13 @@ void LemmaCnChunkHdrsRevToCnHypAllocator(struct hyp_allocator *allocator)
         @*/
         {
                 /*@
+		unpack LemmaCnChunkHdrsRevToCnHypAllocatorInv(...);
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
                 );
-                unpack Cn_chunk_hdrs_rev(
-                        member_shift<struct chunk_hdr>(chunk, node)->prev,
-                        member_shift<struct chunk_hdr>(chunk, node), ha.first,
-                        Cn_hyp_allocator_core(ha)
-                );
+                unpack Cn_chunk_hdrs_rev(...);
                 @*/
                 /*@
                 split_case(
@@ -2342,14 +2352,11 @@ void LemmaCnChunkHdrsRevToCnHypAllocator(struct hyp_allocator *allocator)
                 if (!list_entry_is_head(list_prev_entry(chunk, node), &allocator->chunks, node))
                 {
                         /*@
-                        unpack Cn_chunk_hdrs_rev(
-                                member_shift<struct chunk_hdr>(chunk, node)->prev->prev,
-                                member_shift<struct chunk_hdr>(chunk, node)->prev, ha.first,
-                                Cn_hyp_allocator_core(ha)
-                        );
+                        unpack Cn_chunk_hdrs_rev(...);
                         @*/
                 }
         }
+	/*@ unpack LemmaCnChunkHdrsRevToCnHypAllocatorInv(...); @*/
 }
 
 void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr *chunk, struct chunk_hdr *best_chunk)
@@ -2509,6 +2516,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 @*/
 
 {
+        /*CN*/ struct chunk_hdr * retv = NULL;
         /* CN DIFF */
         // version: e6f1cbbab1843a62714bf19329cbabf43adbd297
         struct chunk_hdr *chunk, *best_chunk = NULL;
@@ -2545,6 +2553,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 // https://github.com/rems-project/cn/issues/245
                 /*@ split_case(is_null(best_chunk)); @*/
                 /*@
+		unpack GetFreeChunkInv(allocator, chunk, best_chunk, best_available_size, size);
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
                                 member_shift<struct hyp_allocator>(allocator, chunks)
@@ -2585,6 +2594,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 //}
                 size_t available_size = chunk->mapped_size +
 					chunk_unmapped_size(chunk, allocator);
+		/*@ unpack MaybeChunkHdr(...); @*/
 		if (chunk_is_used(chunk)) {
 			continue;
                 }
@@ -2605,13 +2615,16 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         }
         /*@ split_case(is_null(best_chunk)); @*/
         if (best_chunk) {
+                /*@ unpack GetFreeChunkInv(...); @*/
                 LemmaCnChunkHdrsRevToCnChunkHdrs(allocator, best_chunk);
         } else {
+                /*@ unpack GetFreeChunkInv(...); @*/
                 LemmaCnChunkHdrsRevToCnHypAllocator(allocator);
         }
 
-
-        return chunk_get(best_chunk);
+        /*CN*/ retv = chunk_get(best_chunk);
+	/*@ unpack MaybeChunkHdr(...); @*/
+	return retv;
 }
 
 /*@
@@ -2676,16 +2689,13 @@ void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chu
         @*/
         {
                 /*@
+		unpack LemmaLsegToChunkHdrsInv(...);
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
                 );
-                unpack Cn_chunk_hdrs_rev(
-                        member_shift<struct chunk_hdr>(chunk, node)->prev,
-                        member_shift<struct chunk_hdr>(chunk, node), ha_full.first,
-                        Cn_hyp_allocator_core(ha_full)
-                );
+                unpack Cn_chunk_hdrs_rev(...);
                 @*/
                 chunk = list_prev_entry(chunk, node);
                 /*@
@@ -2696,30 +2706,21 @@ void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chu
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
                 );
-                unpack Cn_chunk_hdrs(
-                        member_shift<struct chunk_hdr>(chunk, node)->next,
-                        member_shift<struct chunk_hdr>(chunk, node), ha_full.last,
-                        Cn_hyp_allocator_core(ha_full)
-                );
 
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
-                );
-                @*/
+                );@*/
                 if (!list_entry_is_head(chunk, &allocator->chunks, node))
                 {
                         /*@
-                        unpack Cn_chunk_hdrs_rev(
-                                member_shift<struct chunk_hdr>(chunk, node)->prev,
-                                member_shift<struct chunk_hdr>(chunk, node), ha_full.first,
-                                Cn_hyp_allocator_core(ha_full)
-                        );
+                        unpack Cn_chunk_hdrs_rev(...);
                         @*/
                 }
         }
         /*@
+	unpack LemmaLsegToChunkHdrsInv(...);
         split_case(
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)
@@ -2764,7 +2765,7 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                 C2.ha == C.ha;
 @*/
 {
-        /*@ unpack Cn_chunk_hdrs(ha.first, ha_full.head, ha_full.last, Cn_hyp_allocator_core(ha_full)); @*/
+        /*@ unpack Cn_chunk_hdrs(...); @*/
         struct chunk_hdr *chunk;
 
         list_for_each_entry(chunk, &allocator->chunks, node)
@@ -2776,16 +2777,13 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
         @*/
         {
                 /*@
+		unpack LemmaGetLastChunkInv(...);
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
                 );
-                unpack Cn_chunk_hdrs(
-                        member_shift<struct chunk_hdr>(chunk, node)->next,
-                        member_shift<struct chunk_hdr>(chunk, node), ha_full.last,
-                        Cn_hyp_allocator_core(ha_full)
-                );
+                unpack Cn_chunk_hdrs(...);
                 @*/
                 /*@
                 split_case(
@@ -2796,13 +2794,7 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                 @*/
                 if (!list_entry_is_head(list_next_entry(chunk, node), &allocator->chunks, node))
                 {
-                        /*@
-                        unpack Cn_chunk_hdrs(
-                                member_shift<struct chunk_hdr>(chunk, node)->next->next,
-                                member_shift<struct chunk_hdr>(chunk, node)->next, ha_full.last,
-                                Cn_hyp_allocator_core(ha_full)
-                        );
-                        @*/
+                        /*@ unpack Cn_chunk_hdrs(...); @*/
                 }
         }
         /*@
@@ -2811,13 +2803,14 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )
         );
-        unpack Cn_chunk_hdrs_rev(ha_full.last, ha.head, ha_full.first, Cn_hyp_allocator_core(ha_full));
+	unpack LemmaGetLastChunkInv(...);
+        unpack Cn_chunk_hdrs_rev(...);
         split_case(
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)
                 )
         );
-        unpack Cn_chunk_hdrs(ha.head, ha_full.last, ha_full.last, Cn_hyp_allocator_core(ha_full));
+        unpack Cn_chunk_hdrs(...);
         @*/
 }
 
@@ -2898,28 +2891,33 @@ void *hyp_alloc(unsigned long size)
         );
         @*/
         if (cn_flag) {
+	        /*@ unpack FirstAllocation(...); @*/
                 ret = setup_first_chunk(allocator, size);
 		/*@ split_case(ret == 0i32); @*/
                 if (ret) {
                         goto end;
                 }
-
+		/*@ unpack SetupFirstChunk(...); @*/
                 chunk = (struct chunk_hdr *)allocator->start;
         	/*@ split_case(is_null(chunk)); @*/
                 goto end;
         }
+	/*@ unpack FirstAllocation(...); @*/
 
         chunk = get_free_chunk(allocator, size);
         if (chunk) {
+	        /*@ unpack GetFreeChunk(...); @*/
                 ret = chunk_recycle(chunk, size, allocator);
                 goto end;
         }
         // HK: when there is no free chunk, we divide the last chunk
         no_free_chunk = 1;
+	/*@ unpack GetFreeChunk(...); @*/
         LemmaGetLastChunk(allocator);
 
 
         last_chunk = chunk_get(list_last_entry(&allocator->chunks, struct chunk_hdr, node));
+	/*@ unpack MaybeChunkHdr(...); @*/
 
         /*@ split_case(
                 ptr_eq(member_shift<struct chunk_hdr>(last_chunk, node)->next,
@@ -2953,6 +2951,7 @@ void *hyp_alloc(unsigned long size)
         WARN_ON(res_chunk_install);
         /*@ split_case(is_null(chunk)); @*/
         /*@ split_case(res_chunk_install == 0i32); @*/
+	/*@ unpack ChunkInstallPost(...); @*/
         LemmaLsegToChunkHdrs(allocator, last_chunk);
 end:
         hyp_spin_unlock(&allocator->lock);
@@ -2967,12 +2966,14 @@ end:
         /* Enforce zeroing allocated memory */
         if (!ret)
         {
+	        /*@ unpack Conditional_Cn_char_array(...); @*/
                 /* CN DIFF */
                 // How do I write the spec to memset?
                 my_memset(chunk_data(chunk), 0, size);
                 // memset(chunk_data(chunk), 0, size);
         }
-
+	/*@ unpack SetupFirstChunk(...); @*/
+	/*@ unpack Conditional_Cn_char_array(...); @*/
         return ret ? NULL : chunk_data(chunk);
 }
 
