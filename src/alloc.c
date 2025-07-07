@@ -1886,7 +1886,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
         // suffix '_' is to avoid the name conflict due to Fulminate
         let new_chunk_addr_ = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
-        new_chunk_addr >= (u64)chunk;
+        new_chunk_addr_ >= (u64)chunk;
         let chunk_va_size_post = new_chunk_addr_ - (u64)chunk;
         let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
 
