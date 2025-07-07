@@ -1283,14 +1283,9 @@ ensures
         size_all -= chunk_hdr_size();
         LemmaSplitAndNewChunk(chunk, size, size_all - size);
 
-        /*@ unpack Cn_char_array(chunk_hdr, Cn_chunk_hdr_size());@*/
-
-        /*@ unpack Cn_char_array(chunk_hdr, Cn_chunk_hdr_size()); @*/
+        /*@ unpack Cn_char_array(...); @*/
         /*@ from_bytes W<struct chunk_hdr_only>(chunk_hdr); @*/
-
-        /*@ unpack Cn_char_array(chunk_data, size1); @*/
-        /*@ unpack Cn_char_array(chunk, size); @*/
-        /*@ unpack Cn_char_array(remaining, size2); @*/
+	/*@ unpack Cn_char_array(...); @*/
 }
 
 
@@ -2265,6 +2260,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
         {
                 ///*@ assert(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct chunk_hdr>(best_chunk, node))); @*/
                 /*@
+		unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(...);
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct chunk_hdr>(best_chunk, node)
@@ -2286,6 +2282,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                         @*/
                 }
         }
+	/*@ unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(...); @*/
 
 
 
@@ -2708,14 +2705,12 @@ void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chu
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
                 );
-                unpack Cn_chunk_hdrs(...);
 
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct hyp_allocator>(allocator, chunks)
                         )
-                );
-                @*/
+                );@*/
                 if (!list_entry_is_head(chunk, &allocator->chunks, node))
                 {
                         /*@
