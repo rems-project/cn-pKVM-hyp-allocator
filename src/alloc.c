@@ -1376,10 +1376,8 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         /* First chunk, first allocation */
         if (!prev) {
-                /*@
-                    split_case(is_null(prev));
-                @*/
 	        /*@ unpack ChunkInstallPre(...); @*/
+	        /*@ unpack FirstAllocation(...); @*/
                 LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
                 // Drop the garbage due to the lemma
                 /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
@@ -2512,6 +2510,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         // where ListSeg is a reversed list
 
         // HK: Unfolding GetFreeChunkInv for the loop entry
+	/*@ unpack FirstAllocation(...); @*/
         /*@ unpack Cn_chunk_hdrs(ha.first, ha_full.head, ha_full.last, Cn_hyp_allocator_core(ha_full)); @*/
 
         list_for_each_entry(chunk, &allocator->chunks, node)
@@ -2728,6 +2727,7 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
 {
         /*@ unpack Cn_chunk_hdrs(...); @*/
         struct chunk_hdr *chunk;
+        /*@ unpack FirstAllocation(...); @*/
 
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
@@ -3212,6 +3212,7 @@ int hyp_alloc_init(unsigned long size)
 
         ret = pkvm_alloc_private_va_range(size, &allocator->start);
         if (ret) {
+                /*@ unpack Conditional_Cn_char_array(...); @*/
                 return ret;
         }
 
@@ -3219,6 +3220,7 @@ int hyp_alloc_init(unsigned long size)
         INIT_LIST_HEAD(&allocator->chunks);
         hyp_spin_lock_init(&allocator->lock);
 
+        /*@ unpack Conditional_Cn_char_array(...); @*/
         return 0;
 }
 
