@@ -822,7 +822,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         (u64)chunk + (u64)HA_pre.va_size <= (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
         let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size);
         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
-        take V = Cn_char_array(array_shift<char>(chunk, Cn_chunk_hdr_size()), (u64)alloc_size);
         take X = Cn_char_array(start, owned_by_ha);
 
         let new_last = lseg_pre.after == Chunk_nil{} ? member_shift<struct chunk_hdr>(chunk, node) : HA_pre.ha.last;
@@ -842,8 +841,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         };
         lseg_post.after == Chunk_cons {hd: Chunk, tl: HA_pre.lseg.after};
         lseg_pre.chunk == Prev_post;
-
-        take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)Chunk.alloc_size);
 @*/
 {
         // HK: non-rust ownership type part
@@ -923,10 +920,15 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
 /*@
-        // requires
-        //         take HA_pre = Cn_hyp_allocator_only(allocator);
-        // ensures
-        //         take HA_post = Cn_hyp_allocator_only(allocator);
+        requires
+                take HA_pre = Cn_hyp_allocator_only(allocator);
+
+        ensures
+                take HA_post = Cn_hyp_allocator_only(allocator);
+                HA_post == HA_pre;
+                let va_end = va + size;
+                return == 0i32 implies
+                (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
 @*/
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
@@ -1034,19 +1036,14 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
         {
                 assert(!is_null(chunk));
                 take a_in=Cn_hyp_allocator(allocator);
-                assert(a_in.hdrs==Chunk_nil{});
                 let ha = a_in.ha;
+                assert(ptr_eq(ha.head,ha.first));
 
-                take Chunk = Own_chunk_hdr(chunk);
                 assert(size != 0u64);
                 assert(size <= (u64)ha.size);
-                assert(PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size);
+                assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)MAXu32());
+                assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
-
-                // needs the ownership of the remaining
-                let chunk_data = array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + size);
-                let remaining = (u64)a_in.ha.size - Cn_chunk_hdr_size() - size;
-                take Arr = Cn_char_array(chunk_data, remaining);
 
                 let dummy = {
                         header_address: 0u64,
@@ -1092,7 +1089,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
         if (is_null(prev))
         {
                 assert(!is_null(chunk));
-                take HA_post =Cn_hyp_allocator_focusing_on(allocator, chunk);
+                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
                 let allocator_end = (u64)ha.start + (u64)ha.size;
                 let first_chunk = {
                         header_address: (u64)chunk,
@@ -1112,6 +1109,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 };
                 assert(HA_post.ha == ha_post);
                 assert(ret == 0i32);
+                take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size);
                 return;
         }
         else
@@ -1378,18 +1376,16 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
         /* First chunk, first allocation */
         if (!prev) {
-                /*@
-                    split_case(is_null(prev));
-                @*/
 	        /*@ unpack ChunkInstallPre(...); @*/
+	        /*@ unpack FirstAllocation(...); @*/
+                LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
+                // Drop the garbage due to the lemma
+                /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: non-rust ownership type part
                 // See the comments in chunk_list_insert
                 // HK: Currently we encounter the CN issue #148,
                 // so we cannot go further with the spec.
-                /*@ split_case(ptr_eq(
-                        member_shift<struct hyp_allocator>(allocator, chunks)->next,
-                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
                 @*/
                 list_add(&chunk->node, &allocator->chunks);
@@ -1892,57 +1888,33 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 /*@
     accesses hyp_allocator_mc;
     requires
-        !is_null(chunk);
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
-        size > 0u64;
-        size < (u64)HA_pre.ha.size;
+        size > 0u64 && size < (u64)HA_pre.ha.size;
         C_pre.alloc_size == 0u32;
 
         // suffix '_' is to avoid the name conflict due to Fulminate
         let new_chunk_addr_ = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
+        new_chunk_addr_ >= (u64)chunk;
         let chunk_va_size_post = new_chunk_addr_ - (u64)chunk;
         let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
-
-        // for lemma application
-        let original_cn_char_array = array_shift<char>(chunk, Cn_chunk_hdr_size());
-        // to be split into 3 parts
-        let size_1 = size;
-        let size_2 = (u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size);
-        let size_3 = (u64)new_chunk_va_size;
     ensures
-        //take HA_out = Cn_hyp_allocator(allocator);
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
 
         HA_pre.ha.start == HA_post.ha.start;
         HA_pre.ha.size == HA_post.ha.size;
         ptr_eq(HA_pre.ha.head, HA_post.ha.head);
 
-        HA_post.lseg.before == HA_pre.lseg.before;
         let C_post = HA_post.lseg.chunk;
-
         let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_);
+        (return == 0i32 && can_split) implies
+                C_post == {
+                        header_address: C_pre.header_address,
+                        mapped_size: (u32)chunk_va_size_post,
+                        alloc_size: (u32)size,
+                        va_size: (u32)chunk_va_size_post
+                };
 
-        let expected_mapping = Cn_expected_mapping(chunk, size);
-        let needs_mapping = Cn_chunk_needs_mapping((u64)C_pre.mapped_size, expected_mapping);
-        let mapped = needs_mapping == 0u64
-                ? (u64)C_pre.mapped_size
-                : (u64)C_pre.mapped_size + needs_mapping;
-
-        let new_chunk = {
-                header_address: new_chunk_addr_,
-                mapped_size: (u32)(mapped - chunk_va_size_post),
-                alloc_size: 0u32,
-                va_size: new_chunk_va_size
-        };
-
-        (return == 0i32 && can_split) implies C_post.header_address == C_pre.header_address;
-        (return == 0i32 && can_split) implies (u64)C_post.mapped_size == chunk_va_size_post;
-        (return == 0i32 && can_split) implies C_post.alloc_size == (u32)size;
-        (return == 0i32 && can_split) implies (u64)C_post.va_size == chunk_va_size_post;
-        (return == 0i32 && can_split) implies chunk_recycle_aux(HA_pre.lseg.after, HA_post.lseg.after, new_chunk);
-
-        return != 0i32 implies C_post == C_pre;
         let tmp_mapped_size = (u64)C_pre.mapped_size + Cn_chunk_needs_mapping((u64)C_pre.mapped_size, size);
         (return == 0i32 && !can_split) implies
                 C_post == {
@@ -1951,7 +1923,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                         alloc_size: (u32)size,
                         va_size: C_pre.va_size
                 };
-        (return != 0i32 || !can_split) implies HA_post.lseg.after == HA_pre.lseg.after;
         take U = Conditional_Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size, return == 0i32);
 
 @*/
@@ -2126,8 +2097,6 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
     } else {
         take a_out=Cn_hyp_allocator(allocator);
         assert(a_out.ha == ha_pre);
-        assert(a_out.hdrs == Chunk_nil {});
-        take C = FirstChunk((pointer)a_out.ha.start, a_out.ha.size, size);
         return;
     }
 }
@@ -2137,13 +2106,12 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@
     accesses hyp_allocator_mc;
     requires take a_in=Cn_hyp_allocator(allocator);
-    a_in.hdrs==Chunk_nil{};
-    (u64)a_in.ha.size >= size;
-    PAGE_ALIGN(Cn_chunk_size(size)) < (u64)a_in.ha.size;
-    size >= MIN_ALLOC(); // `hyp_alloc` ensures this.
-    take C = FirstChunk((pointer)a_in.ha.start, a_in.ha.size, size);
+    ptr_eq(a_in.ha.head, a_in.ha.first);
+    size >= MIN_ALLOC();
+    PAGE_ALIGN(Cn_chunk_size(size)) >= size; // no overflow
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
+    PAGE_ALIGN(Cn_chunk_size(size)) > (u64)a_in.ha.size implies return != 0i32;
 @*/
 {
         int ret;
@@ -2291,8 +2259,10 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
 predicate (cn_hyp_allocator) LemmaCnChunkHdrsRevToCnHypAllocatorInv(pointer allocator, pointer chunk)
 {
         if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))) {
-                take C2 = Cn_hyp_allocator(allocator);
-                return C2.ha;
+                take ha = Cn_hyp_allocator_only(allocator);
+                let ha_core = Cn_hyp_allocator_core(ha);
+                take hdrs2 = Cn_chunk_hdrs(ha.first, ha.head, ha.last, ha_core);
+                return ha;
         }
         else
         {
@@ -2317,8 +2287,9 @@ void LemmaCnChunkHdrsRevToCnHypAllocator(struct hyp_allocator *allocator)
         let ha_core = Cn_hyp_allocator_core(ha);
         take hdrs1 = Cn_chunk_hdrs_rev(ha.last, ha.head, ha.first, ha_core);
     ensures
-        take ha2 = Cn_hyp_allocator(allocator);
-        ha == ha2.ha;
+        take ha2 = Cn_hyp_allocator_only(allocator);
+        take hdrs2 = Cn_chunk_hdrs(ha.first, ha.head, ha.last, ha_core);
+        ha == ha2;
 @*/
 {
         /*@ split_case(ptr_eq(ha.last, ha.head)); @*/
@@ -2418,7 +2389,7 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
                 assert(HA_in.ha.size == HA_out.ha.size);
                 assert(HA_in.ha.start == HA_out.ha.start);
                 assert(HA_in.ha.head == HA_out.ha.head);
-                assert(is_free_chunk(lseg.chunk, (u32)size));
+                assert(is_free_chunk(lseg.chunk, size));
                 return;
         }
 }
@@ -2509,7 +2480,7 @@ requires
         let ha_full = HA_in.ha;
         let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
         !ptr_eq(ha.first, ha.head);
-        size <= (u64)ha.size && PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)ha.size;
+        size <= Cn_chunk_size(size); // no overflow
 ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
@@ -2539,6 +2510,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         // where ListSeg is a reversed list
 
         // HK: Unfolding GetFreeChunkInv for the loop entry
+	/*@ unpack FirstAllocation(...); @*/
         /*@ unpack Cn_chunk_hdrs(ha.first, ha_full.head, ha_full.last, Cn_hyp_allocator_core(ha_full)); @*/
 
         list_for_each_entry(chunk, &allocator->chunks, node)
@@ -2626,18 +2598,6 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 	/*@ unpack MaybeChunkHdr(...); @*/
 	return retv;
 }
-
-/*@
-predicate (void) FirstAllocation(pointer start, u32 size, u64 alloc_size, boolean cond)
-{
-        if (cond) {
-                take C = FirstChunk(start, size, alloc_size);
-                return;
-        } else {
-                return;
-        }
-}
-@*/
 
 /*@
 predicate (cn_hyp_allocator) LemmaLsegToChunkHdrsInv(pointer chunk, pointer allocator)
@@ -2767,6 +2727,7 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
 {
         /*@ unpack Cn_chunk_hdrs(...); @*/
         struct chunk_hdr *chunk;
+        /*@ unpack FirstAllocation(...); @*/
 
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
@@ -2829,15 +2790,13 @@ void my_memset(char *s, char c, size_t n)
         memset(s, c, n);
 }
 
+
 // HK: To avoid "mismatched types" error
 //void *hyp_alloc(size_t size)
 void *hyp_alloc(unsigned long size)
 /*@
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
-                size > 0u64;
-                size <= (u64)MAXu32();
-                let actual_size = cn_ALIGN(size, MIN_ALLOC());
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
 
                 // The following check is done in memcache functions,
@@ -2847,19 +2806,16 @@ void *hyp_alloc(unsigned long size)
                 // `PAGE_ALIGN(Cn_chunk_size(actual_size))`. For the other allocations,
                 // we can allocate Cn_chunk_size(actual_size).
                 // However, for simplicity, we require this for all allocations.
-                PAGE_ALIGN(Cn_chunk_size(actual_size)) < (u64)HA_pre.ha.size;
-
-                // For the first allocation, we have a special ownership structure
-                take C = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {});
+                // size <= PAGE_ALIGN(Cn_chunk_size(actual_size)); // no overflow
+                // PAGE_ALIGN(Cn_chunk_size(actual_size)) <= (u64)HA_pre.ha.size;
+                let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
         ensures
-                take U = MaybeCn_char_array(return, actual_size);
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
-                HA_post.ha.size == HA_pre.ha.size;
-                HA_post.ha.start == HA_pre.ha.start;
-                HA_post.ha.head == HA_pre.ha.head;
 
-                // the case where even the first allocation fails
-                take C2 = FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size, actual_size, HA_pre.hdrs == Chunk_nil {} && return == NULL);
+                take U = MaybeCn_char_array(return, actual_size);
+                // HA_post.ha.size == HA_pre.ha.size;
+                // HA_post.ha.start == HA_pre.ha.start;
+                // HA_post.ha.head == HA_pre.ha.head;
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -2870,15 +2826,21 @@ void *hyp_alloc(unsigned long size)
         /* CN DIFF */
         // missing_map should be size_t to match the type of chunk_needs_mapping
         size_t missing_map;
+        int cn_flag = 1;
 
-        size = ALIGN(size, MIN_ALLOC);
+        if (size >= 0x100000000UL) {
+            ret = -ENOMEM;
+            goto end;
+        }
+      	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
+
 
         hyp_spin_lock(&allocator->lock);
         //PS: ownership from lock invariant
         //PS: hyp_spin_lock returns Cn_hyp_allocator(&allocator)
         /* CN DIFF */
         // this variable is used to split the case later in this function.
-        int cn_flag = list_empty(&hyp_allocator.chunks);
+        cn_flag = list_empty(&hyp_allocator.chunks);
         /*@ split_case(
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)
@@ -3207,12 +3169,34 @@ int hyp_alloc_refill(struct kvm_hyp_memcache *host_mc)
                                host_mc);
 }
 
-int hyp_alloc_init(size_t size)
 /*@
-	accesses __io_map_base;
-	accesses __hyp_vmemmap;
-        requires take HA1 = RW<struct hyp_allocator>(&hyp_allocator);
-        ensures take HA2 = RW<struct hyp_allocator>(&hyp_allocator);
+
+predicate (void) MaybeHypAlloc(pointer p, boolean cond)
+{
+    if (cond) {
+        take H = Cn_hyp_allocator(p);
+        return;
+    } else {
+        take HA1 = W<struct hyp_allocator>(&hyp_allocator);
+        return;
+    }
+}
+
+@*/
+
+/* CN DIFF */
+// avoid type mismatch
+//int hyp_alloc_init(size_t size)
+int hyp_alloc_init(unsigned long size)
+/*@
+        accesses __io_map_base;
+        accesses __hyp_vmemmap;
+    requires
+      // global variables
+      __io_map_base > 0u64; __io_map_base + PAGE_ALIGN(size) > __io_map_base;
+      (u64)&hyp_allocator > 0u64;
+      take HA1 = W<struct hyp_allocator>(&hyp_allocator);
+    ensures take HA2 = MaybeHypAlloc(&hyp_allocator, return == 0i32);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -3228,6 +3212,7 @@ int hyp_alloc_init(size_t size)
 
         ret = pkvm_alloc_private_va_range(size, &allocator->start);
         if (ret) {
+                /*@ unpack Conditional_Cn_char_array(...); @*/
                 return ret;
         }
 
@@ -3235,6 +3220,7 @@ int hyp_alloc_init(size_t size)
         INIT_LIST_HEAD(&allocator->chunks);
         hyp_spin_lock_init(&allocator->lock);
 
+        /*@ unpack Conditional_Cn_char_array(...); @*/
         return 0;
 }
 

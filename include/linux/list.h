@@ -59,7 +59,7 @@ static inline int list_empty(const struct list_head *head)
 static inline void INIT_LIST_HEAD(struct list_head *list)
 /*@
 	requires
-		take L_pre = RW<struct list_head>(list);
+		take L_pre = W<struct list_head>(list);
 	ensures
 		take L_post = RW<struct list_head>(list);
 		ptr_eq(L_post.next, list);
