@@ -1,0 +1,13 @@
+9ea8103221f8f84fb7885ae3922aa6b699e9e156, chunk_hash_update, a6adc67a2b414eb42915fe42cde04d26c2dcc65b; 
+3413739244909ff7ab5cb0ec3abbff703b3ef5ac, chunk_can_split; 
+873634a48a6e3c56243f25bb2235d0da5eee5634, chunk_install; forgot to add a chunk buffer
+f3bfee5356cbe21f57da51468638cc87b2be63b6, chunk_install; stupid mistake
+19c0c403432f8fda1848ec23b0e245ed59ee0cff, chunk_install; ha.last can change
+323985487e21f7527e5b8145c9619d07f0fc9b51, chunk_install; missing ownership in chunk_list_insert
+6e9028ffdb89f8fe9cc70f83cf6ef7bf449ac4d1, chunk_list_insert; ownership mis calculation; chunk_list_insert changed a lot
+c8828c02009d73bafcbe0c5a763b6951a23a3a63, chunk_list_insert; lseg_post.chunk != lseg_pre.chunk
+c1a2c437231d9551087c0e204ebc3fd918ecd326, chunk_list_insert; duplicate ownership
+df7d52a38f60f2b837218b380e46aff3abde66b6, chunk_get ; invalid chunk get
+39208f33ad4fc85683c78e711272dd0a7b588394, setup_first_chunk, 16cf708269dedd23f42e0fd30f0954c3ed227c25; setup_first_chunk can change ha.first
+c00c975a4820011831f205916eb8a6f05ff9f7e0, setup_first_chunk,;  chunk_install can change ha.start, the other bug fixed in this commit is not applicable
+8cd201c36d81ae49c55b765c85be42ee105ba017, chunk_hash_update ; chunk_hash_compute does not consider null case

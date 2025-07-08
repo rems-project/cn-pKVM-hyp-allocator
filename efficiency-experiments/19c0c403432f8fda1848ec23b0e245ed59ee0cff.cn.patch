@@ -1,0 +1,38 @@
+diff --git a/.cn_version b/.cn_version
+index 8ce48a4..88bfbd7 100644
+--- a/.cn_version
++++ b/.cn_version
+@@ -1 +1 @@
+-b8208ba91
++f4d899ed7
+diff --git a/src/alloc.c b/src/alloc.c
+index f1574b6..8412767 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -861,17 +861,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
+                              unsigned long va, size_t size)
+ // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
+ // This means that it returns an ownership of this mined memory out of thin air.
+-/*@
+-        requires
+-                take HA_pre = Cn_hyp_allocator_only(allocator);
+-
+-        ensures
+-                take HA_post = Cn_hyp_allocator_only(allocator);
+-                HA_post == HA_pre;
+-                let va_end = va + size;
+-                return == 0i32 implies
+-                (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
+-@*/
+ {
+         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
+         unsigned long va_end = va + size;
+@@ -1056,7 +1045,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
+         { if (ret == 0i32)
+         {
+                 take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
+-                assert(HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head));
++                assert(HA_post.ha == ha);
+                 assert(HA_post.lseg.before == lseg.before);
+ 
+                 assert(!is_null(chunk));
