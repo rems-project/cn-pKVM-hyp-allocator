@@ -487,18 +487,6 @@ lemma ListSegAfterNull (pointer allocator, pointer result)
             take HA2 = Cn_hyp_allocator(allocator);
             HA2 == {ha: HA1.ha, hdrs: ConcatChunkList(lseg.before, Chunk_cons {hd: lseg.chunk, tl: lseg.after})};
 
-// HK:This is actually wrong in terms of pa-based ownership.
-// Even though you have the va-ownership of the va region [start, start+size), you do not have the right to access the memory, as they are not mapped physically for now.
-// I will fix this later when I start to consider memcache things.
-predicate (void) FirstAllocation(pointer start, u32 size, boolean cond)
-{
-        if (cond) {
-                take X = Cn_char_array(start, (u64)size);
-                return;
-        } else {
-                return;
-        }
-}
 
 predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator( pointer p ) { // p points to a struct hyp_allocator
   take ha_full = Cn_hyp_allocator_only(p);
@@ -506,7 +494,6 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha_full.last, ha);
-  take C = FirstAllocation((pointer)ha.start, ha.size, ptr_eq(ha.first, ha.head));
   return( {ha:ha_full, hdrs:hdrs} );
 }
 

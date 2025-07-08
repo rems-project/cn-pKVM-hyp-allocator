@@ -921,10 +921,14 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
 /*@
         trusted;
+        requires
+                take HA_pre = Cn_hyp_allocator_only(allocator);
         ensures take C = Conditional_Cn_char_array((pointer)va, size, return == 0i32);
+                take HA_post = Cn_hyp_allocator_only(allocator);
+                HA_pre == HA_post;
                 let va_end = va + size;
                 return == 0i32 implies
-                (va <= Vk_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
+                (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
 @*/
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
@@ -1378,10 +1382,6 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         /* First chunk, first allocation */
         if (!prev) {
 	        /*@ unpack ChunkInstallPre(...); @*/
-	        /*@ unpack FirstAllocation(...); @*/
-                LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
-                // Drop the garbage due to the lemma
-                /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 // HK: non-rust ownership type part
                 // See the comments in chunk_list_insert
@@ -2525,7 +2525,6 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         // where ListSeg is a reversed list
 
         // HK: Unfolding GetFreeChunkInv for the loop entry
-	/*@ unpack FirstAllocation(...); @*/
         /*@ unpack Cn_chunk_hdrs(ha.first, ha_full.head, ha_full.last, Cn_hyp_allocator_core(ha_full)); @*/
 
         list_for_each_entry(chunk, &allocator->chunks, node)
@@ -2742,7 +2741,6 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
 {
         /*@ unpack Cn_chunk_hdrs(...); @*/
         struct chunk_hdr *chunk;
-        /*@ unpack FirstAllocation(...); @*/
 
         list_for_each_entry(chunk, &allocator->chunks, node)
         /*@ inv {allocator} unchanged;
@@ -2864,7 +2862,6 @@ void *hyp_alloc(unsigned long size)
         );
         @*/
         if (cn_flag) {
-	        /*@ unpack FirstAllocation(...); @*/
                 ret = setup_first_chunk(allocator, size);
 		/*@ split_case(ret == 0i32); @*/
                 if (ret) {
@@ -2875,7 +2872,6 @@ void *hyp_alloc(unsigned long size)
         	/*@ split_case(is_null(chunk)); @*/
                 goto end;
         }
-	/*@ unpack FirstAllocation(...); @*/
 
         chunk = get_free_chunk(allocator, size);
         if (chunk) {
