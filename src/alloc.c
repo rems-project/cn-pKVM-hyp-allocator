@@ -1479,7 +1479,49 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         return 0;
 }
 
+void LemmaMergeChunks(char *chunk_data, size_t size, size_t size2)
+/*@
+requires
+        !is_null(chunk_data);
+        take C1 = Cn_char_array(chunk_data, size);
+        let next_chunk = array_shift<unsigned char>(chunk_data, Cn_chunk_hdr_size());
+        take C_hdr = RW<struct chunk_hdr_only>(next_chunk);
+        let next_chunk_data = array_shift<unsigned char>(chunk_data, Cn_chunk_hdr_size() + size);
+        take C2 = Cn_char_array(next_chunk_data, size2);
+ensures
+        take C3 = Cn_char_array(chunk_data, size + size2 + Cn_chunk_hdr_size());
+{
+
+}
+
 static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
+/*@
+requires
+        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        HA_pre.lseg.before != Chunk_nil {};
+        let prev = match (HA_pre.lseg.before) {
+            Chunk_nil {} => {
+                // dummy
+                {
+                    header_address: 0u64,
+                    va_size: 0u32,
+                    alloc_size: 0u32,
+                    mapped_size: 0u32
+                }
+            }
+            Chunk_cons {hd:hdr, tl:tl} => {
+                hdr
+            }
+        };
+        let chunk = HA_pre.lseg.chunk;
+ensures
+        (chunk.alloc_size != 0u32 || prev.alloc_size != 0u32) implies return != 0i32;
+        let merge_able = prev.header_address + (u64)prev.mapped_size == (u64)chunk;
+
+        take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
+
+        mergeable implies HA_post.chunk.mapped_size == prev.mapped_size + chunk.mapped_size;
+@*/
 {
         /* The caller already validates prev */
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
@@ -1495,6 +1537,9 @@ static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 
         /* Can't merge non-contiguous mapped regions */
         if (chunk_unmapped_region(prev) != (unsigned long)chunk) {
+                /*@ split_case(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct hyp_allocator>(allocator, chunks)); @*/
+                /*@ unpack Cn_chunk_hdrs_rev(...); @*/
                 return 0;
         }
 
@@ -1502,6 +1547,8 @@ static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
         prev->mapped_size += chunk->mapped_size;
 
         chunk_list_del(chunk, allocator);
+        /* HK: merge two Cn_char_array and chunk_hdr here.  */
+        LemmaMergeChunks(chunk_data(prev), chunk);
 
         return 0;
 }
@@ -3019,7 +3066,7 @@ void hyp_free(void *addr)
 /*@
         requires
                 !is_null(addr);
-                let header_address = (u64)addr - Cn_chunk_hdr_size();
+                let header_address = array_shift<unsigned char>(addr, - Cn_chunk_hdr_size());
                 take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator, (pointer)header_address);
                 let C = HA_pre.lseg.chunk;
                 take U = Cn_char_array(addr, (u64)C.alloc_size);
