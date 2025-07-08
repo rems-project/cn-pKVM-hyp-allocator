@@ -1,0 +1,20 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index f1574b6..ce52c4f 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -1975,14 +1975,7 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
+         assert(HA_post.lseg.after == Chunk_nil {});
+         assert(HA_post.lseg.chunk == first_chunk);
+         assert(HA_post.lseg.before == Chunk_nil {} );
+-        let ha_post = {
+-                head: ha_pre.head,
+-                size: ha_pre.size,
+-                start: ha_pre.start,
+-                first: member_shift<struct chunk_hdr_only>(start, node),
+-                last: member_shift<struct chunk_hdr_only>(start, node)
+-        };
+-        assert(HA_post.ha == ha_post);
++        assert(HA_post.ha == ha_pre);
+ 
+         // the chunk allocated to the client
+         let chunk_data = array_shift<unsigned char>(start, Cn_chunk_hdr_size());

@@ -31,3 +31,11 @@ Commit messages that start with `[fulminate]` indicate that the issue fixed by t
 I'm currently working on the CN specified in .cn_version.
 There may be a better way to handle this, but since this workaround is simple, I'm going with it for now
 (even if it feels a bit awkward).
+
+
+## Benchmark for Performance Comparison
+
+The branch `fulminate-exp-base` serves as the base for the complete specification of `hyp_alloc`.
+In the `efficiency-experiments/` directory, there are patch files for this branch that introduce some specification bugs discovered during spec-writing.
+Additionally, there is a note about the benchmark in `efficiency-experiments/benchmark.txt`.
+

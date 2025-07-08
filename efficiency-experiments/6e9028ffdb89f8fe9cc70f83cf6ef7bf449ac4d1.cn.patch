@@ -1,0 +1,31 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index f1574b6..2750264 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -765,7 +765,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
+         (u64)chunk + (u64)HA_pre.va_size <= (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
+         let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size);
+         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
+-        take X = Cn_char_array(start, owned_by_ha);
++        //take X = Cn_char_array(start, owned_by_ha);
+ 
+         let new_last = lseg_pre.after == Chunk_nil{} ? member_shift<struct chunk_hdr>(chunk, node) : HA_pre.ha.last;
+ 
+@@ -861,17 +861,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
+                              unsigned long va, size_t size)
+ // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
+ // This means that it returns an ownership of this mined memory out of thin air.
+-/*@
+-        requires
+-                take HA_pre = Cn_hyp_allocator_only(allocator);
+-
+-        ensures
+-                take HA_post = Cn_hyp_allocator_only(allocator);
+-                HA_post == HA_pre;
+-                let va_end = va + size;
+-                return == 0i32 implies
+-                (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
+-@*/
+ {
+         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
+         unsigned long va_end = va + size;
