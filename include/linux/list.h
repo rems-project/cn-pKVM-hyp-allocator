@@ -307,6 +307,7 @@ static inline void __list_del_entry(struct list_head *entry)
 		ptr_eq(Next_post.prev, prev);
 		ptr_eq(Prev_post.prev, Prev_pre.prev);
 		ptr_eq(Next_post.next, Next_pre.next);
+		Entry_pre == Entry_post;
 @*/
 {
 #if 0
@@ -334,6 +335,7 @@ static inline void list_del(struct list_head *entry)
 		ptr_eq(Next_post.prev, prev);
 		ptr_eq(Prev_post.prev, Prev_pre.prev);
 		ptr_eq(Next_post.next, Next_pre.next);
+		Entry_pre == Entry_post;
 @*/
 {
 	__list_del_entry(entry);
