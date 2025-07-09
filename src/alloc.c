@@ -898,25 +898,26 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     !is_null(cn_hdr.Node.next);
     !is_null(cn_hdr.Node.prev);
 
+    let prev = cn_hdr.Node.prev;
+    !ptr_eq(prev, member_shift<struct hyp_allocator>(allocator, chunks));
+
+    let prev_hdr_addr = array_shift<char>(prev, -offsetof(chunk_hdr, node));
+    take prev_hdr = Cn_chunk_hdr_inner(prev_hdr_addr, ha, Option_u64_none {}, true, Option_u64_none {}, false);
+    !is_null(prev_hdr.Node.next);
+    !is_null(prev_hdr.Node.prev);
+    (u64)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)prev_hdr.Hdr.mapped_size;
+    (u64)prev_hdr.Hdr.mapped_size <= (u64)cn_hdr.Hdr.va_size + (u64)prev_hdr.Hdr.va_size;
+    let chunk_end = prev_hdr.Hdr.header_address + (u64) prev_hdr.Hdr.mapped_size;
+    chunk_end <= end;
+    chunk_end >= prev_hdr.Hdr.header_address;
+
     // chunk must be a valid chunk in the allocator
+    take hdrs1 = Cn_chunk_hdrs_rev(prev_hdr.Node.prev, prev, ha_full.first, ha);
     let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
-    take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
     take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
-    let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
-    let prev = match (lseg.before) {
-            Chunk_nil {} => {
-            {                    header_address: 0u64,
-                    va_size: 0u32,
-                    alloc_size: 0u32,
-                    mapped_size: 0u32
-            }
-            }
-            Chunk_cons {hd:hdr, tl:tl} => {
-            hdr
-            }
-    };
+
     ensures
-        take HA_post = Cn_hyp_allocator_focusing_on(allocator, (pointer)prev.header_address);
+        take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev_hdr_addr);
         ha_full == HA_post.ha;
 @*/
 {
@@ -925,9 +926,6 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs(...);
-        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
-                member_shift<struct hyp_allocator>(allocator, chunks)));
-        unpack Cn_chunk_hdrs_rev(...);
         @*/
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
         struct chunk_hdr *next = __chunk_next(chunk, allocator);
@@ -936,6 +934,7 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
         list_del(&chunk->node);
         chunk_hash_update(prev);
         chunk_hash_update(next);
+        /*@ unpack MaybeChunkHdr(...); @*/
 }
 
 static void hyp_allocator_unmap(struct hyp_allocator *allocator,
