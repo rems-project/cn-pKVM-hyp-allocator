@@ -52,6 +52,8 @@ targets=(
   pkvm_alloc_private_va_range
   LemmaMergeChunk
   LemmaMergeArrays
+  chunk_list_del
+  hyp_free
 )
 # unproved: chunk_install, get_free_hunk, chunk_recycle, hyp_alloc
 

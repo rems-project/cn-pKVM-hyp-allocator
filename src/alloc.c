@@ -986,6 +986,7 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev_hdr_addr);
         ha == Cn_hyp_allocator_core(HA_post.ha);
+        HA_post.lseg.before == hdrs1;
         HA_post.lseg.chunk.mapped_size == prev_hdr.Hdr.mapped_size;
         HA_post.lseg.chunk.alloc_size == prev_hdr.Hdr.alloc_size;
         HA_post.lseg.chunk.header_address == prev_hdr.Hdr.header_address;
@@ -1585,6 +1586,15 @@ requires
                 hdr
             }
         };
+        let prev_tl = match (HA_pre.lseg.before) {
+            Chunk_nil {} => {
+                // dummy
+                Chunk_nil {}
+            }
+            Chunk_cons {hd:hdr, tl:tl} => {
+                tl
+            }
+        };
         let C = HA_pre.lseg.chunk;
 ensures
         let cond1 = (C.alloc_size != 0u32 || prev.alloc_size != 0u32);
@@ -1595,6 +1605,7 @@ ensures
         let merge_able = !cond1 && !cond2;
 
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, (pointer)prev.header_address);
+        HA_post.lseg.before == prev_tl;
 
         merge_able implies HA_post.lseg.chunk.mapped_size == prev.mapped_size + C.mapped_size;
 @*/
@@ -3175,17 +3186,12 @@ void hyp_free(void *addr)
         chunk_hash_update(chunk);
 
         /*@ unpack MaybeChunkHdr(...); @*/
-        /*@
-        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
-                member_shift<struct hyp_allocator>(allocator, chunks)));
-        unpack Cn_chunk_hdrs(...);
-        @*/
         if (next_chunk && !chunk_is_used(next_chunk)) {
                 WARN_ON(chunk_merge(next_chunk, allocator));
         }
 
         /*@
-        split_case(ptr_eq(member_shift<struct chunk_hdr>((pointer)HA_pre.lseg.chunk.header_address, node)->prev,
+        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs_rev(...);
         @*/
