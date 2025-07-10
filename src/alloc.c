@@ -968,7 +968,9 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     !is_null(prev_hdr.Node.next);
     !is_null(prev_hdr.Node.prev);
     (u64)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)prev_hdr.Hdr.mapped_size;
-    (u64)prev_hdr.Hdr.mapped_size <= (u64)prev_hdr.Hdr.va_size;
+    (u64)prev_hdr.Hdr.mapped_size <= (u64)cn_hdr.Hdr.va_size + (u64)prev_hdr.Hdr.va_size;
+
+    (u64)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)prev_hdr.Hdr.va_size;
     (u64)prev_hdr.Hdr.va_size <= (u64)cn_hdr.Hdr.va_size + (u64)prev_hdr.Hdr.va_size;
 
     // let chunk_end = prev_hdr.Hdr.header_address + (u64) prev_hdr.Hdr.mapped_size;
@@ -984,6 +986,9 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev_hdr_addr);
         ha == Cn_hyp_allocator_core(HA_post.ha);
+        HA_post.lseg.chunk.mapped_size == prev_hdr.Hdr.mapped_size;
+        HA_post.lseg.chunk.alloc_size == prev_hdr.Hdr.alloc_size;
+        HA_post.lseg.chunk.header_address == prev_hdr.Hdr.header_address;
 @*/
 {
         /*@
@@ -1582,14 +1587,21 @@ requires
         };
         let C = HA_pre.lseg.chunk;
 ensures
-        (C.alloc_size != 0u32 || prev.alloc_size != 0u32) implies return != 0i32;
-        let merge_able = prev.header_address + (u64)prev.mapped_size == (u64)chunk;
+        let cond1 = (C.alloc_size != 0u32 || prev.alloc_size != 0u32);
+        cond1 implies return != 0i32;
+        !cond1 implies return == 0i32;
+
+        let cond2 = prev.header_address + (u64)prev.mapped_size != (u64)chunk;
+        let merge_able = !cond1 && !cond2;
 
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, (pointer)prev.header_address);
 
         merge_able implies HA_post.lseg.chunk.mapped_size == prev.mapped_size + C.mapped_size;
 @*/
 {
+        /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ unpack Cn_chunk_hdrs_rev(...); @*/
         /* The caller already validates prev */
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
 
@@ -1604,9 +1616,6 @@ ensures
 
         /* Can't merge non-contiguous mapped regions */
         if (chunk_unmapped_region(prev) != (unsigned long)chunk) {
-                /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
-                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-                /*@ unpack Cn_chunk_hdrs_rev(...); @*/
                 return 0;
         }
 
@@ -1614,8 +1623,6 @@ ensures
         prev->mapped_size += chunk->mapped_size;
 
         chunk_list_del(chunk, allocator);
-        /* HK: merge two Cn_char_array and chunk_hdr here.  */
-        LemmaMergeChunks(chunk_data(prev), 0, 0);
 
         return 0;
 }
