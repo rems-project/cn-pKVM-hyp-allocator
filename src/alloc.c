@@ -885,14 +885,17 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 }
 
 void LemmaMergeArrays(
-        char *p, unsigned int size1, unsigned int size2
+        char *p, unsigned long size1, unsigned long size2
 )
 /*@
 requires
-        let size = (u64)size1 + (u64)size2;
-        let owned_by_ha = array_shift<unsigned char>(p, (u64)size1);
-        take X1 = Cn_char_array(p, (u64)size1);
-        take X2 = Cn_char_array(owned_by_ha, (u64)size2);
+        let size = size1 + size2;
+        let owned_by_ha = array_shift<unsigned char>(p, size1);
+        take X1 = Cn_char_array(p, size1);
+        take X2 = Cn_char_array(owned_by_ha, size2);
+        size1 <= (u64)MAXu32();
+        size2 <= (u64)MAXu32();
+        size <= (u64)MAXu32();
 ensures
         take X = Cn_char_array(p, size);
 @*/
@@ -900,42 +903,45 @@ ensures
         /*@
         unpack Cn_char_array(...);
         @*/
-        char *q = p + size1;
         unsigned long i;
-        for (i = 0; i < (unsigned long)size2; i++)
+        for (i = 0; i < size2; i++)
         /*@
         inv
-                take L0 = Cn_char_array(p, (u64)size1 + i);
-                take L1 = Cn_char_array_with_offset(q, (u64)size2 - i, (u64)size1 + (u64)i);
+                take L0 = Cn_char_array(p, size1 + i);
+                take L1 = Cn_char_array_with_offset(owned_by_ha, size2 - i, i);
                 {p} unchanged;
                 {size1} unchanged;
                 {size2} unchanged;
-                i <= (u64)size2;
+                i <= size2;
         @*/
         {
                 /*@
                   unpack Cn_char_array(...);
                   focus W<unsigned char>, i;
-                  focus W<unsigned char>, ((u64)size1 + i);
+                  focus W<unsigned char>, (size1 + i);
                 @*/
         }
 }
 
-void LemmaMergeChunk(char *start, size_t size1, size_t size2)
+void LemmaMergeChunk(char *start, unsigned long size1, unsigned long size2)
 /*@
 requires
         take X = Cn_char_array(start, size1);
         take Hdr = Own_chunk_hdr(array_shift<char>(start, size1));
         take Y = Cn_char_array(array_shift<char>(start, size1 + Cn_chunk_hdr_size()), size2);
+        size1 <= (u64)MAXu32();
+        size2 <= (u64)MAXu32();
         let size_all = size1 + size2 + Cn_chunk_hdr_size();
-        size1 <= size1 + Cn_chunk_hdr_size();
-        size1 + Cn_chunk_hdr_size() <= size_all;
+        size_all <= (u64)MAXu32();
 ensures
         take X_post = Cn_char_array(start, size_all);
 @*/
 {
-
-
+        /*@
+        to_bytes W<struct chunk_hdr_only>(array_shift<char>(start, size1));
+        @*/
+        LemmaMergeArrays(start, size1, chunk_hdr_size());
+        LemmaMergeArrays(start, size1 + chunk_hdr_size(), size2);
 }
 
 
@@ -963,10 +969,11 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     !is_null(prev_hdr.Node.prev);
     (u64)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)prev_hdr.Hdr.mapped_size;
     (u64)prev_hdr.Hdr.mapped_size <= (u64)prev_hdr.Hdr.va_size;
-    (u64)prev_hdr.Hdr.mapped_size <= (u64)cn_hdr.Hdr.va_size + (u64)prev_hdr.Hdr.va_size;
-    let chunk_end = prev_hdr.Hdr.header_address + (u64) prev_hdr.Hdr.mapped_size;
-    chunk_end <= end;
-    chunk_end >= prev_hdr.Hdr.header_address;
+    (u64)prev_hdr.Hdr.va_size <= (u64)cn_hdr.Hdr.va_size + (u64)prev_hdr.Hdr.va_size;
+
+    // let chunk_end = prev_hdr.Hdr.header_address + (u64) prev_hdr.Hdr.mapped_size;
+    // chunk_end <= end;
+    // chunk_end >= prev_hdr.Hdr.header_address;
     let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
     ptr_eq(prev_hdr.Node.next, chunk_node);
 
@@ -976,7 +983,7 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
 
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev_hdr_addr);
-        ha_full == HA_post.ha;
+        ha == Cn_hyp_allocator_core(HA_post.ha);
 @*/
 {
         /*@
@@ -993,9 +1000,15 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
         chunk_hash_update(prev);
         chunk_hash_update(next);
         /*@ unpack MaybeChunkHdr(...); @*/
+        /*@ assert((u64)chunk - (u64)prev == (u64)prev_hdr.Hdr.va_size); @*/
+        /*@ assert(((!is_null(next) ? (u64)next : allocator->start + (u64)allocator->size) - (u64)chunk) == (u64)cn_hdr.Hdr.va_size); @*/
+        unsigned long prev_va_size = (unsigned long)chunk - (unsigned long)prev;
+        unsigned long cn_va_size = (next ?
+                (unsigned long)next - (unsigned long)chunk :
+                allocator->start + allocator->size) - (unsigned long)chunk;
         LemmaMergeChunk((char *)chunk_data(prev) + prev->alloc_size,
-                        (unsigned long)chunk - (unsigned long)chunk_data(prev) - prev->alloc_size,
-                        ((unsigned long)next ? (unsigned long)next : allocator->start + allocator->size) - (unsigned long)chunk_data(chunk));
+                        prev_va_size - (chunk_hdr_size() + prev->alloc_size),
+                        cn_va_size - chunk_hdr_size());
 }
 
 static void hyp_allocator_unmap(struct hyp_allocator *allocator,
