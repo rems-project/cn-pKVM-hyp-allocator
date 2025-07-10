@@ -1005,12 +1005,12 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
         chunk_hash_update(prev);
         chunk_hash_update(next);
         /*@ unpack MaybeChunkHdr(...); @*/
-        /*@ assert((u64)chunk - (u64)prev == (u64)prev_hdr.Hdr.va_size); @*/
-        /*@ assert(((!is_null(next) ? (u64)next : allocator->start + (u64)allocator->size) - (u64)chunk) == (u64)cn_hdr.Hdr.va_size); @*/
         unsigned long prev_va_size = (unsigned long)chunk - (unsigned long)prev;
         unsigned long cn_va_size = (next ?
-                (unsigned long)next - (unsigned long)chunk :
+                (unsigned long)next :
                 allocator->start + allocator->size) - (unsigned long)chunk;
+        /*@ assert(prev_va_size == (u64)prev_hdr.Hdr.va_size); @*/
+        /*@ assert(cn_va_size == (u64)cn_hdr.Hdr.va_size); @*/
         LemmaMergeChunk((char *)chunk_data(prev) + prev->alloc_size,
                         prev_va_size - (chunk_hdr_size() + prev->alloc_size),
                         cn_va_size - chunk_hdr_size());
@@ -3155,19 +3155,48 @@ void hyp_free(void *addr)
         hyp_spin_lock(&allocator->lock);
 
         chunk = chunk_get(container_of(chunk_data, struct chunk_hdr, data));
+        /*@ unpack MaybeChunkHdr(...); @*/
+        /*@
+        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs_rev(...);
+        @*/
         prev_chunk = chunk_get_prev(chunk, allocator);
+        /*@
+        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs(...); @*/
         next_chunk = chunk_get_next(chunk, allocator);
 
         // HK: free is easy :) except for merging
+        LemmaMergeArrays(chunk_data, chunk->alloc_size, chunk->mapped_size + chunk_unmapped_size(chunk, allocator) - chunk_hdr_size() - chunk->alloc_size);
         chunk->alloc_size = 0;
+        // TODO: merge buffer
         chunk_hash_update(chunk);
 
+        /*@ unpack MaybeChunkHdr(...); @*/
+        /*@
+        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs(...);
+        @*/
         if (next_chunk && !chunk_is_used(next_chunk)) {
                 WARN_ON(chunk_merge(next_chunk, allocator));
         }
 
+        /*@
+        split_case(ptr_eq(member_shift<struct chunk_hdr>((pointer)HA_pre.lseg.chunk.header_address, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs_rev(...);
+        @*/
         if (prev_chunk && !chunk_is_used(prev_chunk)) {
                 WARN_ON(chunk_merge(chunk, allocator));
+                /*@ unpack MaybeChunkHdr(...); @*/
+                LemmaLsegToChunkHdrs(allocator, prev_chunk);
+        }
+        /* CN DIFF */ else {
+                /*@ unpack MaybeChunkHdr(...); @*/
+                LemmaLsegToChunkHdrs(allocator, chunk);
         }
 
         hyp_spin_unlock(&allocator->lock);
