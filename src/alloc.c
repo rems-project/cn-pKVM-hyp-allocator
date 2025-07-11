@@ -3190,19 +3190,22 @@ void hyp_free(void *addr)
         /*@ unpack MaybeChunkHdr(...); @*/
         if (next_chunk && !chunk_is_used(next_chunk)) {
                 WARN_ON(chunk_merge(next_chunk, allocator));
+                /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct hyp_allocator>(allocator, chunks)));
+                 unpack Cn_chunk_hdrs_rev(...);
+                @*/
         }
 
-        /*@
-        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
-                member_shift<struct hyp_allocator>(allocator, chunks)));
-        unpack Cn_chunk_hdrs_rev(...);
-        @*/
+        /*@ unpack MaybeChunkHdr(...); @*/
         if (prev_chunk && !chunk_is_used(prev_chunk)) {
                 WARN_ON(chunk_merge(chunk, allocator));
+
+                // HK: not sure why it's needed
                 /*@ unpack MaybeChunkHdr(...); @*/
                 LemmaLsegToChunkHdrs(allocator, prev_chunk);
         }
         /* CN DIFF */ else {
+                // HK: not sure why it's needed
                 /*@ unpack MaybeChunkHdr(...); @*/
                 LemmaLsegToChunkHdrs(allocator, chunk);
         }
