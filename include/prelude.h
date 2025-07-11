@@ -99,7 +99,7 @@ function (u64) cn_ALIGN(u64 x, u64 a) {
 typedef u64		hyp_spinlock_t;
 /* CN DIFF */
 // HK: dummy init
-#define hyp_spin_lock_init(X) { *X = 0; } 
+#define hyp_spin_lock_init(X) { *X = 0; }
 void hyp_spin_lock(hyp_spinlock_t *lock);
 void hyp_spin_unlock(hyp_spinlock_t *lock);
 
@@ -116,6 +116,18 @@ void hyp_spin_unlock(hyp_spinlock_t *lock);
 #define PAGE_SHIFT		12
 #define PAGE_SIZE		(1UL << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
+
+/*@
+
+function (u64) PAGE_SIZE() {
+	shift_left(1u64, 12u64)
+}
+
+function (boolean) cn_IS_ALIGNED(u64 addr) {
+	(addr & (PAGE_SIZE() - 1u64)) == 0u64
+}
+
+@*/
 
 // HK: we cannot define c_PAGE_ALIGN_DOWN until here because PAGE_SIZE is defined just above.
 // /*@ function (u64) PAGE_ALIGN_DOWN(u64 addr) @*/

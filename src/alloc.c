@@ -500,36 +500,38 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
                                                struct hyp_allocator *allocator)
 /*@
         requires
-                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let ha_full = HA_pre.ha;
-                let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
-                let B_pre = HA_pre.lseg.chunk;
-                let Before_pre = HA_pre.lseg.before;
+                !is_null(chunk);
+                (u64)chunk & 0x7u64 == 0u64;
+                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take A_pre = RW<struct hyp_allocator>(allocator);
+                !is_null(node.prev);
+                let cond = !ptr_eq(node.prev, member_shift<struct hyp_allocator>(allocator, chunks));
+                let prev_chunk = array_shift<char>(node.prev, -offsetof(chunk_hdr, node));
+                take Prev = MaybeChunkHdr(prev_chunk, cond);
         ensures
-                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let B_post = HA_post.lseg.chunk;
-                HA_post == HA_pre;
-
-                match Before_pre {
-                        Chunk_nil {} => {
-                                is_null(return)
-                        }
-                        Chunk_cons {hd:hdr, tl:tl} => {
-                                (u64)return == hdr.header_address
-                        }
+                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                take A_post = RW<struct hyp_allocator>(allocator);
+                alloc_size == alloc_size2 &&
+                mapped_size == mapped_size2 &&
+                node == node2;
+                A_pre == A_post;
+                take Prev_post = MaybeChunkHdr(prev_chunk, cond);
+                Prev == Prev_post;
+                if (cond) {
+                        !is_null(return) &&
+                        ptr_eq(member_shift<struct chunk_hdr>(return, node), node.prev)
+                } else {
+                        is_null(return)
                 };
 
 @*/
 {
-        /*@ split_case(ptr_eq(
-                member_shift<struct chunk_hdr>(chunk, node),
-                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ split_case(ptr_eq(
-                member_shift<struct chunk_hdr>(chunk, node)->prev,
-                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->prev));@*/
-        /*@ unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
-                member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.first, ha); @*/
+        /*@ split_case(cond); @*/
+	/*@ unpack MaybeChunkHdr(prev_chunk, cond); @*/
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
         chunk_hash_validate(prev);
 	/*@ unpack MaybeChunkHdr(prev, !is_null(prev)); @*/
@@ -3219,6 +3221,20 @@ void hyp_free_account(void *addr, struct kvm *host_kvm)
 }
 #endif /* STANDALONE */
 
+/*@
+function (boolean) Cn_chunk_destroyable(cn_lseg lseg)
+{
+        lseg.chunk.alloc_size == 0u32
+        && cn_IS_ALIGNED(lseg.chunk.header_address)
+        && (match (lseg.before)
+        {
+                Chunk_nil {} => { lseg.after == Chunk_nil {} }
+                Chunk_cons{ hd: hdr, tl:tl } => {
+                        hdr.alloc_size == 0u32
+                }
+        })
+}
+@*/
 /*
  * While chunk_try_destroy() is actually destroying what can be, this function
  * only help with estimating how much pages can be reclaimed. However the same
@@ -3226,6 +3242,15 @@ void hyp_free_account(void *addr, struct kvm *host_kvm)
  */
 static bool chunk_destroyable(struct chunk_hdr *chunk,
                               struct hyp_allocator *allocator)
+/*@
+requires
+        take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let C = HA.lseg.chunk;
+ensures
+        take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        HA == HA_post;
+        (Cn_chunk_destroyable(HA.lseg) ? 1u8 : 0u8) == return;
+@*/
 {
         if (chunk_is_used(chunk)) {
                 return false;
@@ -3235,6 +3260,15 @@ static bool chunk_destroyable(struct chunk_hdr *chunk,
                 return false;
         }
 
+        /*@
+        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs(...);
+        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs_rev(...);
+        @*/
+
         if (list_is_first(&chunk->node, &allocator->chunks)) {
                 if (list_is_last(&chunk->node, &allocator->chunks)) {
                         return true;
@@ -3243,11 +3277,26 @@ static bool chunk_destroyable(struct chunk_hdr *chunk,
                 return false;
         }
 
-        return !chunk_is_used(chunk_get_prev(chunk, allocator));
+        /* CN DIFF */
+        struct chunk_hdr *tmp = chunk_get_prev(chunk, allocator);
+        /*@ unpack MaybeChunkHdr(...); @*/
+        return !chunk_is_used(tmp);
 }
 
 static size_t chunk_reclaimable(struct chunk_hdr *chunk,
                                 struct hyp_allocator *allocator)
+/*@
+requires
+        take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
+ensures
+        take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let C = HA.lseg.chunk;
+        HA == HA_post;
+        let start = (Cn_chunk_destroyable(HA_post.lseg) ?
+                (u64)chunk : PAGE_ALIGN((u64)chunk + Cn_chunk_size((u64)C.alloc_size)));
+        let end = PAGE_ALIGN_DOWN(C.header_address + (u64)C.mapped_size);
+        (start <= end ? end - start : 0u64) == return;
+@*/
 {
         unsigned long start, end = chunk_unmapped_region(chunk);
 
@@ -3430,6 +3479,14 @@ int hyp_alloc_init(unsigned long size)
 }
 
 int hyp_alloc_errno(void)
+/*@
+requires
+        take X = RW<int>(&hyp_allocator_errno);
+ensures
+        take Y = RW<int>(&hyp_allocator_errno);
+        Y == X;
+        return == X;
+@*/
 {
         int *errno = this_cpu_ptr(&hyp_allocator_errno);
 
@@ -3437,6 +3494,14 @@ int hyp_alloc_errno(void)
 }
 
 u8 hyp_alloc_missing_donations(void)
+/*@
+requires
+        take X = RW<unsigned char>(&hyp_allocator_missing_donations);
+ensures
+        take Y = RW<unsigned char>(&hyp_allocator_missing_donations);
+        Y == 0u8;
+        return == X;
+@*/
 {
         u8 *missing = (this_cpu_ptr(&hyp_allocator_missing_donations));
         u8 __missing = *missing;

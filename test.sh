@@ -55,6 +55,10 @@ targets=(
   chunk_merge
   chunk_list_del
   hyp_free
+  hyp_alloc_errno
+  hyp_alloc_missing_donations
+  chunk_destroyable
+  chunk_reclaimable
 )
 # unproved: chunk_install, get_free_hunk, chunk_recycle, hyp_alloc
 
