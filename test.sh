@@ -52,6 +52,7 @@ targets=(
   pkvm_alloc_private_va_range
   LemmaMergeChunk
   LemmaMergeArrays
+  chunk_merge
   chunk_list_del
   hyp_free
 )
