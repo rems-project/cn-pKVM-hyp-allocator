@@ -55,7 +55,7 @@ cn-instrument: main.exe
 
 .PHONY: cn-test
 cn-test: src/alloc.c
-	cn test --no-run --output-dir=_test/ src/alloc.c -Isrc -Iinclude -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -d1
+	cn test --no-run --output-dir=_test/ src/alloc.c -Isrc -Iinclude -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -d2 --experimental-learning --experimental-product-arg-destruction --inline-everything --input-timeout=0 --smt-pruning=fast --print-backtrack-info --print-satisfaction-info --only=my_list_is_last
 	CPPFLAGS="-std=c2x -include ../fulminate2.h $(CPPFLAGS)" ./_test/run_tests.sh
 
 .PHONY: clean
