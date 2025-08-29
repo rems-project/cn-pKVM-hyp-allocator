@@ -87,6 +87,7 @@ struct chunk_hdr_only {
         u32                     hash;
         /* CN */ u32            explicit_padding;
 };
+[[cerb::byte]] typedef unsigned char byte;
 
 
 // Auxiliary functions for chunk_hdr
@@ -155,14 +156,14 @@ ensures
         /*@ to_bytes RW<unsigned>(a); @*/
         /*@ to_bytes RW<unsigned>(b); @*/
 
-        /*@ focus RW<unsigned char>, 0u64; @*/
-        /*@ focus RW<unsigned char>, 1u64; @*/
-        /*@ focus RW<unsigned char>, 2u64; @*/
-        /*@ focus RW<unsigned char>, 3u64; @*/
-        /*@ focus RW<unsigned char>, 4u64; @*/
-        /*@ focus RW<unsigned char>, 5u64; @*/
-        /*@ focus RW<unsigned char>, 6u64; @*/
-        /*@ focus RW<unsigned char>, 7u64; @*/
+        /*@ focus RW<byte>, 0u64; @*/
+        /*@ focus RW<byte>, 1u64; @*/
+        /*@ focus RW<byte>, 2u64; @*/
+        /*@ focus RW<byte>, 3u64; @*/
+        /*@ focus RW<byte>, 4u64; @*/
+        /*@ focus RW<byte>, 5u64; @*/
+        /*@ focus RW<byte>, 6u64; @*/
+        /*@ focus RW<byte>, 7u64; @*/
         /*@ from_bytes RW<unsigned long long>(a); @*/
 }
 
@@ -179,14 +180,14 @@ ensures
 {
         /*@ to_bytes RW<unsigned long long>(a); @*/
 
-        /*@ focus RW<unsigned char>, 0u64; @*/
-        /*@ focus RW<unsigned char>, 1u64; @*/
-        /*@ focus RW<unsigned char>, 2u64; @*/
-        /*@ focus RW<unsigned char>, 3u64; @*/
-        /*@ focus RW<unsigned char>, 4u64; @*/
-        /*@ focus RW<unsigned char>, 5u64; @*/
-        /*@ focus RW<unsigned char>, 6u64; @*/
-        /*@ focus RW<unsigned char>, 7u64; @*/
+        /*@ focus RW<byte>, 0u64; @*/
+        /*@ focus RW<byte>, 1u64; @*/
+        /*@ focus RW<byte>, 2u64; @*/
+        /*@ focus RW<byte>, 3u64; @*/
+        /*@ focus RW<byte>, 4u64; @*/
+        /*@ focus RW<byte>, 5u64; @*/
+        /*@ focus RW<byte>, 6u64; @*/
+        /*@ focus RW<byte>, 7u64; @*/
         /*@ from_bytes RW<unsigned>(a); @*/
         /*@ from_bytes RW<unsigned>(b); @*/
 }
@@ -892,7 +893,7 @@ void LemmaMergeArrays(
 /*@
 requires
         let size = size1 + size2;
-        let owned_by_ha = array_shift<unsigned char>(p, size1);
+        let owned_by_ha = array_shift<byte>(p, size1);
         take X1 = Cn_char_array(p, size1);
         take X2 = Cn_char_array(owned_by_ha, size2);
         size1 <= (u64)MAXu32();
@@ -919,8 +920,8 @@ ensures
         {
                 /*@
                   unpack Cn_char_array(...);
-                  focus W<unsigned char>, i;
-                  focus W<unsigned char>, (size1 + i);
+                  focus W<byte>, i;
+                  focus W<byte>, (size1 + i);
                 @*/
         }
 }
@@ -1232,7 +1233,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 };
                 assert(HA_post.ha == ha_post);
                 assert(ret == 0i32);
-                take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size);
+                take U = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size);
                 return;
         }
         else
@@ -1266,7 +1267,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 };
                 assert(HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
 
-                take U = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size);
+                take U = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size);
 
                 return;
         }
@@ -1295,7 +1296,7 @@ void LemmaSplitAndNewChunk(
 requires
         let size = (u64)size1 + (u64)size2;
         take X = Cn_char_array(p, size);
-        let owned_by_ha = array_shift<unsigned char>(p, (u64)size1);
+        let owned_by_ha = array_shift<byte>(p, (u64)size1);
 ensures
         take X1 = Cn_char_array(p, (u64)size1);
         take X2 = Cn_char_array(owned_by_ha, (u64)size2);
@@ -1319,8 +1320,8 @@ ensures
         {
                 /*@
                   unpack Cn_char_array(owned_by_ha, i);
-                  focus W<unsigned char>, i;
-                  focus W<unsigned char>, ((u64)size1 + i);
+                  focus W<byte>, i;
+                  focus W<byte>, ((u64)size1 + i);
                 @*/
         }
 }
@@ -1370,9 +1371,9 @@ requires
     size_all <= (u64)MAXu32();
     take C_pre = Cn_char_array(chunk_data, size_all);
 
-    let chunk_hdr = array_shift<unsigned char>(chunk_data, size1);
-    let chunk = array_shift<unsigned char>(chunk_data, size1 + Cn_chunk_hdr_size());
-    let remaining = array_shift<unsigned char>(chunk_data, size1 + size + Cn_chunk_hdr_size());
+    let chunk_hdr = array_shift<byte>(chunk_data, size1);
+    let chunk = array_shift<byte>(chunk_data, size1 + Cn_chunk_hdr_size());
+    let remaining = array_shift<byte>(chunk_data, size1 + size + Cn_chunk_hdr_size());
 ensures
     take C1 = Cn_char_array(chunk_data, size1);
     take chunk_hdr_only_u = W<struct chunk_hdr_only>(chunk_hdr);
@@ -1453,10 +1454,10 @@ ensures
         (u64)HA_post.lseg.chunk.va_size + (u64)HA_post.va_size == (u64)HA_pre.lseg.chunk.va_size;
 
          take chunk_hdr_only_u = W<struct chunk_hdr_only>(chunk);
-        take X = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size() + (u64)size), (u64)HA_post.va_size - (u64)size - Cn_chunk_hdr_size());
+        take X = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size() + (u64)size), (u64)HA_post.va_size - (u64)size - Cn_chunk_hdr_size());
 
 
-        take V = Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), (u64)size);
+        take V = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), (u64)size);
 @*/
 {
         /*@
@@ -1558,9 +1559,9 @@ void LemmaMergeChunks(char *chunk_data, size_t size, size_t size2)
 requires
         !is_null(chunk_data);
         take C1 = Cn_char_array(chunk_data, size);
-        let next_chunk = array_shift<unsigned char>(chunk_data, Cn_chunk_hdr_size());
+        let next_chunk = array_shift<byte>(chunk_data, Cn_chunk_hdr_size());
         take C_hdr = RW<struct chunk_hdr_only>(next_chunk);
-        let next_chunk_data = array_shift<unsigned char>(chunk_data, Cn_chunk_hdr_size() + size);
+        let next_chunk_data = array_shift<byte>(chunk_data, Cn_chunk_hdr_size() + size);
         take C2 = Cn_char_array(next_chunk_data, size2);
 ensures
         take C3 = Cn_char_array(chunk_data, size + size2 + Cn_chunk_hdr_size());
@@ -2106,7 +2107,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                         alloc_size: (u32)size,
                         va_size: C_pre.va_size
                 };
-        take U = Conditional_Cn_char_array(array_shift<unsigned char>(chunk, Cn_chunk_hdr_size()), size, return == 0i32);
+        take U = Conditional_Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size, return == 0i32);
 
 @*/
 {
@@ -2273,7 +2274,7 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
         assert(HA_post.ha == ha_post);
 
         // the chunk allocated to the client
-        let chunk_data = array_shift<unsigned char>(start, Cn_chunk_hdr_size());
+        let chunk_data = array_shift<byte>(start, Cn_chunk_hdr_size());
         take Arr = Cn_char_array(chunk_data, size);
 
         return;
@@ -3153,7 +3154,7 @@ void hyp_free(void *addr)
 /*@
         requires
                 !is_null(addr);
-                let header_address = array_shift<unsigned char>(addr, - Cn_chunk_hdr_size());
+                let header_address = array_shift<byte>(addr, - Cn_chunk_hdr_size());
                 take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator,header_address);
                 let C = HA_pre.lseg.chunk;
                 take U = Cn_char_array(addr, (u64)C.alloc_size);

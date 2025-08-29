@@ -53,6 +53,7 @@ typedef uint64_t        u64;
 
 typedef u64             phys_addr_t;
 
+
 // This is defined in include/linux/types.h
 struct list_head {
         struct list_head *next, *prev;
@@ -127,14 +128,14 @@ datatype option_u64 {
 predicate [nounfold] void Cn_char_array(pointer p, u64 size)
 {
         take U = each(u64 i; i < size){
-                W<unsigned char>(array_shift<unsigned char>(p, i))
+                W<byte>(array_shift<byte>(p, i))
         };
         return;
 }
 predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
 {
         take U = each(u64 i; offset <= i && i < offset + size){
-                W<unsigned char>(array_shift<unsigned char>(p, i))
+                W<byte>(array_shift<byte>(p, i))
         };
         return;
 }
@@ -259,7 +260,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
                         v
                 }
         };
-        let start = array_shift<unsigned char>(header_address, Cn_chunk_hdr_size() + alloc_size );
+        let start = array_shift<byte>(header_address, Cn_chunk_hdr_size() + alloc_size );
         let size_owned_by_ha = (u64)cn_hdr.va_size -  Cn_chunk_hdr_size() - alloc_size;
         take A = Cn_char_array(start, size_owned_by_ha);
 
@@ -337,7 +338,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, 
         } else {
                 assert(!is_null(p));
 
-                let header_address = array_shift<unsigned char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
+                let header_address = array_shift<byte>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.prev, prev));
                 // HK: I think this assertion is not needed, if CN handles NULL "properly"
@@ -359,7 +360,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));
-                let header_address = array_shift<unsigned char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
+                let header_address = array_shift<byte>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.next, next));
                 // HK: I think this assertion is not needed, if CN handles NULL "properly"
