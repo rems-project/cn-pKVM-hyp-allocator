@@ -2,6 +2,10 @@
 
 WIP. Accurate as of 2025-09-17
 
+## Instructions on how to carve and preprocess allocator
+
+TODO
+
 ## Run Fulminate on the carved, preprocessed heap allocator
 
 Tried on Ubuntu (legion). 
@@ -67,5 +71,4 @@ opam install -- ignore-pin-depends ./cn.opam
 cn instrument --include shim.h alloc.carved.c
 ```
 
-## TODO: Instructions on how to carve and preprocess allocator
 
