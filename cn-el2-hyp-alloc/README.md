@@ -1,4 +1,4 @@
-# pKVM heap allocator at EL2
+# Fulminating hyp-alloc for EL2
 
 WIP. Accurate as of 2025-09-17
 
