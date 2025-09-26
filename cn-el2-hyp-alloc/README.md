@@ -57,4 +57,53 @@ cn instrument --include shim.h alloc.carved.c
 
 ## Instructions on how to carve and preprocess allocator
 
+
+### Preprocess
+
+1. Get the required commit of Linux locally.
+
+**If you already have Linux cloned somewhere**
+
+`cd` there, run `git fetch` and then run the following:
+
+```
+git worktree add ../SOMEWHERE/ELSE/linux 74ae8d16a996
+```
+
+`74ae8d16a996` is the commit hash of Linux that we (Hiro) have been CN-speccing, so here, we are checking out the required commit at the path `../SOMEWHERE/ELSE/linux`.
+
+Now `cd` to `../SOMEWHERE/ELSE/linux` and checkout a new branch:
+
+```
+git checkout -b cn-el2
+```
+
+
+**If you don't have Linux locally** 
+
+Clone it (warning: this takes a while):
+
+```
+git clone https://android-kvm.googlesource.com/linux
+```
+
+and checkout to the required commit on a new branch:
+
+```
+git checkout -b cn-el2 74ae8d16a996
+```
+
+
+
+2. **TODO: incomplete** Run the `pp` script:
+
+```
+CC=clang-19 pp pp arch/arm64/kvm/hyp/nvhe/alloc.c > alloc.pp.c
+```
+
+
+
+
+### Carve
+
 TODO
