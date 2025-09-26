@@ -6,6 +6,7 @@
 *.o
 *.exe
 *.pp.c
+!/cn-el2-hyp-alloc/el2-hyp-alloc/alloc.pp.c
 *.exec.c
 
 compile_commands.json
