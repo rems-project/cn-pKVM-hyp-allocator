@@ -55,8 +55,11 @@ cn-instrument: main.exe
 
 .PHONY: cn-test-random
 cn-test-random: src/alloc.c
-	cn test --no-run --output-dir=_test_random/ src/alloc.c -Isrc -Iinclude -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS --experimental-product-arg-destruction --input-timeout=0 --smt-pruning-before-absint=fast --skip=chunk_try_destroy
-	CPPFLAGS="-include ../fulminate2.h $(CPPFLAGS)" ./_test/run_tests.sh
+	./test-random.sh --cc=$(CC)
+
+.PHONY: cn-test-symbolic
+cn-test-symbolic: src/alloc.c
+	./test-symbolic.sh --cc=$(CC) --only=chunk_addr_fixup,chunk_needs_mapping,my_list_is_last,LemmaMergeChunk,chunk_list_insert,chunk_get_prev,chunk_get_next,__chunk_prev
 
 .PHONY: clean
 clean:
