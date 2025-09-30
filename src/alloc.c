@@ -87,7 +87,10 @@ struct chunk_hdr_only {
         u32                     hash;
         /* CN */ u32            explicit_padding;
 };
-[[cerb::byte]] typedef unsigned char byte;
+#ifdef __CN_VERIFY
+[[cerb::byte]]
+#endif
+typedef unsigned char byte;
 
 
 // Auxiliary functions for chunk_hdr
