@@ -53,10 +53,10 @@ main.exe: main.pp.exec.o $(RUNTIME_LIB)/libcn_exec.a
 cn-instrument: main.exe
 	./main.exe || lldb -S lldb_config_for_fulminate.lldb
 
-.PHONY: cn-test
-cn-test: src/alloc.c
-	cn test --no-run --output-dir=_test/ src/alloc.c -Isrc -Iinclude -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -d2 --experimental-learning --experimental-product-arg-destruction --inline-everything --input-timeout=0 --smt-pruning=fast --print-backtrack-info --print-satisfaction-info --only=my_list_is_last
-	CPPFLAGS="-std=c2x -include ../fulminate2.h $(CPPFLAGS)" ./_test/run_tests.sh
+.PHONY: cn-test-random
+cn-test-random: src/alloc.c
+	cn test --no-run --output-dir=_test_random/ src/alloc.c -Isrc -Iinclude -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS --experimental-product-arg-destruction --input-timeout=0 --smt-pruning-before-absint=fast --skip=chunk_try_destroy
+	CPPFLAGS="-include ../fulminate2.h $(CPPFLAGS)" ./_test/run_tests.sh
 
 .PHONY: clean
 clean:
