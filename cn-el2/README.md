@@ -21,7 +21,7 @@ eval $(opam env --switch=el2-hyp-alloc)
 ```
 
 
-2. Clone David's Cerberus fork (https://github.com/pqwy/cerberus) and checkout to the right branch:
+2. Clone [David's Cerberus fork](https://github.com/pqwy/cerberus) and checkout to the right branch:
 
 ```
 git checkout -b for-fulminate origin/for-fulminate
@@ -35,7 +35,7 @@ opam pin add cerberus.dev $(pwd)
 ```
 
 
-4. Now, in the parent directory, clone David's CN fork (https://github.com/pqwy/cn) and checkout to the right branch:
+4. Now, in the parent directory, clone [David's CN fork](https://github.com/pqwy/cn) and checkout to the right branch:
 
 ```
 git checkout -b update-cerberus-for-fulminate+unions origin/update-cerberus-for-fulminate+unions
