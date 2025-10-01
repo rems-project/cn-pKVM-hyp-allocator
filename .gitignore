@@ -10,5 +10,5 @@
 *.exec.c
 
 compile_commands.json
-
+!/cn-el2/compile_commands.json
 _test*
