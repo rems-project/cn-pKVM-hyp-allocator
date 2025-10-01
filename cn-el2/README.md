@@ -62,48 +62,62 @@ cn instrument --include shim.h alloc.carved.c
 
 1. Get the required commit of Linux locally.
 
-**If you already have Linux cloned somewhere**
+ **If you already have Linux cloned somewhere**
+ 
+ `cd` there, run `git fetch` and then run the following:
+ 
+ ```
+ git worktree add ../SOMEWHERE/ELSE/linux 74ae8d16a996
+ ```
+ 
+ `74ae8d16a996` is the commit hash of Linux that we (Hiro) have been CN-speccing, so here, we are checking out the required commit at the path `../SOMEWHERE/ELSE/linux`.
+ 
+ Now `cd` to `../SOMEWHERE/ELSE/linux` and checkout a new branch:
+ 
+ ```
+ git checkout -b cn-el2
+ ```
 
-`cd` there, run `git fetch` and then run the following:
 
-```
-git worktree add ../SOMEWHERE/ELSE/linux 74ae8d16a996
-```
-
-`74ae8d16a996` is the commit hash of Linux that we (Hiro) have been CN-speccing, so here, we are checking out the required commit at the path `../SOMEWHERE/ELSE/linux`.
-
-Now `cd` to `../SOMEWHERE/ELSE/linux` and checkout a new branch:
-
-```
-git checkout -b cn-el2
-```
-
-
-**If you don't have Linux locally** 
-
-Clone it (warning: this takes a while):
-
-```
-git clone https://android-kvm.googlesource.com/linux
-```
-
-and checkout to the required commit on a new branch:
-
-```
-git checkout -b cn-el2 74ae8d16a996
-```
+ **If you don't have Linux locally** 
+ 
+ Clone it (warning: this takes a while):
+ 
+ ```
+ git clone https://android-kvm.googlesource.com/linux
+ ```
+ 
+ and checkout to the required commit on a new branch:
+ 
+ ```
+ git checkout -b cn-el2 74ae8d16a996
+ ```
 
 
 
 2. **TODO: incomplete** Run the `pp` script:
 
-```
-CC=clang-19 pp pp arch/arm64/kvm/hyp/nvhe/alloc.c > alloc.pp.c
-```
+ ```
+ CC=clang-19 pp pp arch/arm64/kvm/hyp/nvhe/alloc.c > alloc.pp.c
+ ```
 
 
 
 
 ### Carve
 
-TODO
+**TODO: how to download and build carver**
+
+1. Copy the `compile_commands.json` file in this subdir into wherever your Linux repo is:
+
+```
+cp compile_commands.json PATH/TO/YOUR/linux
+```
+
+2. Run the tree carver on `alloc.c`:
+
+```
+c-tree-carve -p . -r hyp_alloc,hyp_alloc_account,hyp_free,hyp_free_account,hyp_alloc_reclaimable,hyp_alloc_reclaim,hyp_alloc_refill,hyp_alloc_init,hyp_alloc_errno,hyp_alloc_missing_donations arch/arm64/kvm/hyp/nvhe/alloc.c
+```
+
+The result of applying the carver is in `arch/arm64/kvm/hyp/nvhe/alloc.carved.c`.
