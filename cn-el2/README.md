@@ -125,7 +125,8 @@ want to split that into pp and cc. First, save the command to a file:
 per line:
 ```bash
 jq -r < compile_commands.json '.[]|select(.file|endswith("arm64/kvm/hyp/nvhe/alloc.c"))|.command' \
-    | sed -e's/ \+/\n/g; $d' -e "s/'\"/\"/g; s/\"'/\"/g" \
+    | sed -e's/ \+/\n/g' -e "s/'\"/\"/g; s/\"'/\"/g" \
+    | sed -e'$d' \
     | tail -n+2 > cc-args.master
 ```
 (`sed` 1) produces one arg per line, 2) drops the argument file, and 3) removes
