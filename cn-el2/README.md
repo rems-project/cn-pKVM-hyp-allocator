@@ -133,7 +133,8 @@ version without `-c` and `-o` flags:
 ```
 sed < cc-args.master -e '/^-o$/{N;d}; /^-c$/d' > cc-args.pp
 ```
-or by using an editor. `cc-args.pp` contains the remaining args.
+or by using an editor. `cc-args.pp` contains the remaining args. Then run the C
+compiler in just the pre-processor mode:
 ```
 clang -E -CC -P $(< cc-args.pp) arch/arm64/kvm/hyp/nvhe/alloc.c \
     | clang-format --style=WebKit > arch/arm64/kvm/hyp/nvhe/alloc.pp.c
@@ -148,6 +149,15 @@ than needed.
 ### Carver
 
 **TODO**
+
+Run the carver:
+```
+c-tree-carve -p . -r hyp_alloc,hyp_alloc_account,hyp_free,hyp_free_account,hyp_alloc_reclaimable,hyp_alloc_reclaim,hyp_alloc_refill,hyp_alloc_init,hyp_alloc_errno,hyp_alloc_missing_donations arch/arm64/kvm/hyp/nvhe/alloc.c
+```
+
+Except it:
+- refuses `compile_commands.json` **TODO**
+- and happily proceeds to segfault **TODO**
 
 ## Fulminating the files
 
