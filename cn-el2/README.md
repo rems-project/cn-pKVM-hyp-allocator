@@ -44,7 +44,7 @@ git checkout -b update-cerberus-for-fulminate+unions origin/update-cerberus-for-
 5. In the cn subdirectory, run the following opam commands:
 
 ```
-opam install -- ignore-pin-depends ./cn.opam
+opam install --ignore-pin-depends ./cn.opam
 ```
 
 6. Now cd to `el2-hyp-alloc` in the parent directory and run Fulminate:
