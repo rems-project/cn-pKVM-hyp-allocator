@@ -145,15 +145,17 @@ clang -E -CC -P $(< cc-args.pp) arch/arm64/kvm/hyp/nvhe/alloc.c \
 configuration that did not seem to take super-linear time.
 
 The resulting `arm64/kvm/hyp/nvhe/alloc.pp.c` should be fully pre-processed and
-make no references to other files. However, inlining the headers adds much code
-than needed.
+make no references to other files. However, inlining the headers adds much more
+code than needed.
 
 ### Carver
 
-Install c-tree-carver; if
-[this PR](https://github.com/rems-project/c-tree-carver/pull/26) is still open,
-use [this branch](https://github.com/pqwy/c-tree-carver/tree/fix-segfault),
-otherwise it will segfault in a future step.
+Carver is used to remove code not directly referenced from the target file.
+
+[Install it](https://github.com/rems-project/c-tree-carver);
+if [this PR](https://github.com/rems-project/c-tree-carver/pull/26)
+is still open, use
+[this branch](https://github.com/pqwy/c-tree-carver/tree/fix-segfault).
 
 Carver cannot consume the standard `compile_commands.json` format, requiring
 relative paths. Save a copy of the file:
