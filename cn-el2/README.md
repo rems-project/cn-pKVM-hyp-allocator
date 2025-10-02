@@ -122,7 +122,6 @@ jq -r < compile_commands.json '.[]|select(.file|endswith("arm64/kvm/hyp/nvhe/all
 ```
 and checking that it outputs a long and gnarly invocation of the C compiler. We
 want to split that into pp and cc. First, save the command to a file:
-per line:
 ```bash
 jq -r < compile_commands.json '.[]|select(.file|endswith("arm64/kvm/hyp/nvhe/alloc.c"))|.command' \
     | sed -e's/ \+/\n/g' -e "s/'\"/\"/g; s/\"'/\"/g" \
@@ -160,7 +159,7 @@ is still open, use
 Carver cannot consume the standard `compile_commands.json` format, requiring
 relative paths. Save a copy of the file:
 ```bash
-cp compile_commands.json compile_commands.ORIGINAL.json
+cp compile_commands.json compile_commands.original.json
 ```
 assuming `/path/to/LINUX` is the absolute path to your linux working tree,
 produce a relative-path version by running:
