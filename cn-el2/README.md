@@ -124,12 +124,11 @@ and checking that it outputs a long and gnarly invocation of the C compiler. We
 want to split that into pp and cc. First, save the command to a file:
 ```bash
 jq -r < compile_commands.json '.[]|select(.file|endswith("arm64/kvm/hyp/nvhe/alloc.c"))|.command' \
-    | sed -e's/ \+/\n/g' -e "s/'\"/\"/g; s/\"'/\"/g" \
-    | sed -e'$d' \
-    | tail -n+2 > cc-args.master
+    | sed -e's: \+:\n:g' -e "s:'\":\":g; s:\"':\":g" \
+    | sed -e'1d; $d' > cc-args.master
 ```
-(`sed` 1) produces one arg per line, 2) drops the argument file, and 3) removes
-one level of quoting, meant for the shell.) `cc-args.master` can now be viewed,
+`sed` 1) produces one arg per line, 2) removes one level of quoting (meant for
+the shell) and 3) drops the argument file. `cc-args.master` can now be viewed,
 e.g. `less cc-args.master`. Prepare a version without `-c` and `-o` flags:
 ```bash
 sed < cc-args.master -e '/^-o$/{N;d}; /^-c$/d' > cc-args.pp
@@ -166,9 +165,9 @@ produce a relative-path version by running:
 ```bash
 jq < compile_commands.json '[.[]|.file|=ltrimstr("/path/to/LINUX/")]' > compile_commands.json
 ```
-The tool will use `compile_commands.json` to look up various args; while the
-pre-processed file is not described there. Replace the original with the
-pre-processed version:
+The tool will use `compile_commands.json` to look up compiler args, and the
+pre-processed file (`alloc.pp.c`) is not listed there. Replace the original with
+it:
 ```bash
 cp arch/arm64/kvm/hyp/nvhe/alloc.c arch/arm64/kvm/hyp/nvhe/alloc.original.c
 cp arch/arm64/kvm/hyp/nvhe/alloc.pp.c arch/arm64/kvm/hyp/nvhe/alloc.c
