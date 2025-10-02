@@ -121,15 +121,16 @@ worked by running
 jq -r < compile_commands.json '.[]|select(.file|endswith("arm64/kvm/hyp/nvhe/alloc.c"))|.command'
 ```
 and checking that it outputs a long and gnarly invocation of the C compiler. We
-want to split that into pp and cc. First, save the command to a file, one arg
+want to split that into pp and cc. First, save the command to a file:
 per line:
 ```bash
 jq -r < compile_commands.json '.[]|select(.file|endswith("arm64/kvm/hyp/nvhe/alloc.c"))|.command' \
-    | sed -e's/ \+/\n/g' -e "s/'\"/\"/g; s/\"'/\"/g" \
+    | sed -e's/ \+/\n/g; $d' -e "s/'\"/\"/g; s/\"'/\"/g" \
     | tail -n+2 > cc-args.master
 ```
-`cc-args.master` can now be viewed, e.g. `less cc-args.master`. Prepare a
-version without `-c` and `-o` flags:
+(`sed` 1) produces one arg per line, 2) drops the argument file, and 3) removes
+one level of quoting, meant for the shell.) `cc-args.master` can now be viewed,
+e.g. `less cc-args.master`. Prepare a version without `-c` and `-o` flags:
 ```bash
 sed < cc-args.master -e '/^-o$/{N;d}; /^-c$/d' > cc-args.pp
 ```
@@ -148,16 +149,39 @@ than needed.
 
 ### Carver
 
-**TODO**
+Install c-tree-carver; if
+[this PR](https://github.com/rems-project/c-tree-carver/pull/26) is still open,
+use [this branch](https://github.com/pqwy/c-tree-carver/tree/fix-segfault),
+otherwise it will segfault in a future step.
 
-Run the carver:
+Carver cannot consume the standard `compile_commands.json` format, requiring
+relative paths. Save a copy of the file:
+```bash
+cp compile_commands.json compile_commands.ORIGINAL.json
+```
+assuming `/path/to/LINUX` is the absolute path to your linux working tree,
+produce a relative-path version by running:
+```bash
+jq < compile_commands.json '[.[]|.file|=ltrimstr("/path/to/LINUX/")]' > compile_commands.json
+```
+The tool will use `compile_commands.json` to look up various args; while the
+pre-processed file is not described there. Replace the original with the
+pre-processed version:
+```bash
+cp arch/arm64/kvm/hyp/nvhe/alloc.c arch/arm64/kvm/hyp/nvhe/alloc.original.c
+cp arch/arm64/kvm/hyp/nvhe/alloc.pp.c arch/arm64/kvm/hyp/nvhe/alloc.c
+```
+
+Finally, run the carver:
 ```bash
 c-tree-carve -p . -r hyp_alloc,hyp_alloc_account,hyp_free,hyp_free_account,hyp_alloc_reclaimable,hyp_alloc_reclaim,hyp_alloc_refill,hyp_alloc_init,hyp_alloc_errno,hyp_alloc_missing_donations arch/arm64/kvm/hyp/nvhe/alloc.c
 ```
-
-Except it:
-- refuses `compile_commands.json` **TODO**
-- and happily proceeds to segfault **TODO**
+It will reject the source file as not being valid C. Look at the error messages
+and source locations, and correct them by hand using an editor; it should
+involve adding newlines. Re-run the tool, as above. The last output line gives
+the location of the output tree, somewhere in `/tmp/`. It contains only one
+source file; copy it from there back into the linux source tree, as
+`arch/arm64/kvm/hyp/nvhe/alloc.carved.c`.
 
 ## Fulminating the files
 
