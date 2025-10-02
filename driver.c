@@ -15,7 +15,7 @@ void cn_print_nr_owned_predicates(void);
 s64 hyp_physvirt_offset;
  
 struct hyp_pool *init(unsigned int nr_pages) 
-/*@ accesses __hyp_vmemmap; hyp_physvirt_offset; cn_virt_ptr;
+/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr;
     ensures take H = Hyp_pool(return, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); 
 @*/
 {

@@ -34,7 +34,7 @@ extern struct hyp_page *__hyp_vmemmap;
 #define __hyp_va(phys)    ((phys_addr_t)(phys) - hyp_physvirt_offset)
 
 static inline void *hyp_phys_to_virt(phys_addr_t phys)
-/*@ accesses hyp_physvirt_offset; cn_virt_base; 
+/*@ accesses hyp_physvirt_offset, cn_virt_base; 
  requires let virt = phys - (u64) hyp_physvirt_offset; 
  ensures {hyp_physvirt_offset} unchanged; 
   (u64) return == virt; @*/
@@ -90,7 +90,7 @@ static inline u64 hyp_page_to_pfn(struct hyp_page *page)
 /* } */
 
 static inline int hyp_page_count(struct hyp_pool *pool, void *addr)
-/*@ accesses hyp_physvirt_offset; __hyp_vmemmap; cn_virt_base; 
+/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_base; 
  requires let hyp_vmemmap = __hyp_vmemmap; 
   let phys = cn__hyp_pa(hyp_physvirt_offset, addr); 
   take H = Hyp_pool(pool, hyp_vmemmap, cn_virt_base, hyp_physvirt_offset); 

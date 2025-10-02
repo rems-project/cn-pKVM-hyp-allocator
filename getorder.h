@@ -38,10 +38,10 @@ long fls64(long x)
 //#define fls64 flsl
 
 static /*__always_inline __attribute_const__*/ int get_order(unsigned long size)
-/*@ trusted; @*/
-/*@ requires size >= page_size(); @*/
-/*@ ensures return == (i32) get_order_uf(size); @*/
-/*@ ensures return > 0i32; @*/
+/*@ trusted; 
+    requires size >= page_size();
+    ensures return == (i32) get_order_uf(size); 
+            return > 0i32; @*/
 {
 /*    if (__builtin_constant_p(size)) {
         if (!size)
