@@ -773,7 +773,7 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
         p[i].order = 0;    /* added for formalisation */
         hyp_set_page_refcounted(&p[i]);
         /*CN*//*@ apply order_aligned_init(pfn+((u64) i)); @*/
-        /*CN*//*@ apply page_size_of_order (); @*/
+        /*CN*//*@ apply page_size_of_order_lemma (); @*/
     }
 
     /*CN*//*@ apply page_group_ok_easy(__hyp_vmemmap,*pool); @*/

@@ -102,7 +102,7 @@ lemma order_aligned_init (u64 i) // unsigned long
   requires true;
   ensures order_aligned(i, 0u8);
 
-lemma page_size_of_order ()
+lemma page_size_of_order_lemma ()
   requires true;
   ensures (page_size_of_order(0u8)) == page_size();
 

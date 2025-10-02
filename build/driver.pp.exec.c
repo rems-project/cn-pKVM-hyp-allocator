@@ -180,7 +180,7 @@ static void struct_list_head_to_bytes(cn_pointer*);
 static void page_size_of_order2(cn_bits_u8*);
 static void find_buddy_xor(cn_bits_u64*, cn_bits_u8*);
 static void attach_inc_loop(cn_map*, cn_pointer*, struct hyp_pool_cn*, cn_pointer*, cn_bits_u8*);
-static void page_size_of_order();
+static void page_size_of_order_lemma();
 static void order_aligned_init(cn_bits_u64*);
 static void page_group_ok_easy(cn_pointer*, struct hyp_pool_cn*);
 static void order_align_inv_loop(cn_pointer*, cn_map*, struct hyp_pool_cn*, cn_pointer*);
@@ -209,20 +209,6 @@ void** cn_test_get_static_driverpp_cn_virt_base();
 void cn_test_set_static_driverpp_cn_virt_base(void**const );
 void** cn_test_get_static_driverpp_cn_virt_ptr();
 void cn_test_set_static_driverpp_cn_virt_ptr(void**const );
-# 1 "./driver.pp.c"
-# 1 "<built-in>" 1
-# 1 "<built-in>" 3
-
-
-
-
-
-
-
-
-# 1 "<command line>" 1
-# 1 "<built-in>" 2
-# 1 "/Users/rinibanerjee/.opam/default/lib/cerberus-lib/runtime/libc/include/builtins.h" 1
 // Some gcc builtins we support
 [[ cerb::hidden ]] int __builtin_ffs (int x);
 [[ cerb::hidden ]] int __builtin_ffsl (long x);
@@ -234,10 +220,7 @@ void cn_test_set_static_driverpp_cn_virt_ptr(void**const );
 [[ cerb::hidden ]] __cerbty_uint32_t __builtin_bswap32 (__cerbty_uint32_t x);
 [[ cerb::hidden ]] __cerbty_uint64_t __builtin_bswap64 (__cerbty_uint64_t x);
 [[ cerb::hidden ]] void __builtin_unreachable(void);
-
 // this is an optimisation hint that we can erase
-# 2 "<built-in>" 2
-# 1 "./driver.pp.c" 2
 /* originally: arch/arm64/kvm/hyp/nvhe/page_alloc.c */
 // SPDX-License-Identifier: GPL-2.0-only
 /*
@@ -283,7 +266,6 @@ return __cn_ret;
 /* originally: ./tools/include/uapi/linux/const.h */
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* const.h: Macros for dealing with constants.  */
-
 /* CP: we fix a value for PAGE_SHIFT */
 /* originally: ./arch/arm64/include/asm/page-def.h */
 /* SPDX-License-Identifier: GPL-2.0-only */
@@ -347,10 +329,10 @@ static inline int list_empty(const struct list_head *head)
   cn_pointer* head_cn = convert_to_cn_pointer(head);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O = Owned(head); \n                  ^./driver.pp.c:75:19:");
+  update_cn_error_message_info("/*@ requires take O = Owned(llist); \n                  ^./driver.pp.c:86:19:");
   struct list_head_cn* O_cn = owned_struct_list_head(head_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  ptr_eq(head, (*head).next) || !addr_eq(head, (*head).next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:76:3-62");
+  update_cn_error_message_info(" ensures take OR = Owned(llist); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:87:3-62");
   cn_assert(cn_bool_or(ptr_eq(head_cn, O_cn->next), cn_bool_not(addr_eq(head_cn, O_cn->next))), PRE);
   cn_pop_msg_info();
   
@@ -373,13 +355,13 @@ __cn_epilogue:
 
 {
   cn_bits_i32* return_cn = convert_to_cn_bits_i32(__cn_ret);
-  update_cn_error_message_info(" ensures take OR = Owned(head); \n              ^./driver.pp.c:77:15:");
+  update_cn_error_message_info("  (*llist).next == llist; (*llist).prev == llist; @*/\n              ^./driver.pp.c:88:15:");
   struct list_head_cn* OR_cn = owned_struct_list_head(head_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  O == OR; \n  ^~~~~~~~ ./driver.pp.c:78:3-11");
+  update_cn_error_message_info("{\n  ^~~~~~~~ ./driver.pp.c:89:3-11");
   cn_assert(struct_list_head_cn_equality(O_cn, OR_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  return == (((*head).next == head) ? 1i32 : 0i32); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:79:3-52");
+  update_cn_error_message_info("    /* WRITE_ONCE (llist->next, llist); */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:90:3-52");
   cn_bits_i32* a_5138;
   if (convert_from_cn_bool(cn_pointer_equality(OR_cn->next, head_cn))) {
     a_5138 = convert_to_cn_bits_i32(1LL);
@@ -410,7 +392,7 @@ static inline void INIT_LIST_HEAD(struct list_head *llist)
   cn_pointer* llist_cn = convert_to_cn_pointer(llist);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O = Owned(llist); \n                  ^./driver.pp.c:86:19:");
+  update_cn_error_message_info("    return 1;\n                  ^./driver.pp.c:97:19:");
   struct list_head_cn* O_cn = owned_struct_list_head(llist_cn, PRE, 0);
   cn_pop_msg_info();
   
@@ -433,13 +415,13 @@ __cn_epilogue:
   c_remove_from_ghost_state((&llist), sizeof(struct list_head*));
 
 {
-  update_cn_error_message_info(" ensures take OR = Owned(llist); \n              ^./driver.pp.c:87:15:");
+  update_cn_error_message_info("}\n              ^./driver.pp.c:98:15:");
   struct list_head_cn* OR_cn = owned_struct_list_head(llist_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*llist).next == llist; (*llist).prev == llist; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:88:3-26");
+  update_cn_error_message_info("static inline void __list_del(struct list_head * prev, struct list_head * next)\n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:99:3-26");
   cn_assert(cn_pointer_equality(OR_cn->next, llist_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*llist).next == llist; (*llist).prev == llist; @*/\n                          ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:88:27-50");
+  update_cn_error_message_info("static inline void __list_del(struct list_head * prev, struct list_head * next)\n                          ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:99:27-50");
   cn_assert(cn_pointer_equality(OR_cn->prev, llist_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -477,7 +459,7 @@ __cn_epilogue:
 
 {
   cn_bits_u8* return_cn = convert_to_cn_bits_u8(__cn_ret);
-  update_cn_error_message_info("/*@ ensures return == 1u8; @*/\n            ^~~~~~~~~~~~~~ ./driver.pp.c:95:13-27");
+  update_cn_error_message_info("  (*prev).next == next; \n            ^~~~~~~~~~~~~~ ./driver.pp.c:106:13-27");
   cn_assert(cn_bits_u8_equality(return_cn, convert_to_cn_bits_u8(1UL)), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -507,10 +489,10 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
   cn_pointer* next_cn = convert_to_cn_pointer(next);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O1 = Owned(prev); \n                  ^./driver.pp.c:100:19:");
+  update_cn_error_message_info("        next->prev = prev;\n                  ^./driver.pp.c:111:19:");
   struct list_head_cn* O1_cn = owned_struct_list_head(prev_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O2 = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:101:8:");
+  update_cn_error_message_info("        /* WRITE_ONCE (prev->next, next); */\n       ^./driver.pp.c:112:8:");
   struct list_head_cn* O2_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), PRE, 0);
   cn_pop_msg_info();
   
@@ -521,7 +503,7 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
   c_add_to_ghost_state((&next), sizeof(struct list_head*), get_cn_stack_depth());
   cn_pointer* next_addr_cn = convert_to_cn_pointer((&next));
   
-        update_cn_error_message_info("        /*@ split_case prev != next; @*/\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:110:12-39");
+        update_cn_error_message_info(" ensures take O1R = Owned(entry); \n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:121:12-39");
 
 cn_pop_msg_info();
 
@@ -541,25 +523,25 @@ __cn_epilogue:
   c_remove_from_ghost_state((&next), sizeof(struct list_head*));
 
 {
-  update_cn_error_message_info(" ensures take O1R = Owned(prev); \n              ^./driver.pp.c:102:15:");
+  update_cn_error_message_info("        prev->next = next;\n              ^./driver.pp.c:113:15:");
   struct list_head_cn* O1R_cn = owned_struct_list_head(prev_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O2R = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:103:8:");
+  update_cn_error_message_info("}\n       ^./driver.pp.c:114:8:");
   struct list_head_cn* O2R_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O2.next == O2R.next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:104:3-43");
+  update_cn_error_message_info("static inline void __list_del_entry(struct list_head *entry)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:115:3-43");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O2_cn->next, O2R_cn->next)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || {(*prev).prev} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:105:3-46");
+  update_cn_error_message_info("/*@ requires take O1 = Owned(entry); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:116:3-46");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O1R_cn->prev, O1_cn->prev)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*prev).next == next; \n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:106:3-24");
+  update_cn_error_message_info("  let prev = (*entry).prev; let next = (*entry).next; \n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:117:3-24");
   cn_assert(cn_pointer_equality(O1R_cn->next, next_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O2R.prev == prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:107:3-40");
+  update_cn_error_message_info("  take O2 = O_struct_list_head(prev, prev != entry); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:118:3-40");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O2R_cn->prev, prev_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev != next) || ((*prev).prev == prev); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:108:3-44");
+  update_cn_error_message_info("  take O3 = O_struct_list_head(next, prev != next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:119:3-44");
   cn_assert(cn_bool_or(cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), cn_pointer_equality(O1R_cn->prev, prev_cn)), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -590,20 +572,20 @@ static inline void __list_del_entry(struct list_head *entry)
   cn_pointer* entry_cn = convert_to_cn_pointer(entry);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O1 = Owned(entry); \n                  ^./driver.pp.c:116:19:");
+  update_cn_error_message_info("  (prev == entry) || (O2R.next == next); \n                  ^./driver.pp.c:127:19:");
   struct list_head_cn* O1_cn = owned_struct_list_head(entry_cn, PRE, 0);
   cn_pop_msg_info();
   cn_pointer* prev_cn;
   prev_cn = O1_cn->prev;
   cn_pointer* next_cn;
   next_cn = O1_cn->next;
-  update_cn_error_message_info("  take O2 = O_struct_list_head(prev, prev != entry); \n       ^./driver.pp.c:118:8:");
+  update_cn_error_message_info("  (prev != next) || ((prev == entry) || (O2R.prev == prev)); @*/\n       ^./driver.pp.c:129:8:");
   struct list_head_cn* O2_cn = O_struct_list_head(prev_cn, cn_bool_not(cn_pointer_equality(prev_cn, entry_cn)), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O3 = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:119:8:");
+  update_cn_error_message_info("{\n       ^./driver.pp.c:130:8:");
   struct list_head_cn* O3_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev != entry) || (next == entry); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:120:3-38");
+  update_cn_error_message_info("        /*@ split_case (*entry).prev != entry; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:131:3-38");
   cn_assert(cn_bool_or(cn_bool_not(cn_pointer_equality(prev_cn, entry_cn)), cn_pointer_equality(next_cn, entry_cn)), PRE);
   cn_pop_msg_info();
   
@@ -612,11 +594,11 @@ static inline void __list_del_entry(struct list_head *entry)
   c_add_to_ghost_state((&entry), sizeof(struct list_head*), get_cn_stack_depth());
   cn_pointer* entry_addr_cn = convert_to_cn_pointer((&entry));
   
-        update_cn_error_message_info("        /*@ split_case (*entry).prev != entry; @*/\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:131:12-49");
+        update_cn_error_message_info("  (*entry).prev != entry; \n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:142:12-49");
 
 cn_pop_msg_info();
 
-        update_cn_error_message_info("        /*@ split_case (*entry).prev != (*entry).next; @*/\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:132:12-57");
+        update_cn_error_message_info(" ensures take O1R = Owned(entry); \n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:143:12-57");
 
 cn_pop_msg_info();
 
@@ -645,31 +627,31 @@ __cn_epilogue:
   c_remove_from_ghost_state((&entry), sizeof(struct list_head*));
 
 {
-  update_cn_error_message_info(" ensures take O1R = Owned(entry); \n              ^./driver.pp.c:121:15:");
+  update_cn_error_message_info("        /*@ split_case (*entry).prev != (*entry).next; @*/\n              ^./driver.pp.c:132:15:");
   struct list_head_cn* O1R_cn = owned_struct_list_head(entry_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {*entry} unchanged; \n  ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:122:3-22");
+  update_cn_error_message_info("    if (!__list_del_entry_valid(entry))\n  ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:133:3-22");
   cn_assert(struct_list_head_cn_equality(O1R_cn, O1_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O2R = O_struct_list_head(prev, prev != entry); \n       ^./driver.pp.c:123:8:");
+  update_cn_error_message_info("        return;\n       ^./driver.pp.c:134:8:");
   struct list_head_cn* O2R_cn = O_struct_list_head(prev_cn, cn_bool_not(cn_pointer_equality(prev_cn, entry_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O3R = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:124:8:");
+  update_cn_error_message_info("    __list_del(entry->prev, entry->next);\n       ^./driver.pp.c:135:8:");
   struct list_head_cn* O3R_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O3.next == O3R.next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:125:3-43");
+  update_cn_error_message_info("}\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:136:3-43");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O3_cn->next, O3R_cn->next)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O2.prev == O2R.prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:126:3-43");
+  update_cn_error_message_info("static inline void list_del_init(struct list_head *entry)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:137:3-43");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O2_cn->prev, O2R_cn->prev)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == entry) || (O2R.next == next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:127:3-41");
+  update_cn_error_message_info("/*@ requires take O1 = Owned(entry); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:138:3-41");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, entry_cn), cn_pointer_equality(O2R_cn->next, next_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O3R.prev == prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:128:3-40");
+  update_cn_error_message_info("  let prev = (*entry).prev; let next = (*entry).next; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:139:3-40");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O3R_cn->prev, prev_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev != next) || ((prev == entry) || (O2R.prev == prev)); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:129:3-61");
+  update_cn_error_message_info("  take O2 = Owned(prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:140:3-61");
   cn_assert(cn_bool_or(cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), cn_bool_or(cn_pointer_equality(prev_cn, entry_cn), cn_pointer_equality(O2R_cn->prev, prev_cn))), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -700,20 +682,20 @@ static inline void list_del_init(struct list_head *entry)
   cn_pointer* entry_cn = convert_to_cn_pointer(entry);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O1 = Owned(entry); \n                  ^./driver.pp.c:138:19:");
+  update_cn_error_message_info("  (*prev).next == next; \n                  ^./driver.pp.c:149:19:");
   struct list_head_cn* O1_cn = owned_struct_list_head(entry_cn, PRE, 0);
   cn_pop_msg_info();
   cn_pointer* prev_cn;
   prev_cn = O1_cn->prev;
   cn_pointer* next_cn;
   next_cn = O1_cn->next;
-  update_cn_error_message_info("  take O2 = Owned(prev); \n       ^./driver.pp.c:140:8:");
+  update_cn_error_message_info("  (prev != next) || ((*prev).prev == prev); @*/\n       ^./driver.pp.c:151:8:");
   struct list_head_cn* O2_cn = owned_struct_list_head(prev_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O3 = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:141:8:");
+  update_cn_error_message_info("{\n       ^./driver.pp.c:152:8:");
   struct list_head_cn* O3_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*entry).prev != entry; \n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:142:3-26");
+  update_cn_error_message_info("        /*CN*/ if(entry->prev != entry)\n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:153:3-26");
   cn_assert(cn_bool_not(cn_pointer_equality(O1_cn->prev, entry_cn)), PRE);
   cn_pop_msg_info();
   
@@ -749,34 +731,34 @@ __cn_epilogue:
   c_remove_from_ghost_state((&entry), sizeof(struct list_head*));
 
 {
-  update_cn_error_message_info(" ensures take O1R = Owned(entry); \n              ^./driver.pp.c:143:15:");
+  update_cn_error_message_info("        ;\n              ^./driver.pp.c:154:15:");
   struct list_head_cn* O1R_cn = owned_struct_list_head(entry_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*entry).prev == entry; (*entry).next == entry; \n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:144:3-26");
+  update_cn_error_message_info("        /*CN*/ if(entry->prev != entry->next)\n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:155:3-26");
   cn_assert(cn_pointer_equality(O1R_cn->prev, entry_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*entry).prev == entry; (*entry).next == entry; \n                          ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:144:27-50");
+  update_cn_error_message_info("        /*CN*/ if(entry->prev != entry->next)\n                          ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:155:27-50");
   cn_assert(cn_pointer_equality(O1R_cn->next, entry_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O2R = Owned(prev); \n       ^./driver.pp.c:145:8:");
+  update_cn_error_message_info("        ;\n       ^./driver.pp.c:156:8:");
   struct list_head_cn* O2R_cn = owned_struct_list_head(prev_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O3R = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:146:8:");
+  update_cn_error_message_info("    __list_del_entry(entry);\n       ^./driver.pp.c:157:8:");
   struct list_head_cn* O3R_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O3.next == O3R.next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:147:3-43");
+  update_cn_error_message_info("    INIT_LIST_HEAD(entry);\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:158:3-43");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O3_cn->next, O3R_cn->next)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || {(*prev).prev} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:148:3-46");
+  update_cn_error_message_info("}\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:159:3-46");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O2R_cn->prev, O2_cn->prev)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*prev).next == next; \n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:149:3-24");
+  update_cn_error_message_info("static inline _Bool __list_add_valid(struct list_head *new,\n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:160:3-24");
   cn_assert(cn_pointer_equality(O2R_cn->next, next_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O3R.prev == prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:150:3-40");
+  update_cn_error_message_info("                struct list_head *prev,\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:161:3-40");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O3R_cn->prev, prev_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev != next) || ((*prev).prev == prev); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:151:3-44");
+  update_cn_error_message_info("                struct list_head *next)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:162:3-44");
   cn_assert(cn_bool_or(cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), cn_pointer_equality(O2R_cn->prev, prev_cn)), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -826,7 +808,7 @@ __cn_epilogue:
 
 {
   cn_bits_u8* return_cn = convert_to_cn_bits_u8(__cn_ret);
-  update_cn_error_message_info("/*@ ensures return == 1u8; @*/\n            ^~~~~~~~~~~~~~ ./driver.pp.c:163:13-27");
+  update_cn_error_message_info("  (*prev).next == new; \n            ^~~~~~~~~~~~~~ ./driver.pp.c:174:13-27");
   cn_assert(cn_bits_u8_equality(return_cn, convert_to_cn_bits_u8(1UL)), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -858,13 +840,13 @@ static inline void __list_add(struct list_head *new,
   cn_pointer* next_cn = convert_to_cn_pointer(next);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O1 = Owned(new); take O2 = Owned(prev); take O3 = O_struct_list_head(next, prev != next); \n                  ^./driver.pp.c:170:19:");
+  update_cn_error_message_info("        /*@ split_case prev != next; @*/\n                  ^./driver.pp.c:181:19:");
   struct list_head_cn* O1_cn = owned_struct_list_head(new_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ requires take O1 = Owned(new); take O2 = Owned(prev); take O3 = O_struct_list_head(next, prev != next); \n                                        ^./driver.pp.c:170:41:");
+  update_cn_error_message_info("        /*@ split_case prev != next; @*/\n                                        ^./driver.pp.c:181:41:");
   struct list_head_cn* O2_cn = owned_struct_list_head(prev_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ requires take O1 = Owned(new); take O2 = Owned(prev); take O3 = O_struct_list_head(next, prev != next); \n                                                               ^./driver.pp.c:170:64:");
+  update_cn_error_message_info("        /*@ split_case prev != next; @*/\n                                                               ^./driver.pp.c:181:64:");
   struct list_head_cn* O3_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), PRE, 0);
   cn_pop_msg_info();
   
@@ -885,7 +867,7 @@ static inline void __list_add(struct list_head *new,
 , __list_add_valid(CN_LOAD(new), CN_LOAD(prev), CN_LOAD(next))))
         { goto __cn_epilogue; }
 
-        update_cn_error_message_info("        /*@ split_case prev != next; @*/\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:181:12-39");
+        update_cn_error_message_info("  take O3 = O_struct_list_head(prev, prev != next); \n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:192:12-39");
 
 cn_pop_msg_info();
 
@@ -909,34 +891,34 @@ __cn_epilogue:
   c_remove_from_ghost_state((&next), sizeof(struct list_head*));
 
 {
-  update_cn_error_message_info(" ensures take O1R = Owned(new); take O2R = Owned(prev); take O3R = O_struct_list_head(next, prev != next); \n              ^./driver.pp.c:171:15:");
+  update_cn_error_message_info("    next->prev = new;\n              ^./driver.pp.c:182:15:");
   struct list_head_cn* O1R_cn = owned_struct_list_head(new_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take O1R = Owned(new); take O2R = Owned(prev); take O3R = O_struct_list_head(next, prev != next); \n                                     ^./driver.pp.c:171:38:");
+  update_cn_error_message_info("    next->prev = new;\n                                     ^./driver.pp.c:182:38:");
   struct list_head_cn* O2R_cn = owned_struct_list_head(prev_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take O1R = Owned(new); take O2R = Owned(prev); take O3R = O_struct_list_head(next, prev != next); \n                                                             ^./driver.pp.c:171:62:");
+  update_cn_error_message_info("    next->prev = new;\n                                                             ^./driver.pp.c:182:62:");
   struct list_head_cn* O3R_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || {(*prev).prev} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:172:3-46");
+  update_cn_error_message_info("    new->next = next;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:183:3-46");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O2R_cn->prev, O2_cn->prev)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O3.next == O3R.next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:173:3-43");
+  update_cn_error_message_info("    new->prev = prev;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:184:3-43");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O3_cn->next, O3R_cn->next)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*prev).next == new; \n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:174:3-23");
+  update_cn_error_message_info("    /* WRITE_ONCE (prev->next, new); */\n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:185:3-23");
   cn_assert(cn_pointer_equality(O2R_cn->next, new_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O3R.prev == new); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:175:3-39");
+  update_cn_error_message_info("    prev->next = new;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:186:3-39");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O3R_cn->prev, new_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev != next) || ((*prev).prev == new); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:176:3-43");
+  update_cn_error_message_info("}\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:187:3-43");
   cn_assert(cn_bool_or(cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), cn_pointer_equality(O2R_cn->prev, new_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*new).next == next; (*new).prev == prev; @*/\n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:177:3-23");
+  update_cn_error_message_info("static inline void list_add_tail(struct list_head *new, struct list_head *head)\n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:188:3-23");
   cn_assert(cn_pointer_equality(O1R_cn->next, next_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*new).next == next; (*new).prev == prev; @*/\n                       ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:177:24-44");
+  update_cn_error_message_info("static inline void list_add_tail(struct list_head *new, struct list_head *head)\n                       ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:188:24-44");
   cn_assert(cn_pointer_equality(O1R_cn->prev, prev_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -965,17 +947,17 @@ static inline void list_add_tail(struct list_head *new, struct list_head *head)
   cn_pointer* head_cn = convert_to_cn_pointer(head);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O1 = Owned(new); \n                  ^./driver.pp.c:189:19:");
+  update_cn_error_message_info("{\n                  ^./driver.pp.c:200:19:");
   struct list_head_cn* O1_cn = owned_struct_list_head(new_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O2 = Owned(head); \n       ^./driver.pp.c:190:8:");
+  update_cn_error_message_info("        /*@ split_case (*head).prev != head; @*/\n       ^./driver.pp.c:201:8:");
   struct list_head_cn* O2_cn = owned_struct_list_head(head_cn, PRE, 0);
   cn_pop_msg_info();
   cn_pointer* prev_cn;
   prev_cn = O2_cn->prev;
   cn_pointer* next_cn;
   next_cn = head_cn;
-  update_cn_error_message_info("  take O3 = O_struct_list_head(prev, prev != next); \n       ^./driver.pp.c:192:8:");
+  update_cn_error_message_info("}\n       ^./driver.pp.c:203:8:");
   struct list_head_cn* O3_cn = O_struct_list_head(prev_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), PRE, 0);
   cn_pop_msg_info();
   
@@ -986,7 +968,7 @@ static inline void list_add_tail(struct list_head *new, struct list_head *head)
   c_add_to_ghost_state((&head), sizeof(struct list_head*), get_cn_stack_depth());
   cn_pointer* head_addr_cn = convert_to_cn_pointer((&head));
   
-        update_cn_error_message_info("        /*@ split_case (*head).prev != head; @*/\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:201:12-47");
+        update_cn_error_message_info("/*\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:212:12-47");
 
 cn_pop_msg_info();
 
@@ -1009,34 +991,34 @@ __cn_epilogue:
   c_remove_from_ghost_state((&head), sizeof(struct list_head*));
 
 {
-  update_cn_error_message_info(" ensures take O1R = Owned(new); take O2R = Owned(head); take O3R = O_struct_list_head(prev, prev != next); \n              ^./driver.pp.c:193:15:");
+  update_cn_error_message_info("/* originally: ./include/linux/minmax.h */\n              ^./driver.pp.c:204:15:");
   struct list_head_cn* O1R_cn = owned_struct_list_head(new_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take O1R = Owned(new); take O2R = Owned(head); take O3R = O_struct_list_head(prev, prev != next); \n                                     ^./driver.pp.c:193:38:");
+  update_cn_error_message_info("/* originally: ./include/linux/minmax.h */\n                                     ^./driver.pp.c:204:38:");
   struct list_head_cn* O2R_cn = owned_struct_list_head(head_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take O1R = Owned(new); take O2R = Owned(head); take O3R = O_struct_list_head(prev, prev != next); \n                                                             ^./driver.pp.c:193:62:");
+  update_cn_error_message_info("/* originally: ./include/linux/minmax.h */\n                                                             ^./driver.pp.c:204:62:");
   struct list_head_cn* O3R_cn = O_struct_list_head(prev_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O3.prev == O3R.prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:194:3-43");
+  update_cn_error_message_info("/* SPDX-License-Identifier: GPL-2.0 */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:205:3-43");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O3_cn->prev, O3R_cn->prev)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || {(*head).next} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:195:3-46");
+  update_cn_error_message_info("/* #define min(x, y)    __careful_cmp(x, y, <) */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:206:3-46");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O2R_cn->next, O2_cn->next)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*head).prev == new; \n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:196:3-23");
+  update_cn_error_message_info("/* originally: ./arch/arm64/kvm/hyp/include/nvhe/memory.h */\n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:207:3-23");
   cn_assert(cn_pointer_equality(O2R_cn->prev, new_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (O3R.next == new); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:197:3-39");
+  update_cn_error_message_info("/* SPDX-License-Identifier: GPL-2.0-only */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:208:3-39");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(O3R_cn->next, new_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev != next) || ((*head).next == new); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:198:3-43");
+  update_cn_error_message_info("/* #include <asm/kvm_mmu.h> */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:209:3-43");
   cn_assert(cn_bool_or(cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), cn_pointer_equality(O2R_cn->next, new_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*new).next == next; (*new).prev == prev; @*/\n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:199:3-23");
+  update_cn_error_message_info("/* #include <asm/page.h> */\n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:210:3-23");
   cn_assert(cn_pointer_equality(O1R_cn->next, next_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*new).next == next; (*new).prev == prev; @*/\n                       ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:199:24-44");
+  update_cn_error_message_info("/* #include <asm/page.h> */\n                       ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:210:24-44");
   cn_assert(cn_pointer_equality(O1R_cn->prev, prev_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -1075,10 +1057,10 @@ static inline void *hyp_phys_to_virt(phys_addr_t phys)
   cn_bits_u64* phys_cn = convert_to_cn_bits_u64(phys);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:226:5-48");
+  update_cn_error_message_info("  return == phys; @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:237:5-48");
   cn_bits_i64* O_hyp_physvirt_offset0_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:226:5-48");
+  update_cn_error_message_info("  return == phys; @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:237:5-48");
   cn_pointer* O_cn_virt_base0_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_base()), PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* virt_cn;
@@ -1107,16 +1089,16 @@ __cn_epilogue:
 
 {
   cn_pointer* return_cn = convert_to_cn_pointer(__cn_ret);
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:226:5-48");
+  update_cn_error_message_info("  return == phys; @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:237:5-48");
   cn_bits_i64* O_hyp_physvirt_offset1_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:226:5-48");
+  update_cn_error_message_info("  return == phys; @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:237:5-48");
   cn_pointer* O_cn_virt_base1_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_base()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {hyp_physvirt_offset} unchanged; \n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:228:10-42");
+  update_cn_error_message_info("    return ((phys_addr_t)(addr) + hyp_physvirt_offset);\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:239:10-42");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset1_cn, O_hyp_physvirt_offset0_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (u64) return == virt; @*/\n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:229:3-24");
+  update_cn_error_message_info("}\n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:240:3-24");
   cn_assert(cn_bits_u64_equality(cast_cn_pointer_to_cn_bits_u64(return_cn), virt_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -1141,7 +1123,7 @@ static inline phys_addr_t hyp_virt_to_phys(void *addr)
   cn_pointer* addr_cn = convert_to_cn_pointer(addr);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:234:5-34");
+  update_cn_error_message_info("function (u64) max_pfn ()\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:245:5-34");
   cn_bits_i64* O_hyp_physvirt_offset2_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* phys_cn;
@@ -1165,13 +1147,13 @@ __cn_epilogue:
 
 {
   cn_bits_u64* return_cn = convert_to_cn_bits_u64(__cn_ret);
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:234:5-34");
+  update_cn_error_message_info("function (u64) max_pfn ()\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:245:5-34");
   cn_bits_i64* O_hyp_physvirt_offset3_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {hyp_physvirt_offset} unchanged; \n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:236:10-42");
+  update_cn_error_message_info("@*/\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:247:10-42");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset3_cn, O_hyp_physvirt_offset2_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  return == phys; @*/\n  ^~~~~~~~~~~~~~~ ./driver.pp.c:237:3-18");
+  update_cn_error_message_info("static inline u64 hyp_page_to_pfn(struct hyp_page *page)\n  ^~~~~~~~~~~~~~~ ./driver.pp.c:248:3-18");
   cn_assert(cn_bits_u64_equality(return_cn, phys_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -1205,15 +1187,15 @@ static inline u64 hyp_page_to_pfn(struct hyp_page *page)
   cn_pointer* page_cn = convert_to_cn_pointer(page);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:249:5-28");
+  update_cn_error_message_info("/*     struct hyp_page *p = hyp_virt_to_page(addr); */\n    ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:260:5-28");
   cn_pointer* O___hyp_vmemmap0_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* offs_cn;
   offs_cn = cn_bits_u64_sub(cast_cn_pointer_to_cn_bits_u64(page_cn), cast_cn_pointer_to_cn_bits_u64(O___hyp_vmemmap0_cn));
-  update_cn_error_message_info("  offs <= max_pfn () * (sizeof<struct hyp_page>); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:251:3-50");
+  update_cn_error_message_info("/* } */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:262:3-50");
   cn_assert(cn_bits_u64_le(offs_cn, cn_bits_u64_multiply(max_pfn(), convert_to_cn_bits_u64(sizeof(struct hyp_page)))), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  mod(offs, sizeof<struct hyp_page>) == 0u64; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:252:3-46");
+  update_cn_error_message_info("static inline int hyp_page_count(struct hyp_pool *pool, void *addr)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:263:3-46");
   cn_assert(cn_bits_u64_equality(cn_bits_u64_mod(offs_cn, convert_to_cn_bits_u64(sizeof(struct hyp_page))), convert_to_cn_bits_u64(0ULL)), PRE);
   cn_pop_msg_info();
   
@@ -1235,13 +1217,13 @@ __cn_epilogue:
 
 {
   cn_bits_u64* return_cn = convert_to_cn_bits_u64(__cn_ret);
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:249:5-28");
+  update_cn_error_message_info("/*     struct hyp_page *p = hyp_virt_to_page(addr); */\n    ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:260:5-28");
   cn_pointer* O___hyp_vmemmap1_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures return == offs / (sizeof<struct hyp_page>); \n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:253:10-53");
+  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_base; \n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:264:10-53");
   cn_assert(cn_bits_u64_equality(return_cn, cn_bits_u64_divide(offs_cn, convert_to_cn_bits_u64(sizeof(struct hyp_page)))), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:254:3-29");
+  update_cn_error_message_info(" requires let hyp_vmemmap = __hyp_vmemmap; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:265:3-29");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap1_cn, O___hyp_vmemmap0_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -1277,26 +1259,26 @@ static inline int hyp_page_count(struct hyp_pool *pool, void *addr)
   cn_pointer* addr_cn = convert_to_cn_pointer(addr);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:264:5-63");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:275:5-63");
   cn_bits_i64* O_hyp_physvirt_offset4_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:264:5-63");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:275:5-63");
   cn_pointer* O___hyp_vmemmap2_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:264:5-63");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:275:5-63");
   cn_pointer* O_cn_virt_base2_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_base()), PRE, 0);
   cn_pop_msg_info();
   cn_pointer* hyp_vmemmap_cn;
   hyp_vmemmap_cn = O___hyp_vmemmap2_cn;
   cn_bits_u64* phys_cn;
   phys_cn = cn__hyp_pa(O_hyp_physvirt_offset4_cn, addr_cn);
-  update_cn_error_message_info("  take H = Hyp_pool(pool, hyp_vmemmap, cn_virt_base, hyp_physvirt_offset); \n       ^./driver.pp.c:267:8:");
+  update_cn_error_message_info("    /* TODO originally: return p->refcount.  Introducing 'ret' here, so we can pack resources before returning; */\n       ^./driver.pp.c:278:8:");
   struct Hyp_pool_ex1_record* H_cn = Hyp_pool(pool_cn, hyp_vmemmap_cn, O_cn_virt_base2_cn, O_hyp_physvirt_offset4_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:268:3-30");
+  update_cn_error_message_info("    int ret = p->refcount;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:279:3-30");
   cn_assert(cn_bits_u64_le(H_cn->pool->range_start, phys_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n                              ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:268:31-55");
+  update_cn_error_message_info("    int ret = p->refcount;\n                              ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:279:31-55");
   cn_assert(cn_bits_u64_lt(phys_cn, H_cn->pool->range_end), PRE);
   cn_pop_msg_info();
   
@@ -1313,17 +1295,17 @@ c_add_to_ghost_state((&p), sizeof(struct hyp_page*), get_cn_stack_depth());
 
 cn_pointer* p_addr_cn = convert_to_cn_pointer((&p));
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:275:14-86");
+    /*CN*/update_cn_error_message_info("  {(*p).order} unchanged; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:286:14-86");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:276:14-76");
+    /*CN*/update_cn_error_message_info("  (*p).refcount == {(*p).refcount}@start + 1u16; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:287:14-76");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, phys/(page_size()); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:277:14-67");
+    /*CN*/update_cn_error_message_info("{\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:288:14-67");
 
-update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, phys/(page_size()); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:277:14-65");
+update_cn_error_message_info("{\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:288:14-65");
 
 cn_pop_msg_info();
 
@@ -1361,28 +1343,28 @@ __cn_epilogue:
 
 {
   cn_bits_i32* return_cn = convert_to_cn_bits_i32(__cn_ret);
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:264:5-63");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:275:5-63");
   cn_bits_i64* O_hyp_physvirt_offset5_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:264:5-63");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:275:5-63");
   cn_pointer* O___hyp_vmemmap3_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_base; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:264:5-63");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:275:5-63");
   cn_pointer* O_cn_virt_base3_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_base()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take H2 = Hyp_pool(pool, hyp_vmemmap, cn_virt_base, hyp_physvirt_offset); \n              ^./driver.pp.c:269:15:");
+  update_cn_error_message_info("        return ret;\n              ^./driver.pp.c:280:15:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool(pool_cn, hyp_vmemmap_cn, O_cn_virt_base3_cn, O_hyp_physvirt_offset5_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {hyp_vmemmap} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:270:3-35");
+  update_cn_error_message_info("}\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:281:3-35");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset5_cn, O_hyp_physvirt_offset4_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {hyp_vmemmap} unchanged; \n                                   ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:270:36-60");
+  update_cn_error_message_info("}\n                                   ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:281:36-60");
   cn_assert(cn_pointer_equality(hyp_vmemmap_cn, hyp_vmemmap_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.pool == {H.pool}@start; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:271:3-29");
+  update_cn_error_message_info("static inline void hyp_page_ref_inc(struct hyp_page *p)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:282:3-29");
   cn_assert(struct_hyp_pool_cn_equality(H2_cn->pool, H_cn->pool), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (u16) return == ((H2.vmemmap)[phys / (page_size())]).refcount; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:272:3-65");
+  update_cn_error_message_info("/*@ requires take O = Owned(p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:283:3-65");
   cn_assert(cn_bits_u16_equality(cast_cn_bits_i32_to_cn_bits_u16(return_cn), ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H2_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(cn_bits_u64_divide(phys_cn, page_size()))))->refcount), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -1407,10 +1389,10 @@ static inline void hyp_page_ref_inc(struct hyp_page *p)
   cn_pointer* p_cn = convert_to_cn_pointer(p);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O = Owned(p); \n                  ^./driver.pp.c:283:19:");
+  update_cn_error_message_info("  (*p).refcount > 0u16; \n                  ^./driver.pp.c:294:19:");
   struct hyp_page_cn* O_cn = owned_struct_hyp_page(p_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*p).refcount < (shift_left(1u16,16u16) - 1u16); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:284:3-51");
+  update_cn_error_message_info(" ensures take OR = Owned(p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:295:3-51");
   cn_assert(cn_bits_u16_lt(O_cn->refcount, cn_bits_u16_sub(cn_bits_u16_shift_left(convert_to_cn_bits_u16(1ULL), convert_to_cn_bits_u16(16ULL)), convert_to_cn_bits_u16(1ULL))), PRE);
   cn_pop_msg_info();
   
@@ -1432,13 +1414,13 @@ __cn_epilogue:
   c_remove_from_ghost_state((&p), sizeof(struct hyp_page*));
 
 {
-  update_cn_error_message_info(" ensures take OR = Owned(p); \n              ^./driver.pp.c:285:15:");
+  update_cn_error_message_info("  {(*p).order} unchanged; \n              ^./driver.pp.c:296:15:");
   struct hyp_page_cn* OR_cn = owned_struct_hyp_page(p_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {(*p).order} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:286:3-26");
+  update_cn_error_message_info("  (*p).refcount == {(*p).refcount}@start - 1u16; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:297:3-26");
   cn_assert(cn_bits_u8_equality(OR_cn->order, O_cn->order), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*p).refcount == {(*p).refcount}@start + 1u16; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:287:3-49");
+  update_cn_error_message_info("{\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:298:3-49");
   cn_assert(cn_bits_u16_equality(OR_cn->refcount, cn_bits_u16_add(O_cn->refcount, convert_to_cn_bits_u16(1ULL))), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -1460,10 +1442,10 @@ static inline void hyp_page_ref_dec(struct hyp_page *p)
   cn_pointer* p_cn = convert_to_cn_pointer(p);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O = Owned(p); \n                  ^./driver.pp.c:293:19:");
+  update_cn_error_message_info("  (*p).refcount > 0u16; \n                  ^./driver.pp.c:304:19:");
   struct hyp_page_cn* O_cn = owned_struct_hyp_page(p_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*p).refcount > 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:294:3-24");
+  update_cn_error_message_info(" ensures take OR = Owned(p); \n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:305:3-24");
   cn_assert(cn_bits_u16_lt(convert_to_cn_bits_u16(0ULL), O_cn->refcount), PRE);
   cn_pop_msg_info();
   
@@ -1485,13 +1467,13 @@ __cn_epilogue:
   c_remove_from_ghost_state((&p), sizeof(struct hyp_page*));
 
 {
-  update_cn_error_message_info(" ensures take OR = Owned(p); \n              ^./driver.pp.c:295:15:");
+  update_cn_error_message_info("  {(*p).order} unchanged; \n              ^./driver.pp.c:306:15:");
   struct hyp_page_cn* OR_cn = owned_struct_hyp_page(p_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {(*p).order} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:296:3-26");
+  update_cn_error_message_info("  (*p).refcount == {(*p).refcount}@start - 1u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:307:3-26");
   cn_assert(cn_bits_u8_equality(OR_cn->order, O_cn->order), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*p).refcount == {(*p).refcount}@start - 1u16; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:297:3-49");
+  update_cn_error_message_info("  return == (((*p).refcount == 0u16) ? 1i32 : 0i32); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:308:3-49");
   cn_assert(cn_bits_u16_equality(OR_cn->refcount, cn_bits_u16_sub(O_cn->refcount, convert_to_cn_bits_u16(1ULL))), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -1515,10 +1497,10 @@ static inline int hyp_page_ref_dec_and_test(struct hyp_page *p)
   cn_pointer* p_cn = convert_to_cn_pointer(p);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O = Owned(p); \n                  ^./driver.pp.c:303:19:");
+  update_cn_error_message_info("/*@ requires take O = Owned(p); \n                  ^./driver.pp.c:314:19:");
   struct hyp_page_cn* O_cn = owned_struct_hyp_page(p_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*p).refcount > 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:304:3-24");
+  update_cn_error_message_info("  (*p).refcount == 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:315:3-24");
   cn_assert(cn_bits_u16_lt(convert_to_cn_bits_u16(0ULL), O_cn->refcount), PRE);
   cn_pop_msg_info();
   
@@ -1546,16 +1528,16 @@ __cn_epilogue:
 
 {
   cn_bits_i32* return_cn = convert_to_cn_bits_i32(__cn_ret);
-  update_cn_error_message_info(" ensures take OR = Owned(p); \n              ^./driver.pp.c:305:15:");
+  update_cn_error_message_info(" ensures take OR = Owned(p); \n              ^./driver.pp.c:316:15:");
   struct hyp_page_cn* OR_cn = owned_struct_hyp_page(p_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {(*p).order} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:306:3-26");
+  update_cn_error_message_info("  {(*p).order} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:317:3-26");
   cn_assert(cn_bits_u8_equality(OR_cn->order, O_cn->order), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*p).refcount == {(*p).refcount}@start - 1u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:307:3-49");
+  update_cn_error_message_info("  (*p).refcount == 1u16; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:318:3-49");
   cn_assert(cn_bits_u16_equality(OR_cn->refcount, cn_bits_u16_sub(O_cn->refcount, convert_to_cn_bits_u16(1ULL))), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  return == (((*p).refcount == 0u16) ? 1i32 : 0i32); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:308:3-53");
+  update_cn_error_message_info("{\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:319:3-53");
   cn_bits_i32* a_6469;
   if (convert_from_cn_bool(cn_bits_u16_equality(OR_cn->refcount, convert_to_cn_bits_u16(0ULL)))) {
     a_6469 = convert_to_cn_bits_i32(1LL);
@@ -1587,10 +1569,10 @@ static inline void hyp_set_page_refcounted(struct hyp_page *p)
   cn_pointer* p_cn = convert_to_cn_pointer(p);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ requires take O = Owned(p); \n                  ^./driver.pp.c:314:19:");
+  update_cn_error_message_info("/* #include <linux/list.h> */\n                  ^./driver.pp.c:325:19:");
   struct hyp_page_cn* O_cn = owned_struct_hyp_page(p_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*p).refcount == 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:315:3-25");
+  update_cn_error_message_info("/* #include <nvhe/memory.h> */\n  ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:326:3-25");
   cn_assert(cn_bits_u16_equality(O_cn->refcount, convert_to_cn_bits_u16(0ULL)), PRE);
   cn_pop_msg_info();
   
@@ -1612,13 +1594,13 @@ __cn_epilogue:
   c_remove_from_ghost_state((&p), sizeof(struct hyp_page*));
 
 {
-  update_cn_error_message_info(" ensures take OR = Owned(p); \n              ^./driver.pp.c:316:15:");
+  update_cn_error_message_info("/* #include <nvhe/spinlock.h> */\n              ^./driver.pp.c:327:15:");
   struct hyp_page_cn* OR_cn = owned_struct_hyp_page(p_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {(*p).order} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:317:3-26");
+  update_cn_error_message_info("struct hyp_pool {\n  ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:328:3-26");
   cn_assert(cn_bits_u8_equality(OR_cn->order, O_cn->order), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*p).refcount == 1u16; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:318:3-25");
+  update_cn_error_message_info("    /*\n  ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:329:3-25");
   cn_assert(cn_bits_u16_equality(OR_cn->refcount, convert_to_cn_bits_u16(1ULL)), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -2274,7 +2256,7 @@ lemma order_aligned_init (u64 i) // unsigned long
   requires true;
   ensures order_aligned(i, 0u8);
 
-lemma page_size_of_order ()
+lemma page_size_of_order_lemma ()
   requires true;
   ensures (page_size_of_order(0u8)) == page_size();
 
@@ -2411,31 +2393,31 @@ static struct hyp_page *__find_buddy_nocheck(struct hyp_pool *pool,
   cn_bits_u8* order_cn = convert_to_cn_bits_u8(order);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1088:5-49");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1099:5-49");
   cn_bits_i64* O_hyp_physvirt_offset18_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1088:5-49");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1099:5-49");
   cn_pointer* O___hyp_vmemmap16_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires take O = Owned(pool); \n               ^./driver.pp.c:1089:16:");
+  update_cn_error_message_info("  {*pool} unchanged; \n               ^./driver.pp.c:1100:16:");
   struct hyp_pool_cn* O_cn = owned_struct_hyp_pool(pool_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1090:3-64");
+  update_cn_error_message_info("  let buddy_i = pfn_buddy(p_i, order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1101:3-64");
   cn_assert(hyp_pool_wf(pool_cn, O_cn, O___hyp_vmemmap16_cn, O_hyp_physvirt_offset18_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u64* start_i_cn;
   start_i_cn = cn_bits_u64_divide(O_cn->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(O_cn->range_end, page_size());
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1093:3-82");
+  update_cn_error_message_info("  let good_buddy = in_range_buddy; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1104:3-82");
   cn_assert(cellPointer(O___hyp_vmemmap16_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, p_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
   p_i_cn = cn_hyp_page_to_pfn(O___hyp_vmemmap16_cn, p_cn);
-  update_cn_error_message_info("  order_aligned(p_i, order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1095:3-29");
+  update_cn_error_message_info("  is_null(return) ||\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1106:3-29");
   cn_assert(order_aligned(p_i_cn, order_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  order < (*pool).max_order; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1096:3-29");
+  update_cn_error_message_info("  (!addr_eq(return, NULL) && cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, buddy) && order_aligned(buddy_i, order) && p != buddy); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1107:3-29");
   cn_assert(cn_bits_u8_lt(order_cn, O_cn->max_order), PRE);
   cn_pop_msg_info();
   
@@ -2460,7 +2442,7 @@ c_add_to_ghost_state((&addr), sizeof(unsigned long long), get_cn_stack_depth());
 cn_pointer* addr_addr_cn = convert_to_cn_pointer((&addr));
 
     /*CN*/
-    update_cn_error_message_info("    /*@ apply find_buddy_xor(cn_hyp_page_to_pfn(__hyp_vmemmap,p), order); @*/\n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1111:8-76");
+    update_cn_error_message_info("/* Find a buddy page currently available for allocation */\n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1122:8-76");
 
 cn_pointer* read___hyp_vmemmap15 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
 
@@ -2468,7 +2450,7 @@ cn_pointer* read_p14 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_poin
 
 cn_bits_u8* read_order2 = convert_to_cn_bits_u8(cn_pointer_deref(convert_to_cn_pointer((&order)), unsigned char));
 
-update_cn_error_message_info("    /*@ apply find_buddy_xor(cn_hyp_page_to_pfn(__hyp_vmemmap,p), order); @*/\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1111:9-74");
+update_cn_error_message_info("/* Find a buddy page currently available for allocation */\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1122:9-74");
 
 find_buddy_xor(cn_hyp_page_to_pfn(read___hyp_vmemmap15, read_p14), read_order2);
 
@@ -2477,7 +2459,7 @@ cn_pop_msg_info();
 cn_pop_msg_info();
 
     CN_STORE_OP(addr,^,(((1UL) << 12) << CN_LOAD(order)));
-    update_cn_error_message_info("    /*@ assert (addr == calc_buddy(cn_hyp_page_to_pfn(__hyp_vmemmap,p) * page_size(), order)); @*/\n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1113:8-97");
+    update_cn_error_message_info("                       struct hyp_page *p,\n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1124:8-97");
 
 cn_bits_u64* read_addr0 = convert_to_cn_bits_u64(cn_pointer_deref(convert_to_cn_pointer((&addr)), unsigned long long));
 
@@ -2487,9 +2469,9 @@ cn_pointer* read_p15 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_poin
 
 cn_bits_u8* read_order3 = convert_to_cn_bits_u8(cn_pointer_deref(convert_to_cn_pointer((&order)), unsigned char));
 
-update_cn_error_message_info("    /*@ assert (addr == calc_buddy(cn_hyp_page_to_pfn(__hyp_vmemmap,p) * page_size(), order)); @*/\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1113:9-95");
+update_cn_error_message_info("                       struct hyp_page *p,\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1124:9-95");
 
-update_cn_error_message_info("    /*@ assert (addr == calc_buddy(cn_hyp_page_to_pfn(__hyp_vmemmap,p) * page_size(), order)); @*/\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1113:9-95");
+update_cn_error_message_info("                       struct hyp_page *p,\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1124:9-95");
 
 cn_assert(cn_bits_u64_equality(read_addr0, calc_buddy(cn_bits_u64_multiply(cn_hyp_page_to_pfn(read___hyp_vmemmap16, read_p15), page_size()), read_order3)), STATEMENT);
 
@@ -2528,25 +2510,25 @@ __cn_epilogue:
 
 {
   cn_pointer* return_cn = convert_to_cn_pointer(__cn_ret);
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1088:5-49");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1099:5-49");
   cn_bits_i64* O_hyp_physvirt_offset19_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1088:5-49");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1099:5-49");
   cn_pointer* O___hyp_vmemmap17_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take OR = Owned(pool); \n              ^./driver.pp.c:1097:15:");
+  update_cn_error_message_info("{\n              ^./driver.pp.c:1108:15:");
   struct hyp_pool_cn* OR_cn = owned_struct_hyp_pool(pool_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1098:3-64");
+  update_cn_error_message_info("    phys_addr_t addr = ((phys_addr_t)(((hyp_page_to_pfn(p))) << 12));\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1109:3-64");
   cn_assert(hyp_pool_wf(pool_cn, OR_cn, O___hyp_vmemmap17_cn, O_hyp_physvirt_offset19_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1099:3-35");
+  update_cn_error_message_info("    /*CN*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1110:3-35");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset19_cn, O_hyp_physvirt_offset18_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1099:36-62");
+  update_cn_error_message_info("    /*CN*/\n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1110:36-62");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap17_cn, O___hyp_vmemmap16_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {*pool} unchanged; \n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1100:3-21");
+  update_cn_error_message_info("    /*@ apply find_buddy_xor(cn_hyp_page_to_pfn(__hyp_vmemmap,p), order); @*/\n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1111:3-21");
   cn_assert(struct_hyp_pool_cn_equality(OR_cn, O_cn), POST);
   cn_pop_msg_info();
   cn_bits_u64* buddy_i_cn;
@@ -2557,7 +2539,7 @@ __cn_epilogue:
   in_range_buddy_cn = cn_bool_and(cn_bits_u64_le(start_i_cn, buddy_i_cn), cn_bits_u64_lt(buddy_i_cn, end_i_cn));
   cn_bool* good_buddy_cn;
   good_buddy_cn = in_range_buddy_cn;
-  update_cn_error_message_info("  return == (good_buddy ? buddy : NULL); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1105:3-41");
+  update_cn_error_message_info("     * something else and may not be mapped in hyp_vmemmap.\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1116:3-41");
   cn_pointer* a_8923;
   if (convert_from_cn_bool(good_buddy_cn)) {
     a_8923 = buddy_cn;
@@ -2567,7 +2549,7 @@ __cn_epilogue:
   }
   cn_assert(cn_pointer_equality(return_cn, a_8923), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  is_null(return) ||\n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1106:3-1107:161");
+  update_cn_error_message_info("     */\n  ^~~~~ ./driver.pp.c:1117:3-1118:161");
   cn_assert(cn_bool_or(is_null(return_cn), cn_bool_and(cn_bool_and(cn_bool_and(cn_bool_not(addr_eq(return_cn, convert_to_cn_pointer(0))), cellPointer(O___hyp_vmemmap17_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, buddy_cn)), order_aligned(buddy_i_cn, order_cn)), cn_bool_not(cn_pointer_equality(p_cn, buddy_cn)))), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -2617,34 +2599,34 @@ static struct hyp_page *__find_buddy_avail(struct hyp_pool *pool,
   cn_bits_u8* order_cn = convert_to_cn_bits_u8(order);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1126:5-49");
+  update_cn_error_message_info("  hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1137:5-49");
   cn_bits_i64* O_hyp_physvirt_offset20_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1126:5-49");
+  update_cn_error_message_info("  hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1137:5-49");
   cn_pointer* O___hyp_vmemmap18_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires take O1 = Owned(pool); \n               ^./driver.pp.c:1127:16:");
+  update_cn_error_message_info("  take V2 = each (u64 i; start_i <= i && i < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, i)) }; \n               ^./driver.pp.c:1138:16:");
   struct hyp_pool_cn* O1_cn = owned_struct_hyp_pool(pool_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1128:3-64");
+  update_cn_error_message_info("  V2 == V; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1139:3-64");
   cn_assert(hyp_pool_wf(pool_cn, O1_cn, O___hyp_vmemmap18_cn, O_hyp_physvirt_offset20_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u64* start_i_cn;
   start_i_cn = cn_bits_u64_divide(O1_cn->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(O1_cn->range_end, page_size());
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1131:3-82");
+  update_cn_error_message_info("  let buddy_i = pfn_buddy(p_i, order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1142:3-82");
   cn_assert(cellPointer(O___hyp_vmemmap18_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, p_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
   p_i_cn = cn_hyp_page_to_pfn(O___hyp_vmemmap18_cn, p_cn);
-  update_cn_error_message_info("  order_aligned(p_i, order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1133:3-29");
+  update_cn_error_message_info("  let zero_refcount = V2[buddy_i].refcount == 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1144:3-29");
   cn_assert(order_aligned(p_i_cn, order_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  order < (*pool).max_order; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1134:3-29");
+  update_cn_error_message_info("  let buddy = array_shift<struct hyp_page>(__hyp_vmemmap, buddy_i); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1145:3-29");
   cn_assert(cn_bits_u8_lt(order_cn, O1_cn->max_order), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take V = each (u64 i; start_i <= i && i < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, i)) }; \n       ^./driver.pp.c:1135:8:");
+  update_cn_error_message_info("  let in_range_buddy = buddy_i >= start_i && buddy_i < end_i; \n       ^./driver.pp.c:1146:8:");
   cn_map* V_cn = map_create();
   {
   cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -2681,11 +2663,11 @@ c_add_to_ghost_state((&buddy), sizeof(struct hyp_page*), get_cn_stack_depth());
 
 cn_pointer* buddy_addr_cn = convert_to_cn_pointer((&buddy));
 
-    /*CN*/ update_cn_error_message_info("    /*CN*/ /*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,buddy);@*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1152:15-91");
+    /*CN*/ update_cn_error_message_info(" * each page when we take it out of the list.\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1163:15-91");
 
 cn_pop_msg_info();
 
-    /*CN*/ update_cn_error_message_info("    /*CN*/ /*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, buddy);@*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1153:15-89");
+    /*CN*/ update_cn_error_message_info(" */\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1164:15-89");
 
 cn_pop_msg_info();
 
@@ -2714,19 +2696,19 @@ __cn_epilogue:
 
 {
   cn_pointer* return_cn = convert_to_cn_pointer(__cn_ret);
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1126:5-49");
+  update_cn_error_message_info("  hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1137:5-49");
   cn_bits_i64* O_hyp_physvirt_offset21_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1126:5-49");
+  update_cn_error_message_info("  hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1137:5-49");
   cn_pointer* O___hyp_vmemmap19_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take OR = Owned(pool); \n              ^./driver.pp.c:1136:15:");
+  update_cn_error_message_info("  let good_buddy = in_range_buddy && same_order && zero_refcount; \n              ^./driver.pp.c:1147:15:");
   struct hyp_pool_cn* OR_cn = owned_struct_hyp_pool(pool_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1137:3-64");
+  update_cn_error_message_info("  return == (good_buddy ? buddy : NULL); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1148:3-64");
   cn_assert(hyp_pool_wf(pool_cn, OR_cn, O___hyp_vmemmap19_cn, O_hyp_physvirt_offset21_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take V2 = each (u64 i; start_i <= i && i < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, i)) }; \n       ^./driver.pp.c:1138:8:");
+  update_cn_error_message_info("  is_null(return) || !addr_eq(return, NULL) && (cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, buddy) && order_aligned(buddy_i, order) && p != buddy); @*/\n       ^./driver.pp.c:1149:8:");
   cn_map* V2_cn = map_create();
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -2742,16 +2724,16 @@ __cn_epilogue:
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("  V2 == V; \n  ^~~~~~~~ ./driver.pp.c:1139:3-11");
+  update_cn_error_message_info("{\n  ^~~~~~~~ ./driver.pp.c:1150:3-11");
   cn_assert(cn_map_equality(V2_cn, V_cn, struct_hyp_page_cn_equality), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1140:3-35");
+  update_cn_error_message_info("    struct hyp_page *buddy = __find_buddy_nocheck(pool, p, order);\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1151:3-35");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset21_cn, O_hyp_physvirt_offset20_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1140:36-62");
+  update_cn_error_message_info("    struct hyp_page *buddy = __find_buddy_nocheck(pool, p, order);\n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1151:36-62");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap19_cn, O___hyp_vmemmap18_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {*pool} unchanged; \n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1141:3-21");
+  update_cn_error_message_info("    /*CN*/ /*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,buddy);@*/\n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1152:3-21");
   cn_assert(struct_hyp_pool_cn_equality(OR_cn, O1_cn), POST);
   cn_pop_msg_info();
   cn_bits_u64* buddy_i_cn;
@@ -2766,7 +2748,7 @@ __cn_epilogue:
   in_range_buddy_cn = cn_bool_and(cn_bits_u64_le(start_i_cn, buddy_i_cn), cn_bits_u64_lt(buddy_i_cn, end_i_cn));
   cn_bool* good_buddy_cn;
   good_buddy_cn = cn_bool_and(cn_bool_and(in_range_buddy_cn, same_order_cn), zero_refcount_cn);
-  update_cn_error_message_info("  return == (good_buddy ? buddy : NULL); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1148:3-41");
+  update_cn_error_message_info(" * Pages that are available for allocation are tracked in free-lists, so we use\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1159:3-41");
   cn_pointer* a_9236;
   if (convert_from_cn_bool(good_buddy_cn)) {
     a_9236 = buddy_cn;
@@ -2776,7 +2758,7 @@ __cn_epilogue:
   }
   cn_assert(cn_pointer_equality(return_cn, a_9236), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  is_null(return) || !addr_eq(return, NULL) && (cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, buddy) && order_aligned(buddy_i, order) && p != buddy); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1149:3-180");
+  update_cn_error_message_info(" * the pages themselves to store the list nodes to avoid wasting space. As the\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1160:3-180");
   cn_assert(cn_bool_or(is_null(return_cn), cn_bool_and(cn_bool_not(addr_eq(return_cn, convert_to_cn_pointer(0))), cn_bool_and(cn_bool_and(cellPointer(O___hyp_vmemmap19_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, buddy_cn), order_aligned(buddy_i_cn, order_cn)), cn_bool_not(cn_pointer_equality(p_cn, buddy_cn))))), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -2830,58 +2812,58 @@ static inline void page_remove_from_list(struct hyp_page *p)
   cn_pointer* p_cn = convert_to_cn_pointer(p);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1166:5-62");
+  update_cn_error_message_info("  take Node_next = O_struct_list_head(next, prev != next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1177:5-62");
   cn_pointer* O___hyp_vmemmap20_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1166:5-62");
+  update_cn_error_message_info("  take Node_next = O_struct_list_head(next, prev != next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1177:5-62");
   cn_bits_i64* O_hyp_physvirt_offset22_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1166:5-62");
+  update_cn_error_message_info("  take Node_next = O_struct_list_head(next, prev != next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1177:5-62");
   cn_pointer* O_cn_virt_ptr12_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
   p_i_cn = cn_hyp_page_to_pfn(O___hyp_vmemmap20_cn, p_cn);
-  update_cn_error_message_info("  p_i <= max_pfn (); \n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1168:3-21");
+  update_cn_error_message_info("  0i64 <= hyp_physvirt_offset; \n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1179:3-21");
   cn_assert(cn_bits_u64_le(p_i_cn, max_pfn()), PRE);
   cn_pop_msg_info();
   cn_bits_u64* phys_cn;
   phys_cn = cn_bits_u64_multiply(p_i_cn, page_size());
   cn_pointer* virt_cn;
   virt_cn = cn__hyp_va(O_cn_virt_ptr12_cn, O_hyp_physvirt_offset22_cn, phys_cn);
-  update_cn_error_message_info("  take OP = Owned(p); \n       ^./driver.pp.c:1171:8:");
+  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {cn_virt_ptr} unchanged; \n       ^./driver.pp.c:1182:8:");
   struct hyp_page_cn* OP_cn = owned_struct_hyp_page(p_cn, PRE, 0);
   cn_pop_msg_info();
   cn_bits_u8* order_cn;
   order_cn = OP_cn->order;
-  update_cn_error_message_info("  order < 11u8; \n  ^~~~~~~~~~~~~ ./driver.pp.c:1173:3-16");
+  update_cn_error_message_info("  {*p} unchanged; \n  ^~~~~~~~~~~~~ ./driver.pp.c:1184:3-16");
   cn_assert(cn_bits_u8_lt(order_cn, convert_to_cn_bits_u8(11UL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take AP = AllocatorPage(virt, true, order); \n       ^./driver.pp.c:1174:8:");
+  update_cn_error_message_info("  take ZP = ZeroPage(virt, true, (*p).order); \n       ^./driver.pp.c:1185:8:");
   struct list_head_cn* AP_cn = AllocatorPage(virt_cn, convert_to_cn_bool(true), order_cn, PRE, 0);
   cn_pop_msg_info();
   cn_pointer* prev_cn;
   prev_cn = AP_cn->prev;
   cn_pointer* next_cn;
   next_cn = AP_cn->next;
-  update_cn_error_message_info("  take Node_prev = O_struct_list_head(prev, prev != virt); \n       ^./driver.pp.c:1176:8:");
+  update_cn_error_message_info("  take Node_next2 = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:1187:8:");
   struct list_head_cn* Node_prev_cn = O_struct_list_head(prev_cn, cn_bool_not(cn_pointer_equality(prev_cn, virt_cn)), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take Node_next = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:1177:8:");
+  update_cn_error_message_info("  (prev == next) || (Node_next2.next == Node_next.next); \n       ^./driver.pp.c:1188:8:");
   struct list_head_cn* Node_next_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev != virt) || (next == virt); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1178:3-36");
+  update_cn_error_message_info("  (prev == next) || (Node_prev2.prev == Node_prev.prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1189:3-36");
   cn_assert(cn_bool_or(cn_bool_not(cn_pointer_equality(prev_cn, virt_cn)), cn_pointer_equality(next_cn, virt_cn)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  0i64 <= hyp_physvirt_offset; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1179:3-31");
+  update_cn_error_message_info("  (prev == virt) || (Node_prev2.next == next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1190:3-31");
   cn_assert(cn_bits_i64_le(convert_to_cn_bits_i64(0LL), O_hyp_physvirt_offset22_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (u64) hyp_physvirt_offset <= phys; phys < shift_left(1u64, 63u64); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1180:3-37");
+  update_cn_error_message_info("  (prev == next) || (Node_next2.prev == prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1191:3-37");
   cn_assert(cn_bits_u64_le(cast_cn_bits_i64_to_cn_bits_u64(O_hyp_physvirt_offset22_cn), phys_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (u64) hyp_physvirt_offset <= phys; phys < shift_left(1u64, 63u64); \n                                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1180:38-69");
+  update_cn_error_message_info("  (prev == next) || (Node_next2.prev == prev); \n                                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1191:38-69");
   cn_assert(cn_bits_u64_lt(phys_cn, cn_bits_u64_shift_left(convert_to_cn_bits_u64(1ULL), convert_to_cn_bits_u64(63ULL))), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (mod((u64) hyp_physvirt_offset, page_size())) == 0u64; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1181:3-57");
+  update_cn_error_message_info("  (prev != next) || ((prev == virt) || (Node_prev2.prev == prev)); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1192:3-57");
   cn_assert(cn_bits_u64_equality(cn_bits_u64_mod(cast_cn_bits_i64_to_cn_bits_u64(O_hyp_physvirt_offset22_cn), page_size()), convert_to_cn_bits_u64(0ULL)), PRE);
   cn_pop_msg_info();
   
@@ -2906,11 +2888,11 @@ c_add_to_ghost_state((&node), sizeof(struct list_head*), get_cn_stack_depth());
 
 cn_pointer* node_addr_cn = convert_to_cn_pointer((&node));
 
-    update_cn_error_message_info("    /*@ split_case (*node).prev != node; @*/\n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1195:8-43");
+    update_cn_error_message_info("  let p_i = cn_hyp_page_to_pfn(__hyp_vmemmap, p); \n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1206:8-43");
 
 cn_pop_msg_info();
 
-    update_cn_error_message_info("    /*@ split_case (*node).prev != (*node).next; @*/\n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1196:8-51");
+    update_cn_error_message_info("  let phys = p_i * page_size(); \n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1207:8-51");
 
 cn_pop_msg_info();
 
@@ -2920,11 +2902,11 @@ cn_pop_msg_info();
   0;
 })
 , __list_del_entry(CN_LOAD(node)));
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ apply struct_list_head_to_bytes(node); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1198:14-55");
+    /*CN*/update_cn_error_message_info("  let start_i = HP.pool.range_start / page_size(); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1209:14-55");
 
 cn_pointer* read_node4 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer((&node)), struct list_head*));
 
-update_cn_error_message_info("    /*CN*//*@ apply struct_list_head_to_bytes(node); @*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1198:15-53");
+update_cn_error_message_info("  let start_i = HP.pool.range_start / page_size(); \n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1209:15-53");
 
 struct_list_head_to_bytes(read_node4);
 
@@ -2938,13 +2920,13 @@ cn_pop_msg_info();
   0;
 })
 , memset(CN_LOAD(node), 0, sizeof(*node)));
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ apply page_size_of_order2((*p).order); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1200:14-55");
+    /*CN*/update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1211:14-55");
 
 cn_pointer* read_p16 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer((&p)), struct hyp_page*));
 
 struct hyp_page_cn* deref_read_p160 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p16, struct hyp_page));
 
-update_cn_error_message_info("    /*CN*//*@ apply page_size_of_order2((*p).order); @*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1200:15-53");
+update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1211:15-53");
 
 page_size_of_order2(deref_read_p160->order);
 
@@ -2965,52 +2947,52 @@ __cn_epilogue:
   c_remove_from_ghost_state((&p), sizeof(struct hyp_page*));
 
 {
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1166:5-62");
+  update_cn_error_message_info("  take Node_next = O_struct_list_head(next, prev != next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1177:5-62");
   cn_pointer* O___hyp_vmemmap21_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1166:5-62");
+  update_cn_error_message_info("  take Node_next = O_struct_list_head(next, prev != next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1177:5-62");
   cn_bits_i64* O_hyp_physvirt_offset23_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1166:5-62");
+  update_cn_error_message_info("  take Node_next = O_struct_list_head(next, prev != next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1177:5-62");
   cn_pointer* O_cn_virt_ptr13_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {cn_virt_ptr} unchanged; \n         ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1182:10-36");
+  update_cn_error_message_info("{\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1193:10-36");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap21_cn, O___hyp_vmemmap20_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {cn_virt_ptr} unchanged; \n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1182:37-69");
+  update_cn_error_message_info("{\n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1193:37-69");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset23_cn, O_hyp_physvirt_offset22_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {cn_virt_ptr} unchanged; \n                                                                     ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1182:70-94");
+  update_cn_error_message_info("{\n                                                                     ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1193:70-94");
   cn_assert(cn_pointer_equality(O_cn_virt_ptr13_cn, O_cn_virt_ptr12_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take OP2 = Owned(p); \n       ^./driver.pp.c:1183:8:");
+  update_cn_error_message_info("    struct list_head *node = copy_alloc_id((((phys_addr_t)(((phys_addr_t)(((hyp_page_to_pfn(p))) << 12))) - hyp_physvirt_offset)), (cn_virt_ptr));\n       ^./driver.pp.c:1194:8:");
   struct hyp_page_cn* OP2_cn = owned_struct_hyp_page(p_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {*p} unchanged; \n  ^~~~~~~~~~~~~~~ ./driver.pp.c:1184:3-18");
+  update_cn_error_message_info("    /*@ split_case (*node).prev != node; @*/\n  ^~~~~~~~~~~~~~~ ./driver.pp.c:1195:3-18");
   cn_assert(struct_hyp_page_cn_equality(OP2_cn, OP_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take ZP = ZeroPage(virt, true, (*p).order); \n       ^./driver.pp.c:1185:8:");
+  update_cn_error_message_info("    /*@ split_case (*node).prev != (*node).next; @*/\n       ^./driver.pp.c:1196:8:");
   ZeroPage(virt_cn, convert_to_cn_bool(true), OP2_cn->order, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take Node_prev2 = O_struct_list_head(prev, prev != virt); \n       ^./driver.pp.c:1186:8:");
+  update_cn_error_message_info("    __list_del_entry(node);\n       ^./driver.pp.c:1197:8:");
   struct list_head_cn* Node_prev2_cn = O_struct_list_head(prev_cn, cn_bool_not(cn_pointer_equality(prev_cn, virt_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take Node_next2 = O_struct_list_head(next, prev != next); \n       ^./driver.pp.c:1187:8:");
+  update_cn_error_message_info("    /*CN*//*@ apply struct_list_head_to_bytes(node); @*/\n       ^./driver.pp.c:1198:8:");
   struct list_head_cn* Node_next2_cn = O_struct_list_head(next_cn, cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (Node_next2.next == Node_next.next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1188:3-57");
+  update_cn_error_message_info("    memset(node, 0, sizeof(*node));\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1199:3-57");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(Node_next2_cn->next, Node_next_cn->next)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (Node_prev2.prev == Node_prev.prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1189:3-57");
+  update_cn_error_message_info("    /*CN*//*@ apply page_size_of_order2((*p).order); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1200:3-57");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(Node_prev2_cn->prev, Node_prev_cn->prev)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == virt) || (Node_prev2.next == next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1190:3-47");
+  update_cn_error_message_info("}\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1201:3-47");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, virt_cn), cn_pointer_equality(Node_prev2_cn->next, next_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (Node_next2.prev == prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1191:3-47");
+  update_cn_error_message_info("/* for verification */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1202:3-47");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(Node_next2_cn->prev, prev_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev != next) || ((prev == virt) || (Node_prev2.prev == prev)); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1192:3-67");
+  update_cn_error_message_info("static inline void page_remove_from_list_pool(struct hyp_pool *pool, struct hyp_page *p)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1203:3-67");
   cn_assert(cn_bool_or(cn_bool_not(cn_pointer_equality(prev_cn, next_cn)), cn_bool_or(cn_pointer_equality(prev_cn, virt_cn), cn_pointer_equality(Node_prev2_cn->prev, prev_cn))), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -3045,16 +3027,16 @@ static inline void page_remove_from_list_pool(struct hyp_pool *pool, struct hyp_
   cn_pointer* p_cn = convert_to_cn_pointer(p);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1204:5-62");
+  update_cn_error_message_info(" ensures take ZP = ZeroPage(virt, true, order); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1215:5-62");
   cn_pointer* O___hyp_vmemmap22_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1204:5-62");
+  update_cn_error_message_info(" ensures take ZP = ZeroPage(virt, true, order); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1215:5-62");
   cn_bits_i64* O_hyp_physvirt_offset24_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1204:5-62");
+  update_cn_error_message_info(" ensures take ZP = ZeroPage(virt, true, order); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1215:5-62");
   cn_pointer* O_cn_virt_ptr14_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires take HP = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n               ^./driver.pp.c:1205:16:");
+  update_cn_error_message_info("  take H2 = Hyp_pool_ex1(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i); \n               ^./driver.pp.c:1216:16:");
   struct Hyp_pool_ex1_record* HP_cn = Hyp_pool(pool_cn, O___hyp_vmemmap22_cn, O_cn_virt_ptr14_cn, O_hyp_physvirt_offset24_cn, PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
@@ -3067,15 +3049,15 @@ static inline void page_remove_from_list_pool(struct hyp_pool *pool, struct hyp_
   start_i_cn = cn_bits_u64_divide(HP_cn->pool->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(HP_cn->pool->range_end, page_size());
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1211:3-82");
+  update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_l_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1222:3-82");
   cn_assert(cellPointer(O___hyp_vmemmap22_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, p_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u8* order_cn;
   order_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(HP_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order;
-  update_cn_error_message_info("  order != hyp_no_order (); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1213:3-28");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1224:3-28");
   cn_assert(cn_bool_not(cn_bits_u8_equality(order_cn, hyp_no_order())), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  HP.vmemmap[p_i].refcount == 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1214:3-36");
+  update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, node); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1225:3-36");
   cn_assert(cn_bits_u16_equality(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(HP_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->refcount, convert_to_cn_bits_u16(0ULL)), PRE);
   cn_pop_msg_info();
   
@@ -3102,33 +3084,33 @@ c_add_to_ghost_state((&node), sizeof(struct list_head*), get_cn_stack_depth());
 
 cn_pointer* node_addr_cn = convert_to_cn_pointer((&node));
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_l_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1222:14-77");
+    /*CN*/update_cn_error_message_info("    /*CN*/if (node_prev != node) {\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1233:14-77");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1223:14-75");
+    /*CN*/update_cn_error_message_info("        /*CN*/if (node_prev != free_node)\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1234:14-75");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1224:14-86");
+    /*CN*/update_cn_error_message_info("        ;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1235:14-86");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, node); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1225:14-85");
+    /*CN*/update_cn_error_message_info("        /*CN*/if (node_next != node_prev && node_next != free_node)\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1236:14-85");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, order; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1226:14-55");
+    /*CN*/update_cn_error_message_info("        ;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1237:14-55");
 
-update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, order; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1226:14-53");
-
-cn_pop_msg_info();
+update_cn_error_message_info("        ;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1237:14-53");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, p_i; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1227:14-52");
+cn_pop_msg_info();
 
-update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, p_i; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1227:14-50");
+    /*CN*/update_cn_error_message_info("    /*CN*/};\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1238:14-52");
+
+update_cn_error_message_info("    /*CN*/};\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1238:14-50");
 
 cn_pop_msg_info();
 
@@ -3146,11 +3128,11 @@ c_add_to_ghost_state((&node_next), sizeof(void*), get_cn_stack_depth());
 
 cn_pointer* node_next_addr_cn = convert_to_cn_pointer((&node_next));
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, node_prev); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1230:14-90");
+    /*CN*/update_cn_error_message_info("static inline void page_add_to_list(struct hyp_page *p, struct list_head *head)\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1241:14-90");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, node_next); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1231:14-90");
+    /*CN*/update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1242:14-90");
 
 cn_pop_msg_info();
 
@@ -3196,31 +3178,31 @@ __cn_epilogue:
   c_remove_from_ghost_state((&p), sizeof(struct hyp_page*));
 
 {
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1204:5-62");
+  update_cn_error_message_info(" ensures take ZP = ZeroPage(virt, true, order); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1215:5-62");
   cn_pointer* O___hyp_vmemmap23_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1204:5-62");
+  update_cn_error_message_info(" ensures take ZP = ZeroPage(virt, true, order); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1215:5-62");
   cn_bits_i64* O_hyp_physvirt_offset25_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1204:5-62");
+  update_cn_error_message_info(" ensures take ZP = ZeroPage(virt, true, order); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1215:5-62");
   cn_pointer* O_cn_virt_ptr15_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take ZP = ZeroPage(virt, true, order); \n              ^./driver.pp.c:1215:15:");
+  update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, order; @*/\n              ^./driver.pp.c:1226:15:");
   ZeroPage(virt_cn, convert_to_cn_bool(true), order_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take H2 = Hyp_pool_ex1(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i); \n       ^./driver.pp.c:1216:8:");
+  update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, p_i; @*/\n       ^./driver.pp.c:1227:8:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool_ex1(pool_cn, O___hyp_vmemmap23_cn, O_cn_virt_ptr15_cn, O_hyp_physvirt_offset25_cn, p_i_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1217:3-29");
+  update_cn_error_message_info("    /*CN*/void *node_prev = node->prev;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1228:3-29");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap23_cn, O___hyp_vmemmap22_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1217:30-62");
+  update_cn_error_message_info("    /*CN*/void *node_prev = node->prev;\n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1228:30-62");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset25_cn, O_hyp_physvirt_offset24_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.vmemmap == HP.vmemmap; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1218:3-28");
+  update_cn_error_message_info("    /*CN*/void *node_next = node->next;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1229:3-28");
   cn_assert(cn_map_equality(H2_cn->vmemmap, HP_cn->vmemmap, struct_hyp_page_cn_equality), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.pool == {free_area: H2.pool.free_area, ..HP.pool}; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1219:3-56");
+  update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, node_prev); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1230:3-56");
   struct hyp_pool_cn* a_9902 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_9902->free_area = H2_cn->pool->free_area;
   a_9902->range_start = HP_cn->pool->range_start;
@@ -3272,13 +3254,13 @@ static inline void page_add_to_list(struct hyp_page *p, struct list_head *head)
   cn_pointer* head_cn = convert_to_cn_pointer(head);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1242:5-62");
+  update_cn_error_message_info("  ptr_eq(prev, next) || !addr_eq(prev, next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1253:5-62");
   cn_pointer* O___hyp_vmemmap24_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1242:5-62");
+  update_cn_error_message_info("  ptr_eq(prev, next) || !addr_eq(prev, next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1253:5-62");
   cn_bits_i64* O_hyp_physvirt_offset26_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1242:5-62");
+  update_cn_error_message_info("  ptr_eq(prev, next) || !addr_eq(prev, next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1253:5-62");
   cn_pointer* O_cn_virt_ptr16_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
@@ -3287,43 +3269,43 @@ static inline void page_add_to_list(struct hyp_page *p, struct list_head *head)
   phys_cn = cn_bits_u64_multiply(p_i_cn, page_size());
   cn_pointer* virt_cn;
   virt_cn = cn__hyp_va(O_cn_virt_ptr16_cn, O_hyp_physvirt_offset26_cn, phys_cn);
-  update_cn_error_message_info("  take Hp = Owned(p); \n       ^./driver.pp.c:1246:8:");
+  update_cn_error_message_info("  phys > (u64) hyp_physvirt_offset; \n       ^./driver.pp.c:1257:8:");
   struct hyp_page_cn* Hp_cn = owned_struct_hyp_page(p_cn, PRE, 0);
   cn_pop_msg_info();
   cn_bits_u8* order_cn;
   order_cn = Hp_cn->order;
-  update_cn_error_message_info("  order < 11u8; \n  ^~~~~~~~~~~~~ ./driver.pp.c:1248:3-16");
+  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {cn_virt_ptr} unchanged; \n  ^~~~~~~~~~~~~ ./driver.pp.c:1259:3-16");
   cn_assert(cn_bits_u8_lt(order_cn, convert_to_cn_bits_u8(11UL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take AP1 = ZeroPage(virt, true, order); \n       ^./driver.pp.c:1249:8:");
+  update_cn_error_message_info("  take AP1R = AllocatorPage(virt, true, order); \n       ^./driver.pp.c:1260:8:");
   ZeroPage(virt_cn, convert_to_cn_bool(true), order_cn, PRE, 0);
   cn_pop_msg_info();
   cn_pointer* next_cn;
   next_cn = head_cn;
-  update_cn_error_message_info("  take Node_head = Owned<struct list_head>(next); \n       ^./driver.pp.c:1251:8:");
+  update_cn_error_message_info("  {*p} unchanged; \n       ^./driver.pp.c:1262:8:");
   struct list_head_cn* Node_head_cn = owned_struct_list_head(next_cn, PRE, 0);
   cn_pop_msg_info();
   cn_pointer* prev_cn;
   prev_cn = Node_head_cn->prev;
-  update_cn_error_message_info("  ptr_eq(prev, next) || !addr_eq(prev, next); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1253:3-46");
+  update_cn_error_message_info("  take Node_prev2 = O_struct_list_head(prev, !addr_eq(prev, next)); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1264:3-46");
   cn_assert(cn_bool_or(ptr_eq(prev_cn, next_cn), cn_bool_not(addr_eq(prev_cn, next_cn))), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take Node_prev = O_struct_list_head(prev, !addr_eq(prev, next)); \n       ^./driver.pp.c:1254:8:");
+  update_cn_error_message_info("  (prev == next) || (Node_prev.prev == Node_prev2.prev); \n       ^./driver.pp.c:1265:8:");
   struct list_head_cn* Node_prev_cn = O_struct_list_head(prev_cn, cn_bool_not(addr_eq(prev_cn, next_cn)), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1255:3-50");
+  update_cn_error_message_info("  (prev == next) || {(*next).next} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1266:3-50");
   cn_assert(cn_bits_u64_le(cn_bits_u64_divide(cast_cn_bits_i64_to_cn_bits_u64(O_hyp_physvirt_offset26_cn), page_size()), p_i_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1255:51-95");
+  update_cn_error_message_info("  (prev == next) || {(*next).next} unchanged; \n                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1266:51-95");
   cn_assert(cn_bits_u64_lt(p_i_cn, cn_bits_u64_divide(cn_bits_u64_shift_left(convert_to_cn_bits_u64(1ULL), convert_to_cn_bits_u64(63ULL)), page_size())), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (mod((u64) hyp_physvirt_offset, page_size())) == 0u64; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1256:3-57");
+  update_cn_error_message_info("  (*next).prev == virt; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1267:3-57");
   cn_assert(cn_bits_u64_equality(cn_bits_u64_mod(cast_cn_bits_i64_to_cn_bits_u64(O_hyp_physvirt_offset26_cn), page_size()), convert_to_cn_bits_u64(0ULL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  phys > (u64) hyp_physvirt_offset; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1257:3-36");
+  update_cn_error_message_info("  (prev == next) || (Node_prev2.next == virt); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1268:3-36");
   cn_assert(cn_bits_u64_lt(cast_cn_bits_i64_to_cn_bits_u64(O_hyp_physvirt_offset26_cn), phys_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  p >= __hyp_vmemmap; \n  ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1258:3-22");
+  update_cn_error_message_info("  !addr_eq(prev, next) || ((*next).next == virt); \n  ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1269:3-22");
   cn_assert(cn_pointer_le(O___hyp_vmemmap24_cn, p_cn), PRE);
   cn_pop_msg_info();
   
@@ -3351,7 +3333,7 @@ c_add_to_ghost_state((&node), sizeof(struct list_head*), get_cn_stack_depth());
 cn_pointer* node_addr_cn = convert_to_cn_pointer((&node));
 
     /*CN*/if (CN_LOAD(CN_LOAD(head)->prev) != CN_LOAD(head)) {}
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ apply bytes_to_struct_list_head(node, (*p).order); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1274:14-67");
+    /*CN*/update_cn_error_message_info("  let free_area_l = member_shift<struct hyp_pool>(pool, free_area); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1285:14-67");
 
 cn_pointer* read_node6 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer((&node)), struct list_head*));
 
@@ -3359,7 +3341,7 @@ cn_pointer* read_p20 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_poin
 
 struct hyp_page_cn* deref_read_p200 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p20, struct hyp_page));
 
-update_cn_error_message_info("    /*CN*//*@ apply bytes_to_struct_list_head(node, (*p).order); @*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1274:15-65");
+update_cn_error_message_info("  let free_area_l = member_shift<struct hyp_pool>(pool, free_area); \n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1285:15-65");
 
 bytes_to_struct_list_head(read_node6, deref_read_p200->order);
 
@@ -3394,58 +3376,58 @@ __cn_epilogue:
   c_remove_from_ghost_state((&head), sizeof(struct list_head*));
 
 {
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1242:5-62");
+  update_cn_error_message_info("  ptr_eq(prev, next) || !addr_eq(prev, next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1253:5-62");
   cn_pointer* O___hyp_vmemmap25_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1242:5-62");
+  update_cn_error_message_info("  ptr_eq(prev, next) || !addr_eq(prev, next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1253:5-62");
   cn_bits_i64* O_hyp_physvirt_offset27_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1242:5-62");
+  update_cn_error_message_info("  ptr_eq(prev, next) || !addr_eq(prev, next); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1253:5-62");
   cn_pointer* O_cn_virt_ptr17_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {cn_virt_ptr} unchanged; \n         ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1259:10-36");
+  update_cn_error_message_info("  (AP1R.next == head); (AP1R.prev == prev); @*/\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1270:10-36");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap25_cn, O___hyp_vmemmap24_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {cn_virt_ptr} unchanged; \n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1259:37-69");
+  update_cn_error_message_info("  (AP1R.next == head); (AP1R.prev == prev); @*/\n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1270:37-69");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset27_cn, O_hyp_physvirt_offset26_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {cn_virt_ptr} unchanged; \n                                                                     ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1259:70-94");
+  update_cn_error_message_info("  (AP1R.next == head); (AP1R.prev == prev); @*/\n                                                                     ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1270:70-94");
   cn_assert(cn_pointer_equality(O_cn_virt_ptr17_cn, O_cn_virt_ptr16_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take AP1R = AllocatorPage(virt, true, order); \n       ^./driver.pp.c:1260:8:");
+  update_cn_error_message_info("{\n       ^./driver.pp.c:1271:8:");
   struct list_head_cn* AP1R_cn = AllocatorPage(virt_cn, convert_to_cn_bool(true), order_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take Hp2 = Owned(p); \n       ^./driver.pp.c:1261:8:");
+  update_cn_error_message_info("    struct list_head *node = copy_alloc_id((((phys_addr_t)(((phys_addr_t)(((hyp_page_to_pfn(p))) << 12))) - hyp_physvirt_offset)), (cn_virt_ptr));\n       ^./driver.pp.c:1272:8:");
   struct hyp_page_cn* Hp2_cn = owned_struct_hyp_page(p_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {*p} unchanged; \n  ^~~~~~~~~~~~~~~ ./driver.pp.c:1262:3-18");
+  update_cn_error_message_info("    /*CN*/if (head->prev != head) {}\n  ^~~~~~~~~~~~~~~ ./driver.pp.c:1273:3-18");
   cn_assert(struct_hyp_page_cn_equality(Hp2_cn, Hp_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take Node_head2 = Owned<struct list_head>(next); \n       ^./driver.pp.c:1263:8:");
+  update_cn_error_message_info("    /*CN*//*@ apply bytes_to_struct_list_head(node, (*p).order); @*/\n       ^./driver.pp.c:1274:8:");
   struct list_head_cn* Node_head2_cn = owned_struct_list_head(next_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take Node_prev2 = O_struct_list_head(prev, !addr_eq(prev, next)); \n       ^./driver.pp.c:1264:8:");
+  update_cn_error_message_info("    INIT_LIST_HEAD(node);\n       ^./driver.pp.c:1275:8:");
   struct list_head_cn* Node_prev2_cn = O_struct_list_head(prev_cn, cn_bool_not(addr_eq(prev_cn, next_cn)), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (Node_prev.prev == Node_prev2.prev); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1265:3-57");
+  update_cn_error_message_info("    list_add_tail(node, head);\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1276:3-57");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(Node_prev_cn->prev, Node_prev2_cn->prev)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || {(*next).next} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1266:3-46");
+  update_cn_error_message_info("}\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1277:3-46");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(Node_head2_cn->next, Node_head_cn->next)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (*next).prev == virt; \n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1267:3-24");
+  update_cn_error_message_info("static inline void page_add_to_list_pool(struct hyp_pool *pool,\n  ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1278:3-24");
   cn_assert(cn_pointer_equality(Node_head2_cn->prev, virt_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (prev == next) || (Node_prev2.next == virt); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1268:3-47");
+  update_cn_error_message_info("                struct hyp_page *p, struct list_head *head)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1279:3-47");
   cn_assert(cn_bool_or(cn_pointer_equality(prev_cn, next_cn), cn_pointer_equality(Node_prev2_cn->next, virt_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  !addr_eq(prev, next) || ((*next).next == virt); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1269:3-50");
+  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1280:3-50");
   cn_assert(cn_bool_or(cn_bool_not(addr_eq(prev_cn, next_cn)), cn_pointer_equality(Node_head2_cn->next, virt_cn)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (AP1R.next == head); (AP1R.prev == prev); @*/\n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1270:3-23");
+  update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n  ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1281:3-23");
   cn_assert(cn_pointer_equality(AP1R_cn->next, head_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (AP1R.next == head); (AP1R.prev == prev); @*/\n                       ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1270:24-44");
+  update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n                       ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1281:24-44");
   cn_assert(cn_pointer_equality(AP1R_cn->prev, prev_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -3487,24 +3469,24 @@ static inline void page_add_to_list_pool(struct hyp_pool *pool,
   cn_pointer* head_cn = convert_to_cn_pointer(head);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1280:5-62");
+  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1291:5-62");
   cn_pointer* O___hyp_vmemmap26_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1280:5-62");
+  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1291:5-62");
   cn_bits_i64* O_hyp_physvirt_offset28_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1280:5-62");
+  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1291:5-62");
   cn_pointer* O_cn_virt_ptr18_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1281:11-52");
+  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1292:11-52");
   cn_assert(cn_alloc_id_equality(convert_to_cn_alloc_id(0), convert_to_cn_alloc_id(0)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  p >= __hyp_vmemmap; \n  ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1282:3-22");
+  update_cn_error_message_info("  let order = (HP.vmemmap[p_i]).order; \n  ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1293:3-22");
   cn_assert(cn_pointer_le(O___hyp_vmemmap26_cn, p_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
   p_i_cn = cn_hyp_page_to_pfn(O___hyp_vmemmap26_cn, p_cn);
-  update_cn_error_message_info("  take HP = Hyp_pool_ex1(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i); \n       ^./driver.pp.c:1284:8:");
+  update_cn_error_message_info("  HP.vmemmap[p_i].refcount == 0u16; \n       ^./driver.pp.c:1295:8:");
   struct Hyp_pool_ex1_record* HP_cn = Hyp_pool_ex1(pool_cn, O___hyp_vmemmap26_cn, O_cn_virt_ptr18_cn, O_hyp_physvirt_offset28_cn, p_i_cn, PRE, 0);
   cn_pop_msg_info();
   cn_pointer* free_area_l_cn;
@@ -3519,27 +3501,27 @@ static inline void page_add_to_list_pool(struct hyp_pool *pool,
   start_i_cn = cn_bits_u64_divide(HP_cn->pool->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(HP_cn->pool->range_end, page_size());
-  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1291:3-50");
+  update_cn_error_message_info("{\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1302:3-50");
   cn_assert(cn_bits_u64_le(cn_bits_u64_divide(cast_cn_bits_i64_to_cn_bits_u64(O_hyp_physvirt_offset28_cn), page_size()), p_i_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1291:51-95");
+  update_cn_error_message_info("{\n                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1302:51-95");
   cn_assert(cn_bits_u64_lt(p_i_cn, cn_bits_u64_divide(cn_bits_u64_shift_left(convert_to_cn_bits_u64(1ULL), convert_to_cn_bits_u64(63ULL)), page_size())), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1292:3-82");
+  update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1303:3-82");
   cn_assert(cellPointer(O___hyp_vmemmap26_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, p_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u8* order_cn;
   order_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(HP_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order;
-  update_cn_error_message_info("  order != (hyp_no_order ()); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1294:3-30");
+  update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1305:3-30");
   cn_assert(cn_bool_not(cn_bits_u8_equality(order_cn, hyp_no_order())), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  HP.vmemmap[p_i].refcount == 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1295:3-36");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1306:3-36");
   cn_assert(cn_bits_u16_equality(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(HP_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->refcount, convert_to_cn_bits_u16(0ULL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take ZP = ZeroPage(virt, true, order); \n       ^./driver.pp.c:1296:8:");
+  update_cn_error_message_info("    /*CN*/struct list_head *prev = head->prev;\n       ^./driver.pp.c:1307:8:");
   ZeroPage(virt_cn, convert_to_cn_bool(true), order_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  head == array_shift<struct list_head>(&(pool->free_area), order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1297:3-68");
+  update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, (*p).order;@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1308:3-68");
   cn_assert(cn_pointer_equality(head_cn, cn_array_shift(cn_member_shift(pool_cn, hyp_pool, free_area), sizeof(struct list_head), order_cn)), PRE);
   cn_pop_msg_info();
   
@@ -3552,23 +3534,23 @@ static inline void page_add_to_list_pool(struct hyp_pool *pool,
   c_add_to_ghost_state((&head), sizeof(struct list_head*), get_cn_stack_depth());
   cn_pointer* head_addr_cn = convert_to_cn_pointer((&head));
   
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1303:14-75");
+    /*CN*/update_cn_error_message_info("        *prev;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1314:14-75");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, (u64) order; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1304:14-61");
+    /*CN*/update_cn_error_message_info("    /*CN*/};\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1315:14-61");
 
-update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, (u64) order; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1304:14-59");
-
-cn_pop_msg_info();
+update_cn_error_message_info("    /*CN*/};\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1315:14-59");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1305:14-84");
+cn_pop_msg_info();
+
+    /*CN*/update_cn_error_message_info("    /*@ assert (ptr_eq(prev, head) || !addr_eq(prev, head)); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1316:14-84");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1306:14-86");
+    /*CN*/update_cn_error_message_info("    page_add_to_list(p, head);\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1317:14-86");
 
 cn_pop_msg_info();
 
@@ -3578,30 +3560,30 @@ c_add_to_ghost_state((&prev), sizeof(struct list_head*), get_cn_stack_depth());
 
 cn_pointer* prev_addr_cn = convert_to_cn_pointer((&prev));
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, (*p).order;@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1308:14-56");
+    /*CN*/update_cn_error_message_info("static inline void page_add_to_list_pool_ex1(struct hyp_pool *pool,\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1319:14-56");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, virt); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1309:14-85");
+    /*CN*/update_cn_error_message_info("                struct hyp_page *p, struct list_head *head, struct hyp_page *p_ex)\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1320:14-85");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, prev); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1310:14-85");
+    /*CN*/update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1321:14-85");
 
 cn_pop_msg_info();
 
     /*CN*/if (CN_LOAD(prev) != CN_LOAD(head)) {
-        /*CN*/update_cn_error_message_info("        /*CN*//*@instantiate vmemmap_l_wf, cn_hyp_virt_to_pfn(hyp_physvirt_offset,prev);@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1312:18-90");
+        /*CN*/update_cn_error_message_info("  (alloc_id) __hyp_vmemmap == (alloc_id) p; \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1323:18-90");
 
 cn_pop_msg_info();
 
-        /*CN*/update_cn_error_message_info("        /*CN*//*@extract AllocatorPage, (i64) (((u64) prev) / page_size()); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1313:18-78");
+        /*CN*/update_cn_error_message_info("  let p_i2 = cn_hyp_page_to_pfn(__hyp_vmemmap, p_ex); \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1324:18-78");
 
 cn_pop_msg_info();
 
         CN_LOAD(*CN_LOAD(prev));
     /*CN*/};
-    update_cn_error_message_info("    /*@ assert (ptr_eq(prev, head) || !addr_eq(prev, head)); @*/\n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1316:8-63");
+    update_cn_error_message_info("  let phys = p_i * page_size(); \n       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1327:8-63");
 
 cn_pointer* read_prev5 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer((&prev)), struct list_head*));
 
@@ -3611,9 +3593,9 @@ cn_pointer* read_prev6 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_po
 
 cn_pointer* read_head3 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer((&head)), struct list_head*));
 
-update_cn_error_message_info("    /*@ assert (ptr_eq(prev, head) || !addr_eq(prev, head)); @*/\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1316:9-61");
+update_cn_error_message_info("  let phys = p_i * page_size(); \n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1327:9-61");
 
-update_cn_error_message_info("    /*@ assert (ptr_eq(prev, head) || !addr_eq(prev, head)); @*/\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1316:9-61");
+update_cn_error_message_info("  let phys = p_i * page_size(); \n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1327:9-61");
 
 cn_assert(cn_bool_or(ptr_eq(read_prev5, read_head2), cn_bool_not(addr_eq(read_prev6, read_head3))), STATEMENT);
 
@@ -3646,25 +3628,25 @@ __cn_epilogue:
   c_remove_from_ghost_state((&head), sizeof(struct list_head*));
 
 {
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1280:5-62");
+  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1291:5-62");
   cn_pointer* O___hyp_vmemmap27_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1280:5-62");
+  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1291:5-62");
   cn_bits_i64* O_hyp_physvirt_offset29_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1280:5-62");
+  update_cn_error_message_info("  (u64) hyp_physvirt_offset / page_size() <= p_i; p_i < shift_left(1u64, 63u64) / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1291:5-62");
   cn_pointer* O_cn_virt_ptr19_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n              ^./driver.pp.c:1298:15:");
+  update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, virt); @*/\n              ^./driver.pp.c:1309:15:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool(pool_cn, O___hyp_vmemmap27_cn, O_cn_virt_ptr19_cn, O_hyp_physvirt_offset29_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1299:3-29");
+  update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, prev); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1310:3-29");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap27_cn, O___hyp_vmemmap26_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1299:30-62");
+  update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, prev); @*/\n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1310:30-62");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset29_cn, O_hyp_physvirt_offset28_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.pool == {free_area: H2.pool.free_area, ..HP.pool}; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1300:3-56");
+  update_cn_error_message_info("    /*CN*/if (prev != head) {\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1311:3-56");
   struct hyp_pool_cn* a_10566 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_10566->free_area = H2_cn->pool->free_area;
   a_10566->range_start = HP_cn->pool->range_start;
@@ -3672,7 +3654,7 @@ __cn_epilogue:
   a_10566->max_order = HP_cn->pool->max_order;
   cn_assert(struct_hyp_pool_cn_equality(H2_cn->pool, a_10566), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.vmemmap == HP.vmemmap; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1301:3-28");
+  update_cn_error_message_info("        /*CN*//*@instantiate vmemmap_l_wf, cn_hyp_virt_to_pfn(hyp_physvirt_offset,prev);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1312:3-28");
   cn_assert(cn_map_equality(H2_cn->vmemmap, HP_cn->vmemmap, struct_hyp_page_cn_equality), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -3715,23 +3697,23 @@ static inline void page_add_to_list_pool_ex1(struct hyp_pool *pool,
   cn_pointer* p_ex_cn = convert_to_cn_pointer(p_ex);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1321:5-62");
+  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p_ex); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1332:5-62");
   cn_pointer* O___hyp_vmemmap28_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1321:5-62");
+  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p_ex); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1332:5-62");
   cn_bits_i64* O_hyp_physvirt_offset30_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1321:5-62");
+  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p_ex); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1332:5-62");
   cn_pointer* O_cn_virt_ptr20_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
   p_i_cn = cn_hyp_page_to_pfn(O___hyp_vmemmap28_cn, p_cn);
-  update_cn_error_message_info("  (alloc_id) __hyp_vmemmap == (alloc_id) p; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1323:3-44");
+  update_cn_error_message_info("  order != hyp_no_order (); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1334:3-44");
   cn_assert(cn_alloc_id_equality(convert_to_cn_alloc_id(0), convert_to_cn_alloc_id(0)), PRE);
   cn_pop_msg_info();
   cn_bits_u64* p_i2_cn;
   p_i2_cn = cn_hyp_page_to_pfn(O___hyp_vmemmap28_cn, p_ex_cn);
-  update_cn_error_message_info("  take HP = Hyp_pool_ex2(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i, p_i2); \n       ^./driver.pp.c:1325:8:");
+  update_cn_error_message_info("  take ZP = ZeroPage(virt, true, order); \n       ^./driver.pp.c:1336:8:");
   struct Hyp_pool_ex1_record* HP_cn = Hyp_pool_ex2(pool_cn, O___hyp_vmemmap28_cn, O_cn_virt_ptr20_cn, O_hyp_physvirt_offset30_cn, p_i_cn, p_i2_cn, PRE, 0);
   cn_pop_msg_info();
   cn_pointer* free_area_l_cn;
@@ -3744,27 +3726,27 @@ static inline void page_add_to_list_pool_ex1(struct hyp_pool *pool,
   start_i_cn = cn_bits_u64_divide(HP_cn->pool->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(HP_cn->pool->range_end, page_size());
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1331:3-82");
+  update_cn_error_message_info("  H2.vmemmap == HP.vmemmap; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1342:3-82");
   cn_assert(cellPointer(O___hyp_vmemmap28_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, p_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p_ex); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1332:3-85");
+  update_cn_error_message_info("{\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1343:3-85");
   cn_assert(cellPointer(O___hyp_vmemmap28_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, p_ex_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u8* order_cn;
   order_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(HP_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order;
-  update_cn_error_message_info("  order != hyp_no_order (); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1334:3-28");
+  update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1345:3-28");
   cn_assert(cn_bool_not(cn_bits_u8_equality(order_cn, hyp_no_order())), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (HP.vmemmap[p_i]).refcount == 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1335:3-38");
+  update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1346:3-38");
   cn_assert(cn_bits_u16_equality(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(HP_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->refcount, convert_to_cn_bits_u16(0ULL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take ZP = ZeroPage(virt, true, order); \n       ^./driver.pp.c:1336:8:");
+  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n       ^./driver.pp.c:1347:8:");
   ZeroPage(virt_cn, convert_to_cn_bool(true), order_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  head == array_shift<struct list_head>(&(pool->free_area), order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1337:3-68");
+  update_cn_error_message_info("    /*CN*/void *prev = head->prev;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1348:3-68");
   cn_assert(cn_pointer_equality(head_cn, cn_array_shift(cn_member_shift(pool_cn, hyp_pool, free_area), sizeof(struct list_head), order_cn)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  p_i != p_i2; \n  ^~~~~~~~~~~~ ./driver.pp.c:1338:3-15");
+  update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, virt); @*/\n  ^~~~~~~~~~~~ ./driver.pp.c:1349:3-15");
   cn_assert(cn_bool_not(cn_bits_u64_equality(p_i_cn, p_i2_cn)), PRE);
   cn_pop_msg_info();
   
@@ -3779,23 +3761,23 @@ static inline void page_add_to_list_pool_ex1(struct hyp_pool *pool,
   c_add_to_ghost_state((&p_ex), sizeof(struct hyp_page*), get_cn_stack_depth());
   cn_pointer* p_ex_addr_cn = convert_to_cn_pointer((&p_ex));
   
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, order;@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1344:14-54");
+    /*CN*/update_cn_error_message_info("    page_add_to_list(p, head);\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1355:14-54");
 
-update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, order;@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1344:14-53");
-
-cn_pop_msg_info();
+update_cn_error_message_info("    page_add_to_list(p, head);\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1355:14-53");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1345:14-84");
+cn_pop_msg_info();
+
+    /*CN*/update_cn_error_message_info("}\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1356:14-84");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1346:14-75");
+    /*CN*/update_cn_error_message_info("static inline struct hyp_page *node_to_page(struct list_head *node)\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1357:14-75");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1347:14-86");
+    /*CN*/update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1358:14-86");
 
 cn_pop_msg_info();
 
@@ -3805,20 +3787,20 @@ c_add_to_ghost_state((&prev), sizeof(void*), get_cn_stack_depth());
 
 cn_pointer* prev_addr_cn = convert_to_cn_pointer((&prev));
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, virt); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1349:14-85");
+    /*CN*/update_cn_error_message_info("  let phys = (u64) node + (u64) hyp_physvirt_offset; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1360:14-85");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, prev); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1350:14-85");
+    /*CN*/update_cn_error_message_info("  let p_i = phys / page_size(); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1361:14-85");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, (*p).order;@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1351:14-56");
+    /*CN*/update_cn_error_message_info("  let page = array_shift<struct hyp_page>(__hyp_vmemmap, p_i); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1362:14-56");
 
 cn_pop_msg_info();
 
     /*CN*/if (CN_LOAD(prev) != CN_LOAD(head)) {
-        /*CN*/update_cn_error_message_info("        /*CN*//*@instantiate vmemmap_l_wf, cn_hyp_virt_to_pfn(hyp_physvirt_offset,prev);@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1353:18-90");
+        /*CN*/update_cn_error_message_info("  mod((u64) __hyp_vmemmap, (u64) (sizeof<struct hyp_page>)) == 0u64; \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1364:18-90");
 
 cn_pop_msg_info();
 
@@ -3848,25 +3830,25 @@ __cn_epilogue:
   c_remove_from_ghost_state((&p_ex), sizeof(struct hyp_page*));
 
 {
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1321:5-62");
+  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p_ex); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1332:5-62");
   cn_pointer* O___hyp_vmemmap29_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1321:5-62");
+  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p_ex); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1332:5-62");
   cn_bits_i64* O_hyp_physvirt_offset31_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1321:5-62");
+  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p_ex); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1332:5-62");
   cn_pointer* O_cn_virt_ptr21_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take H2 = Hyp_pool_ex1(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i2); \n              ^./driver.pp.c:1339:15:");
+  update_cn_error_message_info("    /*CN*//*@extract AllocatorPage, cn_hyp_virt_to_pfn(hyp_physvirt_offset, prev); @*/\n              ^./driver.pp.c:1350:15:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool_ex1(pool_cn, O___hyp_vmemmap29_cn, O_cn_virt_ptr21_cn, O_hyp_physvirt_offset31_cn, p_i2_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1340:3-29");
+  update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, (*p).order;@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1351:3-29");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap29_cn, O___hyp_vmemmap28_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1340:30-62");
+  update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, (*p).order;@*/\n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1351:30-62");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset31_cn, O_hyp_physvirt_offset30_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.pool == {free_area: H2.pool.free_area, ..HP.pool}; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1341:3-56");
+  update_cn_error_message_info("    /*CN*/if (prev != head) {\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1352:3-56");
   struct hyp_pool_cn* a_10904 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_10904->free_area = H2_cn->pool->free_area;
   a_10904->range_start = HP_cn->pool->range_start;
@@ -3874,7 +3856,7 @@ __cn_epilogue:
   a_10904->max_order = HP_cn->pool->max_order;
   cn_assert(struct_hyp_pool_cn_equality(H2_cn->pool, a_10904), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.vmemmap == HP.vmemmap; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1342:3-28");
+  update_cn_error_message_info("        /*CN*//*@instantiate vmemmap_l_wf, cn_hyp_virt_to_pfn(hyp_physvirt_offset,prev);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1353:3-28");
   cn_assert(cn_map_equality(H2_cn->vmemmap, HP_cn->vmemmap, struct_hyp_page_cn_equality), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -3901,13 +3883,13 @@ static inline struct hyp_page *node_to_page(struct list_head *node)
   cn_pointer* node_cn = convert_to_cn_pointer(node);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1358:5-49");
+  update_cn_error_message_info("}\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1369:5-49");
   cn_pointer* O___hyp_vmemmap30_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1358:5-49");
+  update_cn_error_message_info("}\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1369:5-49");
   cn_bits_i64* O_hyp_physvirt_offset32_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires 0i64 <= hyp_physvirt_offset; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1359:11-39");
+  update_cn_error_message_info("static void __hyp_attach_page(struct hyp_pool *pool,\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1370:11-39");
   cn_assert(cn_bits_i64_le(convert_to_cn_bits_i64(0LL), O_hyp_physvirt_offset32_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u64* phys_cn;
@@ -3916,10 +3898,10 @@ static inline struct hyp_page *node_to_page(struct list_head *node)
   p_i_cn = cn_bits_u64_divide(phys_cn, page_size());
   cn_pointer* page_cn;
   page_cn = cn_array_shift(O___hyp_vmemmap30_cn, sizeof(struct hyp_page), p_i_cn);
-  update_cn_error_message_info("  mod((u64) hyp_physvirt_offset, page_size ()) == 0u64; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1363:3-56");
+  update_cn_error_message_info("  let p_i = cn_hyp_page_to_pfn(__hyp_vmemmap, p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1374:3-56");
   cn_assert(cn_bits_u64_equality(cn_bits_u64_mod(cast_cn_bits_i64_to_cn_bits_u64(O_hyp_physvirt_offset32_cn), page_size()), convert_to_cn_bits_u64(0ULL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  mod((u64) __hyp_vmemmap, (u64) (sizeof<struct hyp_page>)) == 0u64; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1364:3-69");
+  update_cn_error_message_info("  take H = Hyp_pool_ex1(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1375:3-69");
   cn_assert(cn_bits_u64_equality(cn_bits_u64_mod(cast_cn_pointer_to_cn_bits_u64(O___hyp_vmemmap30_cn), cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page)))), convert_to_cn_bits_u64(0ULL)), PRE);
   cn_pop_msg_info();
   
@@ -3941,19 +3923,19 @@ __cn_epilogue:
 
 {
   cn_pointer* return_cn = convert_to_cn_pointer(__cn_ret);
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1358:5-49");
+  update_cn_error_message_info("}\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1369:5-49");
   cn_pointer* O___hyp_vmemmap31_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1358:5-49");
+  update_cn_error_message_info("}\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1369:5-49");
   cn_bits_i64* O_hyp_physvirt_offset33_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures return == page; \n         ^~~~~~~~~~~~~~~ ./driver.pp.c:1365:10-25");
+  update_cn_error_message_info("  let start_i = H.pool.range_start / page_size(); \n         ^~~~~~~~~~~~~~~ ./driver.pp.c:1376:10-25");
   cn_assert(cn_pointer_equality(return_cn, page_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1366:3-29");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size (); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1377:3-29");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap31_cn, O___hyp_vmemmap30_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; @*/\n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1366:30-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size (); \n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1377:30-62");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset33_cn, O_hyp_physvirt_offset32_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -3992,44 +3974,44 @@ static void __hyp_attach_page(struct hyp_pool *pool,
   cn_pointer* p_cn = convert_to_cn_pointer(p);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   cn_pointer* O___hyp_vmemmap32_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   cn_bits_i64* O_hyp_physvirt_offset34_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   cn_pointer* O_cn_virt_ptr22_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1373:11-52");
+  update_cn_error_message_info("  take P = Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, p_i), true, i_order); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1384:11-52");
   cn_assert(cn_alloc_id_equality(convert_to_cn_alloc_id(0), convert_to_cn_alloc_id(0)), PRE);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
   p_i_cn = cn_hyp_page_to_pfn(O___hyp_vmemmap32_cn, p_cn);
-  update_cn_error_message_info("  take H = Hyp_pool_ex1(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i); \n       ^./driver.pp.c:1375:8:");
+  update_cn_error_message_info("  take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n       ^./driver.pp.c:1386:8:");
   struct Hyp_pool_ex1_record* H_cn = Hyp_pool_ex1(pool_cn, O___hyp_vmemmap32_cn, O_cn_virt_ptr22_cn, O_hyp_physvirt_offset34_cn, p_i_cn, PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* start_i_cn;
   start_i_cn = cn_bits_u64_divide(H_cn->pool->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(H_cn->pool->range_end, page_size());
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1378:3-82");
+  update_cn_error_message_info("{\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1389:3-82");
   cn_assert(cellPointer(O___hyp_vmemmap32_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, p_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (H.vmemmap[p_i]).refcount == 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1379:3-37");
+  update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1390:3-37");
   cn_assert(cn_bits_u16_equality(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->refcount, convert_to_cn_bits_u16(0ULL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  ((H.vmemmap[p_i]).order) != (hyp_no_order()); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1380:3-48");
+  update_cn_error_message_info("    phys_addr_t phys = ((phys_addr_t)(((hyp_page_to_pfn(p))) << 12));\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1391:3-48");
   cn_assert(cn_bool_not(cn_bits_u8_equality(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order, hyp_no_order())), PRE);
   cn_pop_msg_info();
   cn_bits_u8* i_order_cn;
   i_order_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order;
-  update_cn_error_message_info("  (p_i * page_size()) + (page_size_of_order(i_order)) <= (H.pool).range_end; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1382:3-77");
+  update_cn_error_message_info("    struct hyp_page *buddy = ((void *)0);\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1393:3-77");
   cn_assert(cn_bits_u64_le(cn_bits_u64_add(cn_bits_u64_multiply(p_i_cn, page_size()), page_size_of_order(i_order_cn)), H_cn->pool->range_end), PRE);
   cn_pop_msg_info();
   cn_pointer* ptr_phys_0_cn;
   ptr_phys_0_cn = cn__hyp_va(O_cn_virt_ptr22_cn, O_hyp_physvirt_offset34_cn, convert_to_cn_bits_u64(0ULL));
-  update_cn_error_message_info("  take P = Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, p_i), true, i_order); \n       ^./driver.pp.c:1384:8:");
+  update_cn_error_message_info("    u8 order = p->order;\n       ^./driver.pp.c:1395:8:");
   Page(cn_array_shift(ptr_phys_0_cn, sizeof(char[4096]), p_i_cn), convert_to_cn_bool(true), i_order_cn, PRE, 0);
   cn_pop_msg_info();
   
@@ -4040,7 +4022,7 @@ static void __hyp_attach_page(struct hyp_pool *pool,
   c_add_to_ghost_state((&p), sizeof(struct hyp_page*), get_cn_stack_depth());
   cn_pointer* p_addr_cn = convert_to_cn_pointer((&p));
   
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1390:14-75");
+    /*CN*/update_cn_error_message_info("        /*\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1401:14-75");
 
 cn_pop_msg_info();
 
@@ -4062,7 +4044,7 @@ c_add_to_ghost_state((&buddy), sizeof(struct hyp_page*), get_cn_stack_depth());
 
 cn_pointer* buddy_addr_cn = convert_to_cn_pointer((&buddy));
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1394:14-84");
+    /*CN*/update_cn_error_message_info("         * after coallescing, so make sure to mark it HYP_NO_ORDER proactively.\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1405:14-84");
 
 cn_pop_msg_info();
 
@@ -4072,13 +4054,13 @@ c_add_to_ghost_state((&order), sizeof(unsigned char), get_cn_stack_depth());
 
 cn_pointer* order_addr_cn = convert_to_cn_pointer((&order));
 
-        /*CN*/update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order2((*p).order); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1396:18-59");
+        /*CN*/update_cn_error_message_info("        p->order = 0xff;\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1407:18-59");
 
 cn_pointer* read_p31 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer((&p)), struct hyp_page*));
 
 struct hyp_page_cn* deref_read_p310 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p31, struct hyp_page));
 
-update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order2((*p).order); @*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1396:19-57");
+update_cn_error_message_info("        p->order = 0xff;\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1407:19-57");
 
 page_size_of_order2(deref_read_p310->order);
 
@@ -4165,43 +4147,43 @@ cn_bits_u8* read_order7;
 for (; ({
   cn_bump_frame_id cn_frame_id = cn_bump_get_frame_id();
   a_11276 = initialise_loop_ownership_state();
-  update_cn_error_message_info("        for (; (order + 1) < pool->max_order; order++)\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1408:9-1443:10");
+  update_cn_error_message_info("\n        ^./driver.pp.c:1419:9-1454:10");
   O_phys15 = owned_unsigned_long_long(phys_addr_cn, LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("        for (; (order + 1) < pool->max_order; order++)\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1408:9-1443:10");
+  update_cn_error_message_info("\n        ^./driver.pp.c:1419:9-1454:10");
   O_buddy3 = owned_struct_hyp_page_pointer(buddy_addr_cn, LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("        for (; (order + 1) < pool->max_order; order++)\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1408:9-1443:10");
+  update_cn_error_message_info("\n        ^./driver.pp.c:1419:9-1454:10");
   O_order6 = owned_unsigned_char(order_addr_cn, LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("        for (; (order + 1) < pool->max_order; order++)\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1408:9-1443:10");
+  update_cn_error_message_info("\n        ^./driver.pp.c:1419:9-1454:10");
   O_pool18 = owned_struct_hyp_pool_pointer(pool_addr_cn, LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("        for (; (order + 1) < pool->max_order; order++)\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1408:9-1443:10");
+  update_cn_error_message_info("\n        ^./driver.pp.c:1419:9-1454:10");
   O_p18 = owned_struct_hyp_page_pointer(p_addr_cn, LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   O___hyp_vmemmap34 = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   O_hyp_physvirt_offset36 = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   O_cn_virt_ptr24 = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*@ inv (alloc_id) __hyp_vmemmap == (alloc_id) p; \n                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1409:17-58");
+  update_cn_error_message_info("          order < H_I.pool.max_order; \n                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1420:17-58");
   cn_assert(cn_alloc_id_equality(convert_to_cn_alloc_id(0), convert_to_cn_alloc_id(0)), LOOP);
   cn_pop_msg_info();
   p_i2 = cn_hyp_page_to_pfn(O___hyp_vmemmap34, O_p18);
   virt = cn__hyp_va(O_cn_virt_ptr24, O_hyp_physvirt_offset36, cn_bits_u64_multiply(p_i2, page_size()));
-  update_cn_error_message_info("          take Z = ZeroPage(virt, true, order); \n               ^./driver.pp.c:1412:16:");
+  update_cn_error_message_info("          order_aligned(p_i2,order); \n               ^./driver.pp.c:1423:16:");
   ZeroPage(virt, convert_to_cn_bool(true), O_order6, LOOP, a_11276);
   cn_pop_msg_info();
-  update_cn_error_message_info("          take H_I = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n               ^./driver.pp.c:1414:16:");
+  update_cn_error_message_info("          each (u64 i; p_i < i && i < end_i)\n               ^./driver.pp.c:1425:16:");
   H_I = Hyp_pool(O_pool18, O___hyp_vmemmap34, O_cn_virt_ptr24, O_hyp_physvirt_offset36, LOOP, a_11276);
   cn_pop_msg_info();
   p_page = (struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_I->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i2));
-  update_cn_error_message_info("          each (u64 i; (start_i <= i) && (i < end_i))\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1417:11-1418:93");
+  update_cn_error_message_info("          H_I.pool == {free_area: (H_I.pool).free_area, ..H.pool}; @*/\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1428:11-1429:93");
   a_11381 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -4222,25 +4204,25 @@ for (; ({
   }
   cn_assert(a_11381, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          order < H_I.pool.max_order; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1420:11-38");
+  update_cn_error_message_info("            if (!buddy)\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1431:11-38");
   cn_assert(cn_bits_u8_lt(O_order6, H_I->pool->max_order), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          cellPointer(__hyp_vmemmap,(u64) (sizeof<struct hyp_page>),start_i,end_i,p); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1421:11-86");
+  update_cn_error_message_info("                break;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1432:11-86");
   cn_assert(cellPointer(O___hyp_vmemmap34, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, O_p18), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          p_page.refcount == 0u16; p_page.order == hyp_no_order (); \n          ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1422:11-35");
+  update_cn_error_message_info("            /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,buddy); @*/\n          ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1433:11-35");
   cn_assert(cn_bits_u16_equality(p_page->refcount, convert_to_cn_bits_u16(0ULL)), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          p_page.refcount == 0u16; p_page.order == hyp_no_order (); \n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1422:36-68");
+  update_cn_error_message_info("            /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,buddy); @*/\n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1433:36-68");
   cn_assert(cn_bits_u8_equality(p_page->order, hyp_no_order()), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          order_aligned(p_i2,order); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1423:11-37");
+  update_cn_error_message_info("            /*CN*//*@ apply attach_inc_loop(H_I.vmemmap,__hyp_vmemmap,*pool, p, order); @*/\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1434:11-37");
   cn_assert(order_aligned(p_i2, O_order6), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          (p_i2 * page_size()) + (page_size_of_order(order)) <= (H_I.pool).range_end; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1424:11-86");
+  update_cn_error_message_info("            /*CN*//*@ apply lemma2(cn_hyp_page_to_pfn(__hyp_vmemmap,p), order); @*/\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1435:11-86");
   cn_assert(cn_bits_u64_le(cn_bits_u64_add(cn_bits_u64_multiply(p_i2, page_size()), page_size_of_order(O_order6)), H_I->pool->range_end), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          each (u64 i; p_i < i && i < end_i)\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1425:11-1426:83");
+  update_cn_error_message_info("            /*CN*//*@ apply page_size_of_order_inc(order); @*/\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1436:11-1437:83");
   a_11470 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(p_i_cn, convert_to_cn_bits_u64(1ULL)));
@@ -4256,16 +4238,16 @@ for (; ({
   }
   cn_assert(a_11470, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {pool} unchanged; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1427:11-37");
+  update_cn_error_message_info("            /*CN*//*@ extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, buddy); @*/\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1438:11-37");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap34, O___hyp_vmemmap32_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {pool} unchanged; \n                                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1427:38-70");
+  update_cn_error_message_info("            /*CN*//*@ extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, buddy); @*/\n                                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1438:38-70");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset36, O_hyp_physvirt_offset34_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {pool} unchanged; \n                                                                      ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1427:71-88");
+  update_cn_error_message_info("            /*CN*//*@ extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, buddy); @*/\n                                                                      ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1438:71-88");
   cn_assert(cn_pointer_equality(O_pool18, pool_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("          H_I.pool == {free_area: (H_I.pool).free_area, ..H.pool}; @*/\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1428:11-67");
+  update_cn_error_message_info("            /* Take the buddy out of its list, and coallesce with @p */\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1439:11-67");
   a_11497 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_11497->free_area = H_I->pool->free_area;
   a_11497->range_start = H_cn->pool->range_start;
@@ -4273,41 +4255,41 @@ for (; ({
   a_11497->max_order = H_cn->pool->max_order;
   cn_assert(struct_hyp_pool_cn_equality(H_I->pool, a_11497), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,buddy); @*/\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1433:22-89");
+  update_cn_error_message_info("    }\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1444:22-89");
   cn_pop_msg_info();
-  update_cn_error_message_info("            /*CN*//*@ apply attach_inc_loop(H_I.vmemmap,__hyp_vmemmap,*pool, p, order); @*/\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1434:22-90");
+  update_cn_error_message_info("//insert:\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1445:22-90");
   read___hyp_vmemmap33 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
   read_pool3 = convert_to_cn_pointer(cn_pointer_deref(pool_addr_cn, struct hyp_pool*));
   deref_read_pool30 = convert_to_struct_hyp_pool_cn(cn_pointer_deref(read_pool3, struct hyp_pool));
   read_p34 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   read_order5 = convert_to_cn_bits_u8(cn_pointer_deref(order_addr_cn, unsigned char));
-  update_cn_error_message_info("            /*CN*//*@ apply attach_inc_loop(H_I.vmemmap,__hyp_vmemmap,*pool, p, order); @*/\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1434:23-88");
+  update_cn_error_message_info("//insert:\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1445:23-88");
   attach_inc_loop(H_I->vmemmap, read___hyp_vmemmap33, deref_read_pool30, read_p34, read_order5);
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("            /*CN*//*@ apply lemma2(cn_hyp_page_to_pfn(__hyp_vmemmap,p), order); @*/\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1435:22-82");
+  update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, order;@*/\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1446:22-82");
   read___hyp_vmemmap34 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
   read_p35 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   read_order6 = convert_to_cn_bits_u8(cn_pointer_deref(order_addr_cn, unsigned char));
-  update_cn_error_message_info("            /*CN*//*@ apply lemma2(cn_hyp_page_to_pfn(__hyp_vmemmap,p), order); @*/\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1435:23-80");
+  update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, order;@*/\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1446:23-80");
   lemma2(cn_hyp_page_to_pfn(read___hyp_vmemmap34, read_p35), read_order6);
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("            /*CN*//*@ apply page_size_of_order_inc(order); @*/\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1436:22-61");
+  update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1447:22-61");
   read_order7 = convert_to_cn_bits_u8(cn_pointer_deref(order_addr_cn, unsigned char));
-  update_cn_error_message_info("            /*CN*//*@ apply page_size_of_order_inc(order); @*/\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1436:23-59");
+  update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1447:23-59");
   page_size_of_order_inc(read_order7);
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("            /*CN*//*@ extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1437:22-94");
+  update_cn_error_message_info("    /* Mark the new head, and insert it */\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1448:22-94");
   cn_pop_msg_info();
-  update_cn_error_message_info("            /*CN*//*@ extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, buddy); @*/\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1438:22-98");
+  update_cn_error_message_info("    p->order = order;\n                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1449:22-98");
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, order;@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1446:14-51");
+  update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1457:14-51");
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1447:14-84");
+  update_cn_error_message_info("  take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1458:14-84");
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1450:14-86");
+  update_cn_error_message_info("  let p_order = (H.vmemmap[p_i]).order; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1461:14-86");
   cn_pop_msg_info();
   cn_loop_put_back_ownership(a_11276);
   cn_bump_free_after(cn_frame_id);
@@ -4351,17 +4333,17 @@ for (; ({
         }}
     }
 //insert:
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate freeArea_cell_wf, order;@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1446:14-51");
+    /*CN*/update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1457:14-51");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1447:14-84");
+    /*CN*/update_cn_error_message_info("  take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1458:14-84");
 
 cn_pop_msg_info();
 
     /* Mark the new head, and insert it */
     CN_STORE(CN_LOAD(p)->order, CN_LOAD(order));
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1450:14-86");
+    /*CN*/update_cn_error_message_info("  let p_order = (H.vmemmap[p_i]).order; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1461:14-86");
 
 cn_pop_msg_info();
 
@@ -4392,25 +4374,25 @@ __cn_epilogue:
   c_remove_from_ghost_state((&p), sizeof(struct hyp_page*));
 
 {
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   cn_pointer* O___hyp_vmemmap33_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   cn_bits_i64* O_hyp_physvirt_offset35_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1372:5-62");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1383:5-62");
   cn_pointer* O_cn_virt_ptr23_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n         ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1385:10-36");
+  update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order2((*p).order); @*/\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1396:10-36");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap33_cn, O___hyp_vmemmap32_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1385:37-69");
+  update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order2((*p).order); @*/\n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1396:37-69");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset35_cn, O_hyp_physvirt_offset34_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n       ^./driver.pp.c:1386:8:");
+  update_cn_error_message_info("    memset(copy_alloc_id((((phys_addr_t)(((phys_addr_t)(((hyp_page_to_pfn(p))) << 12))) - hyp_physvirt_offset)), (cn_virt_ptr)), 0, ((1UL) << 12) << p->order);\n       ^./driver.pp.c:1397:8:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool(pool_cn, O___hyp_vmemmap33_cn, O_cn_virt_ptr23_cn, O_hyp_physvirt_offset35_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {free_area: H2.pool.free_area, ..H.pool} == H2.pool; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1387:3-55");
+  update_cn_error_message_info("    //if (phys < pool->range_start || phys >= pool->range_end)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1398:3-55");
   struct hyp_pool_cn* a_11695 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_11695->free_area = H2_cn->pool->free_area;
   a_11695->range_start = H_cn->pool->range_start;
@@ -4418,7 +4400,7 @@ __cn_epilogue:
   a_11695->max_order = H_cn->pool->max_order;
   cn_assert(struct_hyp_pool_cn_equality(a_11695, H2_cn->pool), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  each (u64 i; p_i < i && i < end_i){(H.vmemmap[i].refcount == 0u16) || (H2.vmemmap[i] == H.vmemmap[i])}; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1388:3-106");
+  update_cn_error_message_info("    //    goto insert;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1399:3-106");
   cn_bool* a_11750 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(p_i_cn, convert_to_cn_bits_u64(1ULL)));
@@ -4473,41 +4455,41 @@ static struct hyp_page *__hyp_extract_page(struct hyp_pool *pool,
   cn_bits_u8* order_cn = convert_to_cn_bits_u8(order);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   cn_pointer* O___hyp_vmemmap35_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   cn_bits_i64* O_hyp_physvirt_offset37_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   cn_pointer* O_cn_virt_ptr25_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1457:11-52");
+  update_cn_error_message_info(" ensures take H2 = Hyp_pool_ex1(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1468:11-52");
   cn_assert(cn_alloc_id_equality(convert_to_cn_alloc_id(0), convert_to_cn_alloc_id(0)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n       ^./driver.pp.c:1458:8:");
+  update_cn_error_message_info("  let virt = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, p_i * page_size()); \n       ^./driver.pp.c:1469:8:");
   struct Hyp_pool_ex1_record* H_cn = Hyp_pool(pool_cn, O___hyp_vmemmap35_cn, O_cn_virt_ptr25_cn, O_hyp_physvirt_offset37_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), H.pool.range_start / page_size(), H.pool.range_end / page_size(), p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1459:3-132");
+  update_cn_error_message_info("  take ZR = ZeroPage(virt, true, order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1470:3-132");
   cn_assert(cellPointer(O___hyp_vmemmap35_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), cn_bits_u64_divide(H_cn->pool->range_start, page_size()), cn_bits_u64_divide(H_cn->pool->range_end, page_size()), p_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
   p_i_cn = cn_hyp_page_to_pfn(O___hyp_vmemmap35_cn, p_cn);
   cn_bits_u8* p_order_cn;
   p_order_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order;
-  update_cn_error_message_info("  H.vmemmap[p_i].refcount == 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1462:3-35");
+  update_cn_error_message_info("  return == p; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1473:3-35");
   cn_assert(cn_bits_u16_equality(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->refcount, convert_to_cn_bits_u16(0ULL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (H.APs[p_i]).prev == array_shift<struct list_head>(&(pool->free_area), p_order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1463:3-83");
+  update_cn_error_message_info("  let p_page = H2.vmemmap[p_i]; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1474:3-83");
   cn_assert(cn_pointer_equality(((struct list_head_cn*) cn_map_get_struct_list_head_cn(H_cn->APs, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->prev, cn_array_shift(cn_member_shift(pool_cn, hyp_pool, free_area), sizeof(struct list_head), p_order_cn)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  order <= p_order; p_order != (hyp_no_order ()); \n  ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1464:3-20");
+  update_cn_error_message_info("  p_page.refcount == 0u16; p_page.order == order; @*/\n  ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1475:3-20");
   cn_assert(cn_bits_u8_le(order_cn, p_order_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  order <= p_order; p_order != (hyp_no_order ()); \n                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1464:21-50");
+  update_cn_error_message_info("  p_page.refcount == 0u16; p_page.order == order; @*/\n                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1475:21-50");
   cn_assert(cn_bool_not(cn_bits_u8_equality(p_order_cn, hyp_no_order())), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  order_aligned(p_i, order); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1465:3-29");
+  update_cn_error_message_info("{\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1476:3-29");
   cn_assert(order_aligned(p_i_cn, order_cn), PRE);
   cn_pop_msg_info();
   cn_bits_u64* start_i_cn;
@@ -4537,11 +4519,11 @@ cn_pointer* buddy_addr_cn = convert_to_cn_pointer((&buddy));
   0;
 })
 , page_remove_from_list_pool(CN_LOAD(pool), CN_LOAD(p)));
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1480:14-75");
+    /*CN*/update_cn_error_message_info("      let virt = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, p_i * page_size()); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1491:14-75");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1481:14-84");
+    /*CN*/update_cn_error_message_info("      let i_p_order = V_I[p_i].order; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1492:14-84");
 
 cn_pop_msg_info();
 
@@ -4621,32 +4603,32 @@ struct hyp_page_cn* deref_read_p530;
 while (({
   cn_bump_frame_id cn_frame_id = cn_bump_get_frame_id();
   a_11961 = initialise_loop_ownership_state();
-  update_cn_error_message_info("    /*CN*/while (1)\n          ^~~~~~~~~ ./driver.pp.c:1483:11-1518:6");
+  update_cn_error_message_info("      order <= i_p_order; i_p_order != hyp_no_order (); i_p_order < (max_order ()); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1494:11-1529:6");
   O_buddy6 = owned_struct_hyp_page_pointer(buddy_addr_cn, LOOP, a_11961);
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*/while (1)\n          ^~~~~~~~~ ./driver.pp.c:1483:11-1518:6");
+  update_cn_error_message_info("      order <= i_p_order; i_p_order != hyp_no_order (); i_p_order < (max_order ()); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1494:11-1529:6");
   O_pool21 = owned_struct_hyp_pool_pointer(pool_addr_cn, LOOP, a_11961);
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*/while (1)\n          ^~~~~~~~~ ./driver.pp.c:1483:11-1518:6");
+  update_cn_error_message_info("      order <= i_p_order; i_p_order != hyp_no_order (); i_p_order < (max_order ()); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1494:11-1529:6");
   O_p21 = owned_struct_hyp_page_pointer(p_addr_cn, LOOP, a_11961);
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*/while (1)\n          ^~~~~~~~~ ./driver.pp.c:1483:11-1518:6");
+  update_cn_error_message_info("      order <= i_p_order; i_p_order != hyp_no_order (); i_p_order < (max_order ()); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1494:11-1529:6");
   O_order9 = owned_unsigned_char(order_addr_cn, LOOP, a_11961);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   O___hyp_vmemmap37 = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), LOOP, a_11961);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   O_hyp_physvirt_offset39 = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), LOOP, a_11961);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   O_cn_virt_ptr27 = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), LOOP, a_11961);
   cn_pop_msg_info();
   vmemmap_l = O___hyp_vmemmap37;
-  update_cn_error_message_info("      take H_I = Hyp_pool_ex1(pool, vmemmap_l, cn_virt_ptr, hyp_physvirt_offset, p_i); \n           ^./driver.pp.c:1485:12:");
+  update_cn_error_message_info("    {\n           ^./driver.pp.c:1496:12:");
   H_I = Hyp_pool_ex1(O_pool21, vmemmap_l, O_cn_virt_ptr27, O_hyp_physvirt_offset39, p_i_cn, LOOP, a_11961);
   cn_pop_msg_info();
-  update_cn_error_message_info("      H_I.pool == {free_area: H_I.pool.free_area, ..H.pool}; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1486:7-61");
+  update_cn_error_message_info("        /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1497:7-61");
   a_12017 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_12017->free_area = H_I->pool->free_area;
   a_12017->range_start = H_cn->pool->range_start;
@@ -4654,47 +4636,47 @@ while (({
   a_12017->max_order = H_cn->pool->max_order;
   cn_assert(struct_hyp_pool_cn_equality(H_I->pool, a_12017), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1487:7-33");
+  update_cn_error_message_info("        /*CN*/if (!(p->order > order)) break;\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1498:7-33");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap37, O___hyp_vmemmap35_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1487:34-66");
+  update_cn_error_message_info("        /*CN*/if (!(p->order > order)) break;\n                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1498:34-66");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset39, O_hyp_physvirt_offset37_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      order_aligned(p_i, order); \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1488:7-33");
+  update_cn_error_message_info("        /*\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1499:7-33");
   cn_assert(order_aligned(p_i_cn, O_order9), LOOP);
   cn_pop_msg_info();
   V_I = H_I->vmemmap;
-  update_cn_error_message_info("      V_I[p_i].refcount == 0u16; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1490:7-33");
+  update_cn_error_message_info("         * is covered by a higher-level page (whose head is @p). Use\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1501:7-33");
   cn_assert(cn_bits_u16_equality(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(V_I, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->refcount, convert_to_cn_bits_u16(0ULL)), LOOP);
   cn_pop_msg_info();
   virt = cn__hyp_va(O_cn_virt_ptr27, O_hyp_physvirt_offset39, cn_bits_u64_multiply(p_i_cn, page_size()));
   i_p_order = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(V_I, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order;
-  update_cn_error_message_info("      take ZI = ZeroPage(virt, true, i_p_order); \n           ^./driver.pp.c:1493:12:");
+  update_cn_error_message_info("         */\n           ^./driver.pp.c:1504:12:");
   ZeroPage(virt, convert_to_cn_bool(true), i_p_order, LOOP, a_11961);
   cn_pop_msg_info();
-  update_cn_error_message_info("      order <= i_p_order; i_p_order != hyp_no_order (); i_p_order < (max_order ()); \n      ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1494:7-26");
+  update_cn_error_message_info("        /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p); @*/\n      ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1505:7-26");
   cn_assert(cn_bits_u8_le(O_order9, i_p_order), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      order <= i_p_order; i_p_order != hyp_no_order (); i_p_order < (max_order ()); \n                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1494:27-56");
+  update_cn_error_message_info("        /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p); @*/\n                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1505:27-56");
   cn_assert(cn_bool_not(cn_bits_u8_equality(i_p_order, hyp_no_order())), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      order <= i_p_order; i_p_order != hyp_no_order (); i_p_order < (max_order ()); \n                                                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1494:57-84");
+  update_cn_error_message_info("        /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p); @*/\n                                                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1505:57-84");
   cn_assert(cn_bits_u8_lt(i_p_order, max_order()), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {p} unchanged; {pool} unchanged; {order} unchanged; @*/\n      ^~~~~~~~~~~~~~ ./driver.pp.c:1495:7-21");
+  update_cn_error_message_info("        /*CN*//*@ apply order_dec_inv((*pool).range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, (*p).order - 1u8); @*/\n      ^~~~~~~~~~~~~~ ./driver.pp.c:1506:7-21");
   cn_assert(cn_pointer_equality(O_p21, p_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {p} unchanged; {pool} unchanged; {order} unchanged; @*/\n                     ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1495:22-39");
+  update_cn_error_message_info("        /*CN*//*@ apply order_dec_inv((*pool).range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, (*p).order - 1u8); @*/\n                     ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1506:22-39");
   cn_assert(cn_pointer_equality(O_pool21, pool_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {p} unchanged; {pool} unchanged; {order} unchanged; @*/\n                                       ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1495:40-58");
+  update_cn_error_message_info("        /*CN*//*@ apply order_dec_inv((*pool).range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, (*p).order - 1u8); @*/\n                                       ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1506:40-58");
   cn_assert(cn_bits_u8_equality(O_order9, order_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1497:18-88");
+  update_cn_error_message_info("        /*CN*//*@instantiate freeArea_cell_wf, (*p).order - 1u8;@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1508:18-88");
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1505:18-81");
+  update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order_inc((*p).order); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1516:18-81");
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@ apply order_dec_inv((*pool).range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, (*p).order - 1u8); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1506:18-127");
+  update_cn_error_message_info("        page_add_to_list_pool_ex1(pool, buddy, &pool->free_area[buddy->order], p);\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1517:18-127");
   read_pool4 = convert_to_cn_pointer(cn_pointer_deref(pool_addr_cn, struct hyp_pool*));
   deref_read_pool40 = convert_to_struct_hyp_pool_cn(cn_pointer_deref(read_pool4, struct hyp_pool));
   read___hyp_vmemmap44 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
@@ -4703,51 +4685,51 @@ while (({
   deref_read_p450 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p45, struct hyp_page));
   read_p46 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   deref_read_p460 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p46, struct hyp_page));
-  update_cn_error_message_info("        /*CN*//*@ apply order_dec_inv((*pool).range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, (*p).order - 1u8); @*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1506:19-125");
+  update_cn_error_message_info("        page_add_to_list_pool_ex1(pool, buddy, &pool->free_area[buddy->order], p);\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1517:19-125");
   order_dec_inv(deref_read_pool40->range_end, cn_hyp_page_to_pfn(read___hyp_vmemmap44, read_p44), deref_read_p450->order, cn_bits_u8_sub(deref_read_p460->order, convert_to_cn_bits_u8(1UL)));
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@apply lemma4(cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1507:18-82");
+  update_cn_error_message_info("    }\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1518:18-82");
   read___hyp_vmemmap45 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
   read_p47 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   read_p48 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   deref_read_p480 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p48, struct hyp_page));
-  update_cn_error_message_info("        /*CN*//*@apply lemma4(cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1507:18-80");
+  update_cn_error_message_info("    }\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1518:18-80");
   lemma4(cn_hyp_page_to_pfn(read___hyp_vmemmap45, read_p47), deref_read_p480->order);
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@instantiate freeArea_cell_wf, (*p).order - 1u8;@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1508:18-66");
+  update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1519:18-66");
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@ apply order_align_inv_loop(__hyp_vmemmap,V_I,*pool, p); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1509:18-76");
+  update_cn_error_message_info("    return p;\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1520:18-76");
   read___hyp_vmemmap46 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
   read_pool5 = convert_to_cn_pointer(cn_pointer_deref(pool_addr_cn, struct hyp_pool*));
   deref_read_pool50 = convert_to_struct_hyp_pool_cn(cn_pointer_deref(read_pool5, struct hyp_pool));
   read_p50 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
-  update_cn_error_message_info("        /*CN*//*@ apply order_align_inv_loop(__hyp_vmemmap,V_I,*pool, p); @*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1509:19-74");
+  update_cn_error_message_info("    return p;\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1520:19-74");
   order_align_inv_loop(read___hyp_vmemmap46, V_I, deref_read_pool50, read_p50);
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,buddy);@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1512:18-83");
+  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1523:18-83");
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, buddy);@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1513:18-92");
+  update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1524:18-92");
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@ apply extract_l(cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1515:18-86");
+  update_cn_error_message_info("  let p_i = cn_hyp_page_to_pfn(__hyp_vmemmap, p); \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1526:18-86");
   read___hyp_vmemmap49 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
   read_p51 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   read_p52 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   deref_read_p520 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p52, struct hyp_page));
-  update_cn_error_message_info("        /*CN*//*@ apply extract_l(cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order); @*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1515:19-84");
+  update_cn_error_message_info("  let p_i = cn_hyp_page_to_pfn(__hyp_vmemmap, p); \n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1526:19-84");
   extract_l(cn_hyp_page_to_pfn(read___hyp_vmemmap49, read_p51), deref_read_p520->order);
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order_inc((*p).order); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1516:18-62");
+  update_cn_error_message_info("  let phys = p_i * page_size(); \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1527:18-62");
   read_p53 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   deref_read_p530 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p53, struct hyp_page));
-  update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order_inc((*p).order); @*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1516:19-60");
+  update_cn_error_message_info("  let phys = p_i * page_size(); \n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1527:19-60");
   page_size_of_order_inc(deref_read_p530->order);
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1519:14-76");
+  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1530:14-76");
   cn_pop_msg_info();
   cn_loop_put_back_ownership(a_11961);
   cn_bump_free_after(cn_frame_id);
@@ -4789,7 +4771,7 @@ while (({
         /*CN*//*@ apply page_size_of_order_inc((*p).order); @*/
         page_add_to_list_pool_ex1(CN_LOAD(pool), CN_LOAD(buddy), &CN_LOAD(pool)->free_area[CN_LOAD(CN_LOAD(buddy)->order)], CN_LOAD(p));
     }}
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1519:14-76");
+    /*CN*/update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1530:14-76");
 
 cn_pop_msg_info();
 
@@ -4814,30 +4796,30 @@ __cn_epilogue:
 
 {
   cn_pointer* return_cn = convert_to_cn_pointer(__cn_ret);
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   cn_pointer* O___hyp_vmemmap36_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   cn_bits_i64* O_hyp_physvirt_offset38_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1456:5-62");
+  update_cn_error_message_info("  let end_i = H.pool.range_end / page_size(); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1467:5-62");
   cn_pointer* O_cn_virt_ptr26_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take H2 = Hyp_pool_ex1(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset, p_i); \n              ^./driver.pp.c:1468:15:");
+  update_cn_error_message_info("    page_remove_from_list_pool(pool, p);\n              ^./driver.pp.c:1479:15:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool_ex1(pool_cn, O___hyp_vmemmap36_cn, O_cn_virt_ptr26_cn, O_hyp_physvirt_offset38_cn, p_i_cn, POST, 0);
   cn_pop_msg_info();
   cn_pointer* virt_cn;
   virt_cn = cn__hyp_va(O_cn_virt_ptr26_cn, O_hyp_physvirt_offset38_cn, cn_bits_u64_multiply(p_i_cn, page_size()));
-  update_cn_error_message_info("  take ZR = ZeroPage(virt, true, order); \n       ^./driver.pp.c:1470:8:");
+  update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p);@*/\n       ^./driver.pp.c:1481:8:");
   ZeroPage(virt_cn, convert_to_cn_bool(true), order_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1471:3-29");
+  update_cn_error_message_info("    /*while (p->order > order)*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1482:3-29");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap36_cn, O___hyp_vmemmap35_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1471:30-62");
+  update_cn_error_message_info("    /*while (p->order > order)*/\n                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1482:30-62");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset38_cn, O_hyp_physvirt_offset37_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.pool == {free_area: (H2.pool).free_area, ..H.pool}; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1472:3-57");
+  update_cn_error_message_info("    /*CN*/while (1)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1483:3-57");
   struct hyp_pool_cn* a_12382 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_12382->free_area = H2_cn->pool->free_area;
   a_12382->range_start = H_cn->pool->range_start;
@@ -4845,15 +4827,15 @@ __cn_epilogue:
   a_12382->max_order = H_cn->pool->max_order;
   cn_assert(struct_hyp_pool_cn_equality(H2_cn->pool, a_12382), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  return == p; \n  ^~~~~~~~~~~~ ./driver.pp.c:1473:3-15");
+  update_cn_error_message_info("    /*@ inv let vmemmap_l = __hyp_vmemmap; \n  ^~~~~~~~~~~~ ./driver.pp.c:1484:3-15");
   cn_assert(cn_pointer_equality(return_cn, p_cn), POST);
   cn_pop_msg_info();
   struct hyp_page_cn* p_page_cn;
   p_page_cn = (struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H2_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn));
-  update_cn_error_message_info("  p_page.refcount == 0u16; p_page.order == order; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1475:3-27");
+  update_cn_error_message_info("      H_I.pool == {free_area: H_I.pool.free_area, ..H.pool}; \n  ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1486:3-27");
   cn_assert(cn_bits_u16_equality(p_page_cn->refcount, convert_to_cn_bits_u16(0ULL)), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  p_page.refcount == 0u16; p_page.order == order; @*/\n                           ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1475:28-50");
+  update_cn_error_message_info("      H_I.pool == {free_area: H_I.pool.free_area, ..H.pool}; \n                           ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1486:28-50");
   cn_assert(cn_bits_u8_equality(p_page_cn->order, order_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -4891,19 +4873,19 @@ static void __hyp_put_page(struct hyp_pool *pool, struct hyp_page *p)
   cn_pointer* p_cn = convert_to_cn_pointer(p);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1523:5-62");
+  update_cn_error_message_info("  let virt = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, phys); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1534:5-62");
   cn_bits_i64* O_hyp_physvirt_offset40_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1523:5-62");
+  update_cn_error_message_info("  let virt = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, phys); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1534:5-62");
   cn_pointer* O___hyp_vmemmap38_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1523:5-62");
+  update_cn_error_message_info("  let virt = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, phys); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1534:5-62");
   cn_pointer* O_cn_virt_ptr28_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires (alloc_id) __hyp_vmemmap == (alloc_id) p; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1524:11-52");
+  update_cn_error_message_info("  take P = Page(virt, (refcount == 1u16), H.vmemmap[p_i].order); \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1535:11-52");
   cn_assert(cn_alloc_id_equality(convert_to_cn_alloc_id(0), convert_to_cn_alloc_id(0)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n       ^./driver.pp.c:1525:8:");
+  update_cn_error_message_info(" ensures take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n       ^./driver.pp.c:1536:8:");
   struct Hyp_pool_ex1_record* H_cn = Hyp_pool(pool_cn, O___hyp_vmemmap38_cn, O_cn_virt_ptr28_cn, O_hyp_physvirt_offset40_cn, PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
@@ -4914,23 +4896,23 @@ static void __hyp_put_page(struct hyp_pool *pool, struct hyp_page *p)
   start_i_cn = cn_bits_u64_divide(H_cn->pool->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(H_cn->pool->range_end, page_size());
-  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1530:3-30");
+  update_cn_error_message_info("    /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1541:3-30");
   cn_assert(cn_bits_u64_le(H_cn->pool->range_start, phys_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n                              ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1530:31-55");
+  update_cn_error_message_info("    /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n                              ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1541:31-55");
   cn_assert(cn_bits_u64_lt(phys_cn, H_cn->pool->range_end), PRE);
   cn_pop_msg_info();
   cn_bits_u16* refcount_cn;
   refcount_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->refcount;
-  update_cn_error_message_info("  cellPointer(__hyp_vmemmap, (u64) (sizeof<struct hyp_page>), start_i, end_i, p); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1532:3-82");
+  update_cn_error_message_info("    /*CN*//*@ extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1543:3-82");
   cn_assert(cellPointer(O___hyp_vmemmap38_cn, cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(sizeof(struct hyp_page))), start_i_cn, end_i_cn, p_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  refcount > 0u16; \n  ^~~~~~~~~~~~~~~~ ./driver.pp.c:1533:3-19");
+  update_cn_error_message_info("    if (hyp_page_ref_dec_and_test(p)) {\n  ^~~~~~~~~~~~~~~~ ./driver.pp.c:1544:3-19");
   cn_assert(cn_bits_u16_lt(convert_to_cn_bits_u16(0ULL), refcount_cn), PRE);
   cn_pop_msg_info();
   cn_pointer* virt_cn;
   virt_cn = cn__hyp_va(O_cn_virt_ptr28_cn, O_hyp_physvirt_offset40_cn, phys_cn);
-  update_cn_error_message_info("  take P = Page(virt, (refcount == 1u16), H.vmemmap[p_i].order); \n       ^./driver.pp.c:1535:8:");
+  update_cn_error_message_info("    }\n       ^./driver.pp.c:1546:8:");
   Page(virt_cn, cn_bits_u16_equality(refcount_cn, convert_to_cn_bits_u16(1ULL)), ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order, PRE, 0);
   cn_pop_msg_info();
   
@@ -4941,15 +4923,15 @@ static void __hyp_put_page(struct hyp_pool *pool, struct hyp_page *p)
   c_add_to_ghost_state((&p), sizeof(struct hyp_page*), get_cn_stack_depth());
   cn_pointer* p_addr_cn = convert_to_cn_pointer((&p));
   
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1541:14-78");
+    /*CN*/update_cn_error_message_info(" * section to guarantee transient states (e.g. a page with null refcount but\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1552:14-78");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1542:14-89");
+    /*CN*/update_cn_error_message_info(" * not yet attached to a free list) can't be observed by well-behaved readers.\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1553:14-89");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1543:14-86");
+    /*CN*/update_cn_error_message_info(" */\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1554:14-86");
 
 cn_pop_msg_info();
 
@@ -4979,25 +4961,25 @@ __cn_epilogue:
   c_remove_from_ghost_state((&p), sizeof(struct hyp_page*));
 
 {
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1523:5-62");
+  update_cn_error_message_info("  let virt = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, phys); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1534:5-62");
   cn_bits_i64* O_hyp_physvirt_offset41_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1523:5-62");
+  update_cn_error_message_info("  let virt = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, phys); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1534:5-62");
   cn_pointer* O___hyp_vmemmap39_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1523:5-62");
+  update_cn_error_message_info("  let virt = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, phys); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1534:5-62");
   cn_pointer* O_cn_virt_ptr29_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n              ^./driver.pp.c:1536:15:");
+  update_cn_error_message_info("}\n              ^./driver.pp.c:1547:15:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool(pool_cn, O___hyp_vmemmap39_cn, O_cn_virt_ptr29_cn, O_hyp_physvirt_offset41_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1537:3-35");
+  update_cn_error_message_info("/*\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1548:3-35");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset41_cn, O_hyp_physvirt_offset40_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1537:36-62");
+  update_cn_error_message_info("/*\n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1548:36-62");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap39_cn, O___hyp_vmemmap38_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.pool == {free_area:H2.pool.free_area, .. H.pool}; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1538:3-55");
+  update_cn_error_message_info(" * Changes to the buddy tree and page refcounts must be done with the hyp_pool\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1549:3-55");
   struct hyp_pool_cn* a_12635 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_12635->free_area = H2_cn->pool->free_area;
   a_12635->range_start = H_cn->pool->range_start;
@@ -5005,7 +4987,7 @@ __cn_epilogue:
   a_12635->max_order = H_cn->pool->max_order;
   cn_assert(struct_hyp_pool_cn_equality(H2_cn->pool, a_12635), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  each (u64 i; p_i < i && i < end_i){(H.vmemmap[i].refcount == 0u16) || (H2.vmemmap[i] == H.vmemmap[i])}; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1539:3-106");
+  update_cn_error_message_info(" * lock held. If a refcount change requires an update to the buddy tree (e.g.\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1550:3-106");
   cn_bool* a_12690 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(p_i_cn, convert_to_cn_bits_u64(1ULL)));
@@ -5056,43 +5038,43 @@ void hyp_put_page(struct hyp_pool *pool, void *addr)
   cn_pointer* addr_cn = convert_to_cn_pointer(addr);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1556:5-62");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1567:5-62");
   cn_bits_i64* O_hyp_physvirt_offset11_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1556:5-62");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1567:5-62");
   cn_pointer* O___hyp_vmemmap9_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1556:5-62");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1567:5-62");
   cn_pointer* O_cn_virt_ptr5_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires (alloc_id) addr == (alloc_id) cn_virt_ptr; \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1557:11-53");
+  update_cn_error_message_info("  H2.pool == {free_area: H2.pool.free_area,.. H.pool}; @*/\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1568:11-53");
   cn_assert(cn_alloc_id_equality(convert_to_cn_alloc_id(0), convert_to_cn_alloc_id(0)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n       ^./driver.pp.c:1558:8:");
+  update_cn_error_message_info("{\n       ^./driver.pp.c:1569:8:");
   struct Hyp_pool_ex1_record* H_cn = Hyp_pool(pool_cn, O___hyp_vmemmap9_cn, O_cn_virt_ptr5_cn, O_hyp_physvirt_offset11_cn, PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* phys_cn;
   phys_cn = cn__hyp_pa(O_hyp_physvirt_offset11_cn, addr_cn);
-  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1560:3-30");
+  update_cn_error_message_info("    /* hyp_spin_lock(&pool->lock); */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1571:3-30");
   cn_assert(cn_bits_u64_le(H_cn->pool->range_start, phys_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n                              ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1560:31-55");
+  update_cn_error_message_info("    /* hyp_spin_lock(&pool->lock); */\n                              ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1571:31-55");
   cn_assert(cn_bits_u64_lt(phys_cn, H_cn->pool->range_end), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (mod(phys,page_size())) == 0u64; addr != NULL; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1561:3-35");
+  update_cn_error_message_info("    __hyp_put_page(pool, p);\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1572:3-35");
   cn_assert(cn_bits_u64_equality(cn_bits_u64_mod(phys_cn, page_size()), convert_to_cn_bits_u64(0ULL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (mod(phys,page_size())) == 0u64; addr != NULL; \n                                   ^~~~~~~~~~~~~ ./driver.pp.c:1561:36-49");
+  update_cn_error_message_info("    __hyp_put_page(pool, p);\n                                   ^~~~~~~~~~~~~ ./driver.pp.c:1572:36-49");
   cn_assert(cn_bool_not(cn_pointer_equality(addr_cn, convert_to_cn_pointer(0))), PRE);
   cn_pop_msg_info();
   cn_bits_u64* page_i_cn;
   page_i_cn = cn_bits_u64_divide(phys_cn, page_size());
   cn_bits_u16* refcount_cn;
   refcount_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(page_i_cn)))->refcount;
-  update_cn_error_message_info("  refcount > 0u16; \n  ^~~~~~~~~~~~~~~~ ./driver.pp.c:1564:3-19");
+  update_cn_error_message_info("/* void hyp_get_page(void *addr) */\n  ^~~~~~~~~~~~~~~~ ./driver.pp.c:1575:3-19");
   cn_assert(cn_bits_u16_lt(convert_to_cn_bits_u16(0ULL), refcount_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take P = Page(addr, (refcount == 1u16), H.vmemmap[page_i].order); \n       ^./driver.pp.c:1565:8:");
+  update_cn_error_message_info("void hyp_get_page(struct hyp_pool *pool, void *addr)\n       ^./driver.pp.c:1576:8:");
   Page(addr_cn, cn_bits_u16_equality(refcount_cn, convert_to_cn_bits_u16(1ULL)), ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(page_i_cn)))->order, PRE, 0);
   cn_pop_msg_info();
   
@@ -5132,25 +5114,25 @@ __cn_epilogue:
   c_remove_from_ghost_state((&addr), sizeof(void*));
 
 {
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1556:5-62");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1567:5-62");
   cn_bits_i64* O_hyp_physvirt_offset12_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1556:5-62");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1567:5-62");
   cn_pointer* O___hyp_vmemmap10_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1556:5-62");
+  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1567:5-62");
   cn_pointer* O_cn_virt_ptr6_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n              ^./driver.pp.c:1566:15:");
+  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n              ^./driver.pp.c:1577:15:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool(pool_cn, O___hyp_vmemmap10_cn, O_cn_virt_ptr6_cn, O_hyp_physvirt_offset12_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1567:3-35");
+  update_cn_error_message_info(" requires take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1578:3-35");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset12_cn, O_hyp_physvirt_offset11_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1567:36-62");
+  update_cn_error_message_info(" requires take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1578:36-62");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap10_cn, O___hyp_vmemmap9_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.pool == {free_area: H2.pool.free_area,.. H.pool}; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1568:3-55");
+  update_cn_error_message_info("  let phys = cn__hyp_pa(hyp_physvirt_offset, addr); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1579:3-55");
   struct hyp_pool_cn* a_7320 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_7320->free_area = H2_cn->pool->free_area;
   a_7320->range_start = H_cn->pool->range_start;
@@ -5184,32 +5166,32 @@ void hyp_get_page(struct hyp_pool *pool, void *addr)
   cn_pointer* addr_cn = convert_to_cn_pointer(addr);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1577:5-62");
+  update_cn_error_message_info("    struct hyp_page *p = (&((struct hyp_page *)__hyp_vmemmap)[((((phys_addr_t)(addr) + hyp_physvirt_offset)) >> 12)]);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1588:5-62");
   cn_bits_i64* O_hyp_physvirt_offset9_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1577:5-62");
+  update_cn_error_message_info("    struct hyp_page *p = (&((struct hyp_page *)__hyp_vmemmap)[((((phys_addr_t)(addr) + hyp_physvirt_offset)) >> 12)]);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1588:5-62");
   cn_pointer* O___hyp_vmemmap7_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1577:5-62");
+  update_cn_error_message_info("    struct hyp_page *p = (&((struct hyp_page *)__hyp_vmemmap)[((((phys_addr_t)(addr) + hyp_physvirt_offset)) >> 12)]);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1588:5-62");
   cn_pointer* O_cn_virt_ptr3_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n               ^./driver.pp.c:1578:16:");
+  update_cn_error_message_info("    /* hyp_spin_lock(&pool->lock); */\n               ^./driver.pp.c:1589:16:");
   struct Hyp_pool_ex1_record* H_cn = Hyp_pool(pool_cn, O___hyp_vmemmap7_cn, O_cn_virt_ptr3_cn, O_hyp_physvirt_offset9_cn, PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* phys_cn;
   phys_cn = cn__hyp_pa(O_hyp_physvirt_offset9_cn, addr_cn);
   cn_bits_u64* page_i_cn;
   page_i_cn = cn_bits_u64_divide(phys_cn, page_size());
-  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1581:3-30");
+  update_cn_error_message_info("    hyp_page_ref_inc(p);\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1592:3-30");
   cn_assert(cn_bits_u64_le(H_cn->pool->range_start, phys_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H.pool.range_start <= phys; phys < H.pool.range_end; \n                              ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1581:31-55");
+  update_cn_error_message_info("    hyp_page_ref_inc(p);\n                              ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1592:31-55");
   cn_assert(cn_bits_u64_lt(phys_cn, H_cn->pool->range_end), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (H.vmemmap[page_i]).refcount > 0u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1582:3-39");
+  update_cn_error_message_info("    /* hyp_spin_unlock(&pool->lock); */\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1593:3-39");
   cn_assert(cn_bits_u16_lt(convert_to_cn_bits_u16(0ULL), ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(page_i_cn)))->refcount), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (H.vmemmap[page_i]).refcount <= shift_left(1u16,16u16) - 2u16; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1583:3-65");
+  update_cn_error_message_info("}\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1594:3-65");
   cn_assert(cn_bits_u16_le(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(H_cn->vmemmap, cast_cn_bits_u64_to_cn_integer(page_i_cn)))->refcount, cn_bits_u16_sub(cn_bits_u16_shift_left(convert_to_cn_bits_u16(1ULL), convert_to_cn_bits_u16(16ULL)), convert_to_cn_bits_u16(2ULL))), PRE);
   cn_pop_msg_info();
   
@@ -5227,13 +5209,13 @@ c_add_to_ghost_state((&p), sizeof(struct hyp_page*), get_cn_stack_depth());
 cn_pointer* p_addr_cn = convert_to_cn_pointer((&p));
 
     /* hyp_spin_lock(&pool->lock); */
-    /*CN*/update_cn_error_message_info("    /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1590:14-86");
+    /*CN*/update_cn_error_message_info("//     for (i = 1; i < (1 << order); i++) {\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1601:14-86");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, page_i; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1591:14-55");
+    /*CN*/update_cn_error_message_info("//         struct hyp_page *tail = p + i;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1602:14-55");
 
-update_cn_error_message_info("    /*CN*//*@extract Owned<struct hyp_page>, page_i; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1591:14-53");
+update_cn_error_message_info("//         struct hyp_page *tail = p + i;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1602:14-53");
 
 cn_pop_msg_info();
 
@@ -5261,25 +5243,25 @@ __cn_epilogue:
   c_remove_from_ghost_state((&addr), sizeof(void*));
 
 {
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1577:5-62");
+  update_cn_error_message_info("    struct hyp_page *p = (&((struct hyp_page *)__hyp_vmemmap)[((((phys_addr_t)(addr) + hyp_physvirt_offset)) >> 12)]);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1588:5-62");
   cn_bits_i64* O_hyp_physvirt_offset10_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1577:5-62");
+  update_cn_error_message_info("    struct hyp_page *p = (&((struct hyp_page *)__hyp_vmemmap)[((((phys_addr_t)(addr) + hyp_physvirt_offset)) >> 12)]);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1588:5-62");
   cn_pointer* O___hyp_vmemmap8_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1577:5-62");
+  update_cn_error_message_info("    struct hyp_page *p = (&((struct hyp_page *)__hyp_vmemmap)[((((phys_addr_t)(addr) + hyp_physvirt_offset)) >> 12)]);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1588:5-62");
   cn_pointer* O_cn_virt_ptr4_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n              ^./driver.pp.c:1584:15:");
+  update_cn_error_message_info("// void hyp_split_page(struct hyp_page *p)\n              ^./driver.pp.c:1595:15:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool(pool_cn, O___hyp_vmemmap8_cn, O_cn_virt_ptr4_cn, O_hyp_physvirt_offset10_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1585:3-35");
+  update_cn_error_message_info("// {\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1596:3-35");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset10_cn, O_hyp_physvirt_offset9_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; \n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1585:36-62");
+  update_cn_error_message_info("// {\n                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1596:36-62");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap8_cn, O___hyp_vmemmap7_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  H2.pool == H.pool; @*/\n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1586:3-21");
+  update_cn_error_message_info("//     u8 order = p->order;\n  ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1597:3-21");
   cn_assert(struct_hyp_pool_cn_equality(H2_cn->pool, H_cn->pool), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -5319,19 +5301,19 @@ void *hyp_alloc_pages(struct hyp_pool *pool, u8 order)
   cn_bits_u8* order_cn = convert_to_cn_bits_u8(order);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   cn_bits_i64* O_hyp_physvirt_offset6_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   cn_pointer* O___hyp_vmemmap4_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   cn_pointer* O_cn_virt_ptr0_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n               ^./driver.pp.c:1610:16:");
+  update_cn_error_message_info("    /* Look for a high-enough-order page */\n               ^./driver.pp.c:1621:16:");
   struct Hyp_pool_ex1_record* H_cn = Hyp_pool(pool_cn, O___hyp_vmemmap4_cn, O_cn_virt_ptr0_cn, O_hyp_physvirt_offset6_cn, PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  0i64 <= hyp_physvirt_offset;  // FIXME from node_to_page, suspicious\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1611:3-31");
+  update_cn_error_message_info("    while /*CN(i < pool->max_order && list_empty(&pool->free_area[i]))*/ (1)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1622:3-31");
   cn_assert(cn_bits_i64_le(convert_to_cn_bits_i64(0LL), O_hyp_physvirt_offset6_cn), PRE);
   cn_pop_msg_info();
   
@@ -5387,77 +5369,77 @@ cn_bits_u8* read_order1;
 while /*CN(i < pool->max_order && list_empty(&pool->free_area[i]))*/ (({
   cn_bump_frame_id cn_frame_id = cn_bump_get_frame_id();
   a_6707 = initialise_loop_ownership_state();
-  update_cn_error_message_info("    while /*CN(i < pool->max_order && list_empty(&pool->free_area[i]))*/ (1)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1622:5-1633:16");
+  update_cn_error_message_info("        /*CN*/}\n    ^~~~~~~~~~~ ./driver.pp.c:1633:5-1644:16");
   O_p2 = owned_struct_hyp_page_pointer(p_addr_cn, LOOP, a_6707);
   cn_pop_msg_info();
-  update_cn_error_message_info("    while /*CN(i < pool->max_order && list_empty(&pool->free_area[i]))*/ (1)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1622:5-1633:16");
+  update_cn_error_message_info("        /*CN*/}\n    ^~~~~~~~~~~ ./driver.pp.c:1633:5-1644:16");
   O_i2 = owned_unsigned_char(i_addr_cn, LOOP, a_6707);
   cn_pop_msg_info();
-  update_cn_error_message_info("    while /*CN(i < pool->max_order && list_empty(&pool->free_area[i]))*/ (1)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1622:5-1633:16");
+  update_cn_error_message_info("        /*CN*/}\n    ^~~~~~~~~~~ ./driver.pp.c:1633:5-1644:16");
   O_pool2 = owned_struct_hyp_pool_pointer(pool_addr_cn, LOOP, a_6707);
   cn_pop_msg_info();
-  update_cn_error_message_info("    while /*CN(i < pool->max_order && list_empty(&pool->free_area[i]))*/ (1)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1622:5-1633:16");
+  update_cn_error_message_info("        /*CN*/}\n    ^~~~~~~~~~~ ./driver.pp.c:1633:5-1644:16");
   O_order2 = owned_unsigned_char(order_addr_cn, LOOP, a_6707);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   O_hyp_physvirt_offset8 = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), LOOP, a_6707);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   O___hyp_vmemmap6 = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), LOOP, a_6707);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   O_cn_virt_ptr2 = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), LOOP, a_6707);
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*@ inv take H_I = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset);\n                     ^./driver.pp.c:1623:22:");
+  update_cn_error_message_info("    if (i >= pool->max_order) {\n                     ^./driver.pp.c:1634:22:");
   H_I = Hyp_pool(O_pool2, O___hyp_vmemmap6, O_cn_virt_ptr2, O_hyp_physvirt_offset8, LOOP, a_6707);
   cn_pop_msg_info();
-  update_cn_error_message_info("            H_I.vmemmap == H.vmemmap; H_I.pool == H.pool;\n            ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1624:13-38");
+  update_cn_error_message_info("        /* ----- hyp_spin_unlock(&pool->lock); */\n            ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1635:13-38");
   cn_assert(cn_map_equality(H_I->vmemmap, H_cn->vmemmap, struct_hyp_page_cn_equality), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            H_I.vmemmap == H.vmemmap; H_I.pool == H.pool;\n                                      ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1624:39-58");
+  update_cn_error_message_info("        /* ----- hyp_spin_unlock(&pool->lock); */\n                                      ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1635:39-58");
   cn_assert(struct_hyp_pool_cn_equality(H_I->pool, H_cn->pool), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            order <= i; H.pool.max_order <= 11u8;\n            ^~~~~~~~~~~ ./driver.pp.c:1625:13-24");
+  update_cn_error_message_info("    //cn_print_nr_u64(555555, 555555);\n            ^~~~~~~~~~~ ./driver.pp.c:1636:13-24");
   cn_assert(cn_bits_u8_le(O_order2, O_i2), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            order <= i; H.pool.max_order <= 11u8;\n                        ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1625:25-50");
+  update_cn_error_message_info("    //cn_print_nr_u64(555555, 555555);\n                        ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1636:25-50");
   cn_assert(cn_bits_u8_le(H_cn->pool->max_order, convert_to_cn_bits_u8(11UL)), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            {pool} unchanged; {order} unchanged;\n            ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1626:13-30");
+  update_cn_error_message_info("        return ((void *)0);\n            ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1637:13-30");
   cn_assert(cn_pointer_equality(O_pool2, pool_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            {pool} unchanged; {order} unchanged;\n                              ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1626:31-49");
+  update_cn_error_message_info("        return ((void *)0);\n                              ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1637:31-49");
   cn_assert(cn_bits_u8_equality(O_order2, order_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; @*/\n            ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1627:13-39");
+  update_cn_error_message_info("    }\n            ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1638:13-39");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap6, O___hyp_vmemmap4_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; @*/\n                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1627:40-72");
+  update_cn_error_message_info("    }\n                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1638:40-72");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset8, O_hyp_physvirt_offset6_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("            /*CN*/ /*@extract Owned<struct list_head>, (u64) i;@*/\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1629:23-65");
+  update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, (u64) i;@*/\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1640:23-65");
   cn_pop_msg_info();
-  update_cn_error_message_info("            /*CN*/ /*@instantiate freeArea_cell_wf, (u8) i;@*/\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1630:23-61");
+  update_cn_error_message_info("    /* Extract it from the tree at the right order */\n                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1641:23-61");
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@ instantiate freeArea_cell_wf, (u8) i; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1639:14-54");
+  update_cn_error_message_info("    hyp_set_page_refcounted(p);\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1650:14-54");
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, (u64) i;@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1640:14-56");
+  update_cn_error_message_info("    /* ----- hyp_spin_unlock(&pool->lock); */\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1651:14-56");
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1644:14-77");
+  update_cn_error_message_info("/* SPDX-License-Identifier: GPL-2.0 */\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1655:14-77");
   cn_pop_msg_info();
-  update_cn_error_message_info("                /*CN*/ /*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1645:27-98");
+  update_cn_error_message_info("//#ifndef __ASM_GENERIC_GETORDER_H\n                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1656:27-98");
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@ apply order_dec_inv(H.pool.range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, order); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1646:14-111");
+  update_cn_error_message_info("//#define __ASM_GENERIC_GETORDER_H\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1657:14-111");
   read___hyp_vmemmap8 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
   read_p9 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   read_p10 = convert_to_cn_pointer(cn_pointer_deref(p_addr_cn, struct hyp_page*));
   deref_read_p100 = convert_to_struct_hyp_page_cn(cn_pointer_deref(read_p10, struct hyp_page));
   read_order1 = convert_to_cn_bits_u8(cn_pointer_deref(order_addr_cn, unsigned char));
-  update_cn_error_message_info("    /*CN*//*@ apply order_dec_inv(H.pool.range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, order); @*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1646:15-109");
+  update_cn_error_message_info("//#define __ASM_GENERIC_GETORDER_H\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1657:15-109");
   order_dec_inv(H_cn->pool->range_end, cn_hyp_page_to_pfn(read___hyp_vmemmap8, read_p9), deref_read_p100->order, read_order1);
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@ instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1649:14-88");
+  update_cn_error_message_info("//#include <linux/log2.h>\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1660:14-88");
   cn_pop_msg_info();
   cn_loop_put_back_ownership(a_6707);
   cn_bump_free_after(cn_frame_id);
@@ -5485,11 +5467,11 @@ c_remove_from_ghost_state((&p), sizeof(struct hyp_page*));
 c_remove_from_ghost_state((&i), sizeof(unsigned char));
 goto __cn_epilogue; }
     }
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ instantiate freeArea_cell_wf, (u8) i; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1639:14-54");
+    /*CN*/update_cn_error_message_info("    hyp_set_page_refcounted(p);\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1650:14-54");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@extract Owned<struct list_head>, (u64) i;@*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1640:14-56");
+    /*CN*/update_cn_error_message_info("    /* ----- hyp_spin_unlock(&pool->lock); */\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1651:14-56");
 
 cn_pop_msg_info();
 
@@ -5501,15 +5483,15 @@ cn_pop_msg_info();
 })
 , node_to_page(CN_LOAD(CN_LOAD(pool)->free_area[CN_LOAD(i)].next))));
     // p = hyp_virt_to_page(pool->free_area[i].next);
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1644:14-77");
+    /*CN*/update_cn_error_message_info("/* SPDX-License-Identifier: GPL-2.0 */\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1655:14-77");
 
 cn_pop_msg_info();
 
-                /*CN*/ update_cn_error_message_info("                /*CN*/ /*@extract Owned<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/\n                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1645:27-98");
+                /*CN*/ update_cn_error_message_info("//#ifndef __ASM_GENERIC_GETORDER_H\n                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1656:27-98");
 
 cn_pop_msg_info();
 
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ apply order_dec_inv(H.pool.range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, order); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1646:14-111");
+    /*CN*/update_cn_error_message_info("//#define __ASM_GENERIC_GETORDER_H\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1657:14-111");
 
 cn_pointer* read___hyp_vmemmap4 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
 
@@ -5521,7 +5503,7 @@ struct hyp_page_cn* deref_read_p50 = convert_to_struct_hyp_page_cn(cn_pointer_de
 
 cn_bits_u8* read_order0 = convert_to_cn_bits_u8(cn_pointer_deref(convert_to_cn_pointer((&order)), unsigned char));
 
-update_cn_error_message_info("    /*CN*//*@ apply order_dec_inv(H.pool.range_end, cn_hyp_page_to_pfn(__hyp_vmemmap,p), (*p).order, order); @*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1646:15-109");
+update_cn_error_message_info("//#define __ASM_GENERIC_GETORDER_H\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1657:15-109");
 
 order_dec_inv(H_cn->pool->range_end, cn_hyp_page_to_pfn(read___hyp_vmemmap4, read_p4), deref_read_p50->order, read_order0);
 
@@ -5536,7 +5518,7 @@ cn_pop_msg_info();
 })
 , __hyp_extract_page(CN_LOAD(pool), CN_LOAD(p), CN_LOAD(order))));
     /* ----- hyp_spin_unlock(&pool->lock); */
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap,p); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1649:14-88");
+    /*CN*/update_cn_error_message_info("//#include <linux/log2.h>\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1660:14-88");
 
 cn_pop_msg_info();
 
@@ -5583,28 +5565,28 @@ __cn_epilogue:
 
 {
   cn_pointer* return_cn = convert_to_cn_pointer(__cn_ret);
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   cn_bits_i64* O_hyp_physvirt_offset7_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   cn_pointer* O___hyp_vmemmap5_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses hyp_physvirt_offset, __hyp_vmemmap, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1609:5-62");
+  update_cn_error_message_info("    /* ----- hyp_spin_lock(&pool- >lock); */\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1620:5-62");
   cn_pointer* O_cn_virt_ptr1_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures  take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset);\n               ^./driver.pp.c:1612:16:");
+  update_cn_error_message_info("        /*@ inv take H_I = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset);\n               ^./driver.pp.c:1623:16:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool(pool_cn, O___hyp_vmemmap5_cn, O_cn_virt_ptr1_cn, O_hyp_physvirt_offset7_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("             take ZR = ZeroPage(return, (return != NULL), order);\n                  ^./driver.pp.c:1613:19:");
+  update_cn_error_message_info("            H_I.vmemmap == H.vmemmap; H_I.pool == H.pool;\n                  ^./driver.pp.c:1624:19:");
   ZeroPage(return_cn, cn_bool_not(cn_pointer_equality(return_cn, convert_to_cn_pointer(0))), order_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("             {__hyp_vmemmap} unchanged;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1614:14-40");
+  update_cn_error_message_info("            order <= i; H.pool.max_order <= 11u8;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1625:14-40");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap5_cn, O___hyp_vmemmap4_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("             {hyp_physvirt_offset} unchanged;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1615:14-46");
+  update_cn_error_message_info("            {pool} unchanged; {order} unchanged;\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1626:14-46");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset7_cn, O_hyp_physvirt_offset6_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("             H2.pool == {free_area: H2.pool.free_area, ..H.pool}; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1616:14-66");
+  update_cn_error_message_info("            {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1627:14-66");
   struct hyp_pool_cn* a_6968 = (struct hyp_pool_cn*) cn_bump_malloc(sizeof(struct hyp_pool_cn));
   a_6968->free_area = H2_cn->pool->free_area;
   a_6968->range_start = H_cn->pool->range_start;
@@ -5692,7 +5674,7 @@ static /*__always_inline __attribute_const__*/ int get_order(unsigned long size)
   cn_bits_u64* size_cn = convert_to_cn_bits_u64(size);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("    requires size >= page_size();\n             ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1690:14-34");
+  update_cn_error_message_info("        return ilog2((size) - 1) - PAGE_SHIFT + 1;\n             ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1701:14-34");
   cn_assert(cn_bits_u64_le(page_size(), size_cn), PRE);
   cn_pop_msg_info();
   
@@ -5731,10 +5713,10 @@ __cn_epilogue:
 
 {
   cn_bits_i32* return_cn = convert_to_cn_bits_i32(__cn_ret);
-  update_cn_error_message_info("    ensures return == (i32) get_order_uf(size); \n            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1691:13-48");
+  update_cn_error_message_info("    }\n            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1702:13-48");
   cn_assert(cn_bits_i32_equality(return_cn, cast_cn_bits_u8_to_cn_bits_i32(get_order_uf(size_cn))), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("            return > 0i32; @*/\n            ^~~~~~~~~~~~~~ ./driver.pp.c:1692:13-27");
+  update_cn_error_message_info("*/\n            ^~~~~~~~~~~~~~ ./driver.pp.c:1703:13-27");
   cn_assert(cn_bits_i32_lt(convert_to_cn_bits_i32(0LL), return_cn), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -5748,7 +5730,6 @@ return __cn_ret;
 }
 //#endif    /* __ASSEMBLY__ */
 //#endif    /* __ASM_GENERIC_GETORDER_H */
-
 int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
           unsigned int reserved_pages)
 /*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; 
@@ -5782,19 +5763,19 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
   cn_bits_u32* reserved_pages_cn = convert_to_cn_bits_u32(reserved_pages);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   cn_pointer* O___hyp_vmemmap11_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   cn_bits_i64* O_hyp_physvirt_offset13_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   cn_pointer* O_cn_virt_ptr7_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" requires nr_pages > 0u32; \n          ^~~~~~~~~~~~~~~~ ./driver.pp.c:1714:11-27");
+  update_cn_error_message_info("  take V = each (u64 i; start_i <= i && i < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, i)) }; \n          ^~~~~~~~~~~~~~~~ ./driver.pp.c:1724:11-27");
   cn_assert(cn_bits_u32_lt(convert_to_cn_bits_u32(0ULL), nr_pages_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take O = Owned<struct hyp_pool>(pool); \n       ^./driver.pp.c:1715:8:");
+  update_cn_error_message_info("  let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); \n       ^./driver.pp.c:1725:8:");
   struct hyp_pool_cn* O_cn = owned_struct_hyp_pool(pool_cn, PRE, 0);
   cn_pop_msg_info();
   cn_bits_u64* start_i_cn;
@@ -5805,7 +5786,7 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
   end_i_cn = cn_bits_u64_add(start_i_cn, cast_cn_bits_u32_to_cn_bits_u64(nr_pages_cn));
   cn_bits_u64* end_cn;
   end_cn = cn_bits_u64_multiply(end_i_cn, page_size());
-  update_cn_error_message_info("  reserved_pages < nr_pages; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1718:3-29");
+  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1728:3-29");
   cn_assert(cn_bits_u32_lt(reserved_pages_cn, nr_pages_cn), PRE);
   cn_pop_msg_info();
   struct hyp_pool_cn* poolv_cn;
@@ -5825,10 +5806,10 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
   a_7438->range_end = a_7434->range_end;
   a_7438->max_order = convert_to_cn_bits_u8(11UL);
   poolv_cn = a_7438;
-  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:3-64");
+  update_cn_error_message_info("{\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1733:3-64");
   cn_assert(hyp_pool_wf(pool_cn, poolv_cn, O___hyp_vmemmap11_cn, O_hyp_physvirt_offset13_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take V = each (u64 i; start_i <= i && i < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, i)) }; \n       ^./driver.pp.c:1724:8:");
+  update_cn_error_message_info("    phys_addr_t phys = ((phys_addr_t)((pfn) << 12));\n       ^./driver.pp.c:1734:8:");
   cn_map* V_cn = map_create();
   {
   cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -5846,7 +5827,7 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
   cn_pop_msg_info();
   cn_pointer* ptr_phys_0_cn;
   ptr_phys_0_cn = cn__hyp_va(O_cn_virt_ptr7_cn, O_hyp_physvirt_offset13_cn, convert_to_cn_bits_u64(0ULL));
-  update_cn_error_message_info("  take P = each (u64 i; start_i + ((u64) reserved_pages) <= i && i < end_i)\n       ^./driver.pp.c:1726:8:");
+  update_cn_error_message_info("    /* struct hyp_page *p; */\n       ^./driver.pp.c:1736:8:");
   {
   cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_u32_to_cn_bits_u64(reserved_pages_cn)));
   while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_u32_to_cn_bits_u64(reserved_pages_cn))), i), cn_bits_u64_lt(i, end_i_cn)))) {
@@ -5948,40 +5929,40 @@ struct hyp_pool_cn* deref_read_pool20;
 for (CN_STORE(i, 0); ({
   cn_bump_frame_id cn_frame_id = cn_bump_get_frame_id();
   a_8308 = initialise_loop_ownership_state();
-  update_cn_error_message_info("    for (i = 0; i < pool->max_order; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1741:5-1755:6");
+  update_cn_error_message_info("      phys == pfn * page_size(); @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1751:5-1765:6");
   O_phys11 = owned_unsigned_long_long(phys_addr_cn, LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < pool->max_order; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1741:5-1755:6");
+  update_cn_error_message_info("      phys == pfn * page_size(); @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1751:5-1765:6");
   O_p14 = owned_struct_hyp_page_pointer(p_addr_cn, LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < pool->max_order; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1741:5-1755:6");
+  update_cn_error_message_info("      phys == pfn * page_size(); @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1751:5-1765:6");
   O_i14 = owned_signed_int(i_addr_cn, LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < pool->max_order; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1741:5-1755:6");
+  update_cn_error_message_info("      phys == pfn * page_size(); @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1751:5-1765:6");
   O_pool14 = owned_struct_hyp_pool_pointer(pool_addr_cn, LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < pool->max_order; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1741:5-1755:6");
+  update_cn_error_message_info("      phys == pfn * page_size(); @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1751:5-1765:6");
   O_pfn11 = owned_unsigned_long_long(pfn_addr_cn, LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < pool->max_order; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1741:5-1755:6");
+  update_cn_error_message_info("      phys == pfn * page_size(); @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1751:5-1765:6");
   O_nr_pages11 = owned_unsigned_int(nr_pages_addr_cn, LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < pool->max_order; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1741:5-1755:6");
+  update_cn_error_message_info("      phys == pfn * page_size(); @*/\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1751:5-1765:6");
   O_reserved_pages11 = owned_unsigned_int(reserved_pages_addr_cn, LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O___hyp_vmemmap15 = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O_hyp_physvirt_offset17 = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O_cn_virt_ptr11 = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*@ inv take OI = Owned(pool); \n                 ^./driver.pp.c:1742:18:");
+  update_cn_error_message_info("    {\n                 ^./driver.pp.c:1752:18:");
   OI = owned_struct_hyp_pool(O_pool14, LOOP, a_8308);
   cn_pop_msg_info();
-  update_cn_error_message_info("      take V2 = each (u64 j; start_i <= j && j < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, j))}; \n           ^./driver.pp.c:1743:12:");
+  update_cn_error_message_info("        /*CN*/ /*@ extract Owned<struct list_head>, i; @*/\n           ^./driver.pp.c:1753:12:");
   V2 = map_create();
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -5997,7 +5978,7 @@ for (CN_STORE(i, 0); ({
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("      take PI = each (u64 j; start_i + ((u64) reserved_pages) <= j && j < end_i){ Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, j), true, 0u8) }; \n           ^./driver.pp.c:1744:12:");
+  update_cn_error_message_info("        INIT_LIST_HEAD(&pool->free_area[i]);\n           ^./driver.pp.c:1754:12:");
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_u32_to_cn_bits_u64(O_reserved_pages11)));
     while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_u32_to_cn_bits_u64(O_reserved_pages11))), j), cn_bits_u64_lt(j, end_i_cn)))) {
@@ -6012,7 +5993,7 @@ for (CN_STORE(i, 0); ({
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("      each(u64 j; j < (u64) i){((*pool).free_area[j]).prev == array_shift<struct list_head>(pool, j) }; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1745:7-104");
+  update_cn_error_message_info("    }\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1755:7-104");
   a_8494 = convert_to_cn_bool(true);
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(0ULL));
@@ -6028,7 +6009,7 @@ for (CN_STORE(i, 0); ({
   }
   cn_assert(a_8494, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      each(u64 j; j < (u64) i){((*pool).free_area[j]).next == array_shift<struct list_head>(pool, j) }; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1746:7-104");
+  update_cn_error_message_info("    pool->range_start = phys;\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1756:7-104");
   a_8537 = convert_to_cn_bool(true);
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(convert_to_cn_bits_u64(0ULL));
@@ -6044,38 +6025,38 @@ for (CN_STORE(i, 0); ({
   }
   cn_assert(a_8537, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1747:7-33");
+  update_cn_error_message_info("    pool->range_end = phys + (nr_pages << 12);\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1757:7-33");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap15, O___hyp_vmemmap11_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                 ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1747:34-51");
+  update_cn_error_message_info("    pool->range_end = phys + (nr_pages << 12);\n                                 ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1757:34-51");
   cn_assert(cn_pointer_equality(O_pool14, pool_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1747:52-84");
+  update_cn_error_message_info("    pool->range_end = phys + (nr_pages << 12);\n                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1757:52-84");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset17, O_hyp_physvirt_offset13_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                    ^~~~~~~~~~~~~~~~ ./driver.pp.c:1747:85-101");
+  update_cn_error_message_info("    pool->range_end = phys + (nr_pages << 12);\n                                                                                    ^~~~~~~~~~~~~~~~ ./driver.pp.c:1757:85-101");
   cn_assert(cn_bits_u64_equality(O_pfn11, pfn_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                                     ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1747:102-123");
+  update_cn_error_message_info("    pool->range_end = phys + (nr_pages << 12);\n                                                                                                     ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1757:102-123");
   cn_assert(cn_bits_u32_equality(O_nr_pages11, nr_pages_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                                                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1747:124-151");
+  update_cn_error_message_info("    pool->range_end = phys + (nr_pages << 12);\n                                                                                                                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1757:124-151");
   cn_assert(cn_bits_u32_equality(O_reserved_pages11, reserved_pages_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      0i32 <= i; i <= (i32) (*pool).max_order; (*pool).max_order > 0u8; (*pool).max_order <= 11u8; \n      ^~~~~~~~~~ ./driver.pp.c:1748:7-17");
+  update_cn_error_message_info("    /* Init the vmemmap portion */\n      ^~~~~~~~~~ ./driver.pp.c:1758:7-17");
   cn_assert(cn_bits_i32_le(convert_to_cn_bits_i32(0LL), O_i14), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      0i32 <= i; i <= (i32) (*pool).max_order; (*pool).max_order > 0u8; (*pool).max_order <= 11u8; \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1748:18-47");
+  update_cn_error_message_info("    /* Init the vmemmap portion */\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1758:18-47");
   cn_assert(cn_bits_i32_le(O_i14, cast_cn_bits_u8_to_cn_bits_i32(OI->max_order)), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      0i32 <= i; i <= (i32) (*pool).max_order; (*pool).max_order > 0u8; (*pool).max_order <= 11u8; \n                                               ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1748:48-72");
+  update_cn_error_message_info("    /* Init the vmemmap portion */\n                                               ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1758:48-72");
   cn_assert(cn_bits_u8_lt(convert_to_cn_bits_u8(0UL), OI->max_order), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      0i32 <= i; i <= (i32) (*pool).max_order; (*pool).max_order > 0u8; (*pool).max_order <= 11u8; \n                                                                        ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1748:73-99");
+  update_cn_error_message_info("    /* Init the vmemmap portion */\n                                                                        ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1758:73-99");
   cn_assert(cn_bits_u8_le(OI->max_order, convert_to_cn_bits_u8(11UL)), LOOP);
   cn_pop_msg_info();
   order = get_order_uf(cn_bits_u64_multiply(cn_bits_u64_add(cast_cn_bits_u32_to_cn_bits_u64(O_nr_pages11), convert_to_cn_bits_u64(1ULL)), page_size()));
-  update_cn_error_message_info("      (*pool).max_order == (11u8 < order ? 11u8 : order); \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1750:7-58");
+  update_cn_error_message_info("    for (i = 0; i < nr_pages; i++)\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1760:7-58");
   if (convert_from_cn_bool(cn_bits_u8_lt(convert_to_cn_bits_u8(11UL), order))) {
     a_8608 = convert_to_cn_bits_u8(11UL);
   }
@@ -6084,16 +6065,16 @@ for (CN_STORE(i, 0); ({
   }
   cn_assert(cn_bits_u8_equality(OI->max_order, a_8608), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      phys == pfn * page_size(); @*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1751:7-33");
+  update_cn_error_message_info("    /*@ inv take OI2 = Owned(pool); \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1761:7-33");
   cn_assert(cn_bits_u64_equality(O_phys11, cn_bits_u64_multiply(O_pfn11, page_size())), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*/ /*@ extract Owned<struct list_head>, i; @*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1753:19-57");
+  update_cn_error_message_info("      take PI2 = each (u64 j; start_i + ((u64) reserved_pages) <= j && j < end_i){ Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, j), true, 0u8) }; \n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1763:19-57");
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@ apply page_group_ok_easy(__hyp_vmemmap,*pool); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1786:14-63");
+  update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1796:14-63");
   read___hyp_vmemmap14 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
   read_pool2 = convert_to_cn_pointer(cn_pointer_deref(pool_addr_cn, struct hyp_pool*));
   deref_read_pool20 = convert_to_struct_hyp_pool_cn(cn_pointer_deref(read_pool2, struct hyp_pool));
-  update_cn_error_message_info("    /*CN*//*@ apply page_group_ok_easy(__hyp_vmemmap,*pool); @*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1786:15-61");
+  update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); \n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1796:15-61");
   page_group_ok_easy(read___hyp_vmemmap14, deref_read_pool20);
   cn_pop_msg_info();
   cn_pop_msg_info();
@@ -6169,40 +6150,40 @@ struct hyp_pool_cn* deref_read_pool10;
 for (CN_STORE(i, 0); ({
   cn_bump_frame_id cn_frame_id = cn_bump_get_frame_id();
   a_7876 = initialise_loop_ownership_state();
-  update_cn_error_message_info("    for (i = 0; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1760:5-1785:6");
+  update_cn_error_message_info("      (*pool).range_end == end; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1770:5-1795:6");
   O_phys10 = owned_unsigned_long_long(phys_addr_cn, LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1760:5-1785:6");
+  update_cn_error_message_info("      (*pool).range_end == end; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1770:5-1795:6");
   O_p13 = owned_struct_hyp_page_pointer(p_addr_cn, LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1760:5-1785:6");
+  update_cn_error_message_info("      (*pool).range_end == end; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1770:5-1795:6");
   O_i13 = owned_signed_int(i_addr_cn, LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1760:5-1785:6");
+  update_cn_error_message_info("      (*pool).range_end == end; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1770:5-1795:6");
   O_pool13 = owned_struct_hyp_pool_pointer(pool_addr_cn, LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1760:5-1785:6");
+  update_cn_error_message_info("      (*pool).range_end == end; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1770:5-1795:6");
   O_pfn10 = owned_unsigned_long_long(pfn_addr_cn, LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1760:5-1785:6");
+  update_cn_error_message_info("      (*pool).range_end == end; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1770:5-1795:6");
   O_nr_pages10 = owned_unsigned_int(nr_pages_addr_cn, LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = 0; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1760:5-1785:6");
+  update_cn_error_message_info("      (*pool).range_end == end; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1770:5-1795:6");
   O_reserved_pages10 = owned_unsigned_int(reserved_pages_addr_cn, LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O___hyp_vmemmap14 = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O_hyp_physvirt_offset16 = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O_cn_virt_ptr10 = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*@ inv take OI2 = Owned(pool); \n                 ^./driver.pp.c:1761:18:");
+  update_cn_error_message_info("      (*pool).max_order > 0u8; \n                 ^./driver.pp.c:1771:18:");
   OI2 = owned_struct_hyp_pool(O_pool13, LOOP, a_7876);
   cn_pop_msg_info();
-  update_cn_error_message_info("      take V3 = each (u64 j; start_i <= j && j < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, j)) }; \n           ^./driver.pp.c:1762:12:");
+  update_cn_error_message_info("      (*pool).max_order <= 11u8; \n           ^./driver.pp.c:1772:12:");
   V3 = map_create();
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -6218,7 +6199,7 @@ for (CN_STORE(i, 0); ({
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("      take PI2 = each (u64 j; start_i + ((u64) reserved_pages) <= j && j < end_i){ Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, j), true, 0u8) }; \n           ^./driver.pp.c:1763:12:");
+  update_cn_error_message_info("      let order = get_order_uf(((u64)nr_pages + 1u64)*(page_size())); \n           ^./driver.pp.c:1773:12:");
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_u32_to_cn_bits_u64(O_reserved_pages10)));
     while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_u32_to_cn_bits_u64(O_reserved_pages10))), j), cn_bits_u64_lt(j, end_i_cn)))) {
@@ -6233,7 +6214,7 @@ for (CN_STORE(i, 0); ({
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("      each(u8 j; j < (*pool).max_order){((*pool).free_area[(u64) j]).prev == array_shift<struct list_head>(pool, j)}; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1764:7-118");
+  update_cn_error_message_info("      (*pool).max_order == (11u8 < order ? 11u8 : order); \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1774:7-118");
   a_8059 = convert_to_cn_bool(true);
   {
     cn_bits_u8* j = cast_cn_bits_u8_to_cn_bits_u8(convert_to_cn_bits_u8(0UL));
@@ -6249,7 +6230,7 @@ for (CN_STORE(i, 0); ({
   }
   cn_assert(a_8059, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      each(u8 j; j < ((*pool).max_order)){((*pool).free_area[(u64) j]).next == array_shift<struct list_head>(pool, j)}; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1765:7-120");
+  update_cn_error_message_info("      hyp_pool_wf(pool, (*pool), __hyp_vmemmap, hyp_physvirt_offset); \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1775:7-120");
   a_8099 = convert_to_cn_bool(true);
   {
     cn_bits_u8* j = cast_cn_bits_u8_to_cn_bits_u8(convert_to_cn_bits_u8(0UL));
@@ -6265,7 +6246,7 @@ for (CN_STORE(i, 0); ({
   }
   cn_assert(a_8099, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      each (u64 j; start_i <= j && j < start_i + (u64) i){init_vmemmap_page(j, V3, pool, *pool)}; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1766:7-98");
+  update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); @*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1776:7-98");
   a_8131 = convert_to_cn_bool(true);
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -6281,44 +6262,44 @@ for (CN_STORE(i, 0); ({
   }
   cn_assert(a_8131, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      0i32 <= i; (u32) i <= nr_pages; \n      ^~~~~~~~~~ ./driver.pp.c:1767:7-17");
+  update_cn_error_message_info("    {\n      ^~~~~~~~~~ ./driver.pp.c:1777:7-17");
   cn_assert(cn_bits_i32_le(convert_to_cn_bits_i32(0LL), O_i13), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      0i32 <= i; (u32) i <= nr_pages; \n                 ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1767:18-38");
+  update_cn_error_message_info("    {\n                 ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1777:18-38");
   cn_assert(cn_bits_u32_le(cast_cn_bits_i32_to_cn_bits_u32(O_i13), O_nr_pages10), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1768:7-33");
+  update_cn_error_message_info("        /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, array_shift<struct hyp_page>(p, i)); @*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1778:7-33");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap14, O___hyp_vmemmap11_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                 ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1768:34-51");
+  update_cn_error_message_info("        /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, array_shift<struct hyp_page>(p, i)); @*/\n                                 ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1778:34-51");
   cn_assert(cn_pointer_equality(O_pool13, pool_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1768:52-84");
+  update_cn_error_message_info("        /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, array_shift<struct hyp_page>(p, i)); @*/\n                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1778:52-84");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset16, O_hyp_physvirt_offset13_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                    ^~~~~~~~~~~~~~~~ ./driver.pp.c:1768:85-101");
+  update_cn_error_message_info("        /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, array_shift<struct hyp_page>(p, i)); @*/\n                                                                                    ^~~~~~~~~~~~~~~~ ./driver.pp.c:1778:85-101");
   cn_assert(cn_bits_u64_equality(O_pfn10, pfn_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                                     ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1768:102-123");
+  update_cn_error_message_info("        /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, array_shift<struct hyp_page>(p, i)); @*/\n                                                                                                     ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1778:102-123");
   cn_assert(cn_bits_u32_equality(O_nr_pages10, nr_pages_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                                                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1768:124-151");
+  update_cn_error_message_info("        /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, array_shift<struct hyp_page>(p, i)); @*/\n                                                                                                                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1778:124-151");
   cn_assert(cn_bits_u32_equality(O_reserved_pages10, reserved_pages_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (*pool).range_start == start; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1769:7-36");
+  update_cn_error_message_info("        /*CN*//*@extract Owned<struct hyp_page>, pfn+((u64) i); @*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1779:7-36");
   cn_assert(cn_bits_u64_equality(OI2->range_start, start_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (*pool).range_end == end; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1770:7-32");
+  update_cn_error_message_info("        p[i].refcount = 0; /* added for formalisation */\n      ^~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1780:7-32");
   cn_assert(cn_bits_u64_equality(OI2->range_end, end_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (*pool).max_order > 0u8; \n      ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1771:7-31");
+  update_cn_error_message_info("        p[i].order = 0; /* added for formalisation */\n      ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1781:7-31");
   cn_assert(cn_bits_u8_lt(convert_to_cn_bits_u8(0UL), OI2->max_order), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (*pool).max_order <= 11u8; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1772:7-33");
+  update_cn_error_message_info("        hyp_set_page_refcounted(&p[i]);\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1782:7-33");
   cn_assert(cn_bits_u8_le(OI2->max_order, convert_to_cn_bits_u8(11UL)), LOOP);
   cn_pop_msg_info();
   order = get_order_uf(cn_bits_u64_multiply(cn_bits_u64_add(cast_cn_bits_u32_to_cn_bits_u64(O_nr_pages10), convert_to_cn_bits_u64(1ULL)), page_size()));
-  update_cn_error_message_info("      (*pool).max_order == (11u8 < order ? 11u8 : order); \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1774:7-58");
+  update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order_lemma (); @*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1784:7-58");
   if (convert_from_cn_bool(cn_bits_u8_lt(convert_to_cn_bits_u8(11UL), order))) {
     a_8212 = convert_to_cn_bits_u8(11UL);
   }
@@ -6327,33 +6308,33 @@ for (CN_STORE(i, 0); ({
   }
   cn_assert(cn_bits_u8_equality(OI2->max_order, a_8212), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      hyp_pool_wf(pool, (*pool), __hyp_vmemmap, hyp_physvirt_offset); \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1775:7-70");
+  update_cn_error_message_info("    }\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1785:7-70");
   cn_assert(hyp_pool_wf(O_pool13, OI2, O___hyp_vmemmap14, O_hyp_physvirt_offset16), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); @*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1776:7-61");
+  update_cn_error_message_info("    /*CN*//*@ apply page_group_ok_easy(__hyp_vmemmap,*pool); @*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1786:7-61");
   cn_assert(cn_pointer_equality(O_p13, cn_array_shift(O___hyp_vmemmap14, sizeof(struct hyp_page), O_pfn10)), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@instantiate good<struct hyp_page>, cn_hyp_page_to_pfn(__hyp_vmemmap, array_shift<struct hyp_page>(p, i)); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1778:18-125");
+  update_cn_error_message_info("    for (i = reserved_pages; i < nr_pages; i++)\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1788:18-125");
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@extract Owned<struct hyp_page>, pfn+((u64) i); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1779:18-66");
+  update_cn_error_message_info("    /*@ inv take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1789:18-66");
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@ apply order_aligned_init(pfn+((u64) i)); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1783:18-61");
+  update_cn_error_message_info("      each(u64 j; start_i + (u64) i <= j && j < end_i){H.vmemmap[j].refcount == 1u16}; \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1793:18-61");
   read_pfn2 = convert_to_cn_bits_u64(cn_pointer_deref(pfn_addr_cn, unsigned long long));
   read_i10 = convert_to_cn_bits_i32(cn_pointer_deref(i_addr_cn, signed int));
-  update_cn_error_message_info("        /*CN*//*@ apply order_aligned_init(pfn+((u64) i)); @*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1783:19-59");
+  update_cn_error_message_info("      each(u64 j; start_i + (u64) i <= j && j < end_i){H.vmemmap[j].refcount == 1u16}; \n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1793:19-59");
   order_aligned_init(cn_bits_u64_add(read_pfn2, cast_cn_bits_i32_to_cn_bits_u64(read_i10)));
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order (); @*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1784:18-49");
-  update_cn_error_message_info("        /*CN*//*@ apply page_size_of_order (); @*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1784:19-47");
-  page_size_of_order();
+  update_cn_error_message_info("      (H.pool).range_start == start; \n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1794:18-55");
+  update_cn_error_message_info("      (H.pool).range_start == start; \n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1794:19-53");
+  page_size_of_order_lemma();
   cn_pop_msg_info();
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*CN*//*@ apply page_group_ok_easy(__hyp_vmemmap,*pool); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1786:14-63");
+  update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1796:14-63");
   read___hyp_vmemmap13 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
   read_pool1 = convert_to_cn_pointer(cn_pointer_deref(pool_addr_cn, struct hyp_pool*));
   deref_read_pool10 = convert_to_struct_hyp_pool_cn(cn_pointer_deref(read_pool1, struct hyp_pool));
-  update_cn_error_message_info("    /*CN*//*@ apply page_group_ok_easy(__hyp_vmemmap,*pool); @*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1786:15-61");
+  update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); \n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1796:15-61");
   page_group_ok_easy(read___hyp_vmemmap13, deref_read_pool10);
   cn_pop_msg_info();
   cn_pop_msg_info();
@@ -6385,9 +6366,9 @@ for (CN_STORE(i, 0); ({
         CN_STORE(CN_LOAD(p)[CN_LOAD(i)].order, 0); /* added for formalisation */
         hyp_set_page_refcounted(&CN_LOAD(p)[CN_LOAD(i)]);
         /*CN*//*@ apply order_aligned_init(pfn+((u64) i)); @*/
-        /*CN*//*@ apply page_size_of_order (); @*/
+        /*CN*//*@ apply page_size_of_order_lemma (); @*/
     }}
-    /*CN*/update_cn_error_message_info("    /*CN*//*@ apply page_group_ok_easy(__hyp_vmemmap,*pool); @*/\n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1786:14-63");
+    /*CN*/update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); \n             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1796:14-63");
 
 cn_pointer* read___hyp_vmemmap11 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), struct hyp_page*));
 
@@ -6395,7 +6376,7 @@ cn_pointer* read_pool0 = convert_to_cn_pointer(cn_pointer_deref(convert_to_cn_po
 
 struct hyp_pool_cn* deref_read_pool00 = convert_to_struct_hyp_pool_cn(cn_pointer_deref(read_pool0, struct hyp_pool));
 
-update_cn_error_message_info("    /*CN*//*@ apply page_group_ok_easy(__hyp_vmemmap,*pool); @*/\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1786:15-61");
+update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); \n              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1796:15-61");
 
 page_group_ok_easy(read___hyp_vmemmap11, deref_read_pool00);
 
@@ -6435,43 +6416,43 @@ cn_bool* a_7768;
 for (CN_STORE(i, CN_LOAD(reserved_pages)); ({
   cn_bump_frame_id cn_frame_id = cn_bump_get_frame_id();
   a_7560 = initialise_loop_ownership_state();
-  update_cn_error_message_info("    for (i = reserved_pages; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1788:5-1807:6");
+  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:5-1817:6");
   O_phys9 = owned_unsigned_long_long(phys_addr_cn, LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = reserved_pages; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1788:5-1807:6");
+  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:5-1817:6");
   O_p12 = owned_struct_hyp_page_pointer(p_addr_cn, LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = reserved_pages; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1788:5-1807:6");
+  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:5-1817:6");
   O_i12 = owned_signed_int(i_addr_cn, LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = reserved_pages; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1788:5-1807:6");
+  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:5-1817:6");
   O_pool12 = owned_struct_hyp_pool_pointer(pool_addr_cn, LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = reserved_pages; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1788:5-1807:6");
+  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:5-1817:6");
   O_pfn9 = owned_unsigned_long_long(pfn_addr_cn, LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = reserved_pages; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1788:5-1807:6");
+  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:5-1817:6");
   O_nr_pages9 = owned_unsigned_int(nr_pages_addr_cn, LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("    for (i = reserved_pages; i < nr_pages; i++)\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1788:5-1807:6");
+  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:5-1817:6");
   O_reserved_pages9 = owned_unsigned_int(reserved_pages_addr_cn, LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O___hyp_vmemmap13 = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O_hyp_physvirt_offset15 = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   O_cn_virt_ptr9 = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("    /*@ inv take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n                 ^./driver.pp.c:1789:18:");
+  update_cn_error_message_info("      (H.pool).range_start == start; \n                 ^./driver.pp.c:1799:18:");
   H = Hyp_pool(O_pool12, O___hyp_vmemmap13, O_cn_virt_ptr9, O_hyp_physvirt_offset15, LOOP, a_7560);
   cn_pop_msg_info();
-  update_cn_error_message_info("      i >= 0i32; \n      ^~~~~~~~~~ ./driver.pp.c:1790:7-17");
+  update_cn_error_message_info("      (H.pool).range_end == end; \n      ^~~~~~~~~~ ./driver.pp.c:1800:7-17");
   cn_assert(cn_bits_i32_le(convert_to_cn_bits_i32(0LL), O_i12), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      take PI3 = each(u64 j; start_i + ((u64) i) <= j && j < end_i){ Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, j), true, 0u8) }; \n           ^./driver.pp.c:1791:12:");
+  update_cn_error_message_info("      (H.pool).max_order <= 11u8; @*/\n           ^./driver.pp.c:1801:12:");
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_i32_to_cn_bits_u64(O_i12)));
     while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_i32_to_cn_bits_u64(O_i12))), j), cn_bits_u64_lt(j, end_i_cn)))) {
@@ -6486,7 +6467,7 @@ for (CN_STORE(i, CN_LOAD(reserved_pages)); ({
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("      each(u64 j; start_i + (u64) i <= j && j < end_i){H.vmemmap[j].order == 0u8}; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1792:7-83");
+  update_cn_error_message_info("    {\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1802:7-83");
   a_7720 = convert_to_cn_bool(true);
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_i32_to_cn_bits_u64(O_i12)));
@@ -6502,7 +6483,7 @@ for (CN_STORE(i, CN_LOAD(reserved_pages)); ({
   }
   cn_assert(a_7720, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      each(u64 j; start_i + (u64) i <= j && j < end_i){H.vmemmap[j].refcount == 1u16}; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1793:7-87");
+  update_cn_error_message_info("        /*CN*//*@instantiate ((u64) i)+pfn;@*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1803:7-87");
   a_7768 = convert_to_cn_bool(true);
   {
     cn_bits_u64* j = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(start_i_cn, cast_cn_bits_i32_to_cn_bits_u64(O_i12)));
@@ -6518,51 +6499,51 @@ for (CN_STORE(i, CN_LOAD(reserved_pages)); ({
   }
   cn_assert(a_7768, LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (H.pool).range_start == start; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1794:7-37");
+  update_cn_error_message_info("        // p[i].refcount = 0; /* added for formalisation */\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1804:7-37");
   cn_assert(cn_bits_u64_equality(H->pool->range_start, start_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (H.pool).range_end == end; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1795:7-33");
+  update_cn_error_message_info("        /*CN*/ /*@extract Page, start_i+((u64) i);@*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1805:7-33");
   cn_assert(cn_bits_u64_equality(H->pool->range_end, end_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      p == array_shift<struct hyp_page>(__hyp_vmemmap, pfn); \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1796:7-61");
+  update_cn_error_message_info("        __hyp_put_page(pool, &p[i]);\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1806:7-61");
   cn_assert(cn_pointer_equality(O_p12, cn_array_shift(O___hyp_vmemmap13, sizeof(struct hyp_page), O_pfn9)), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      reserved_pages <= (u32) i; (u32) i <= nr_pages; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1797:7-33");
+  update_cn_error_message_info("    }\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1807:7-33");
   cn_assert(cn_bits_u32_le(O_reserved_pages9, cast_cn_bits_i32_to_cn_bits_u32(O_i12)), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      reserved_pages <= (u32) i; (u32) i <= nr_pages; \n                                 ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1797:34-54");
+  update_cn_error_message_info("    }\n                                 ^~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1807:34-54");
   cn_assert(cn_bits_u32_le(cast_cn_bits_i32_to_cn_bits_u32(O_i12), O_nr_pages9), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:7-33");
+  update_cn_error_message_info("    ((void) 0);\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1808:7-33");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap13, O___hyp_vmemmap11_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                 ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:34-51");
+  update_cn_error_message_info("    ((void) 0);\n                                 ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1808:34-51");
   cn_assert(cn_pointer_equality(O_pool12, pool_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:52-84");
+  update_cn_error_message_info("    ((void) 0);\n                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1808:52-84");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset15, O_hyp_physvirt_offset13_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                    ^~~~~~~~~~~~~~~~ ./driver.pp.c:1798:85-101");
+  update_cn_error_message_info("    ((void) 0);\n                                                                                    ^~~~~~~~~~~~~~~~ ./driver.pp.c:1808:85-101");
   cn_assert(cn_bits_u64_equality(O_pfn9, pfn_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                                     ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:102-123");
+  update_cn_error_message_info("    ((void) 0);\n                                                                                                     ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1808:102-123");
   cn_assert(cn_bits_u32_equality(O_nr_pages9, nr_pages_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; \n                                                                                                                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1798:124-151");
+  update_cn_error_message_info("    ((void) 0);\n                                                                                                                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1808:124-151");
   cn_assert(cn_bits_u32_equality(O_reserved_pages9, reserved_pages_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (H.pool).range_start == start; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1799:7-37");
+  update_cn_error_message_info("    return 0;\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1809:7-37");
   cn_assert(cn_bits_u64_equality(H->pool->range_start, start_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (H.pool).range_end == end; \n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1800:7-33");
+  update_cn_error_message_info("}\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1810:7-33");
   cn_assert(cn_bits_u64_equality(H->pool->range_end, end_cn), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("      (H.pool).max_order <= 11u8; @*/\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1801:7-34");
+  update_cn_error_message_info("\n      ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1811:7-34");
   cn_assert(cn_bits_u8_le(H->pool->max_order, convert_to_cn_bits_u8(11UL)), LOOP);
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*//*@instantiate ((u64) i)+pfn;@*/\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1803:18-45");
+  update_cn_error_message_info("void *cn_malloc(unsigned long size);\n                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1813:18-45");
   cn_pop_msg_info();
-  update_cn_error_message_info("        /*CN*/ /*@extract Page, start_i+((u64) i);@*/\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1805:19-52");
+  update_cn_error_message_info("void cn_print_u64(const char * x, unsigned long y);\n                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1815:19-52");
   cn_pop_msg_info();
   cn_loop_put_back_ownership(a_7560);
   cn_bump_free_after(cn_frame_id);
@@ -6624,31 +6605,31 @@ __cn_epilogue:
 
 {
   cn_bits_i32* return_cn = convert_to_cn_bits_i32(__cn_ret);
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   cn_pointer* O___hyp_vmemmap12_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   cn_bits_i64* O_hyp_physvirt_offset14_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr; \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1713:5-62");
+  update_cn_error_message_info("  hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); \n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1723:5-62");
   cn_pointer* O_cn_virt_ptr8_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n         ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1728:10-36");
+  update_cn_error_message_info("    /* hyp_spin_lock_init(&pool->lock); */\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1738:10-36");
   cn_assert(cn_pointer_equality(O___hyp_vmemmap12_cn, O___hyp_vmemmap11_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info(" ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; \n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1728:37-69");
+  update_cn_error_message_info("    /* hyp_spin_lock_init(&pool->lock); */\n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1738:37-69");
   cn_assert(cn_bits_i64_equality(O_hyp_physvirt_offset14_cn, O_hyp_physvirt_offset13_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n       ^./driver.pp.c:1729:8:");
+  update_cn_error_message_info("    pool->max_order = ((11) < (get_order((nr_pages + 1) << 12)) ? (11) : (get_order((nr_pages + 1) << 12)));\n       ^./driver.pp.c:1739:8:");
   struct Hyp_pool_ex1_record* H2_cn = Hyp_pool(pool_cn, O___hyp_vmemmap12_cn, O_cn_virt_ptr8_cn, O_hyp_physvirt_offset14_cn, POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (H2.pool).range_start == start; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1730:3-34");
+  update_cn_error_message_info("    ((void) 0);\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1740:3-34");
   cn_assert(cn_bits_u64_equality(H2_cn->pool->range_start, start_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (H2.pool).range_end == end; \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1731:3-30");
+  update_cn_error_message_info("    for (i = 0; i < pool->max_order; i++)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1741:3-30");
   cn_assert(cn_bits_u64_equality(H2_cn->pool->range_end, end_cn), POST);
   cn_pop_msg_info();
-  update_cn_error_message_info("  (H2.pool).max_order <= 11u8; @*/\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1732:3-31");
+  update_cn_error_message_info("    /*@ inv take OI = Owned(pool); \n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1742:3-31");
   cn_assert(cn_bits_u8_le(H2_cn->pool->max_order, convert_to_cn_bits_u8(11UL)), POST);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -6660,7 +6641,6 @@ __cn_epilogue:
 return __cn_ret;
 
 }
-
 void *cn_aligned_alloc(size_t align, size_t size);
 void *cn_malloc(unsigned long size);
 void *cn_calloc(size_t num, size_t size);
@@ -6680,13 +6660,13 @@ struct hyp_pool *init(unsigned int nr_pages)
   cn_bits_u32* nr_pages_cn = convert_to_cn_bits_u32(nr_pages);
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr;\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1820:5-62");
+  update_cn_error_message_info("  u64 pfn = ((range_start) >> 12);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1829:5-62");
   cn_pointer* O___hyp_vmemmap40_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr;\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1820:5-62");
+  update_cn_error_message_info("  u64 pfn = ((range_start) >> 12);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1829:5-62");
   cn_bits_i64* O_hyp_physvirt_offset42_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), PRE, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr;\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1820:5-62");
+  update_cn_error_message_info("  u64 pfn = ((range_start) >> 12);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1829:5-62");
   cn_pointer* O_cn_virt_ptr30_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), PRE, 0);
   cn_pop_msg_info();
   
@@ -6840,16 +6820,16 @@ __cn_epilogue:
 
 {
   cn_pointer* return_cn = convert_to_cn_pointer(__cn_ret);
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr;\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1820:5-62");
+  update_cn_error_message_info("  u64 pfn = ((range_start) >> 12);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1829:5-62");
   cn_pointer* O___hyp_vmemmap41_cn = owned_struct_hyp_page_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp___hyp_vmemmap()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr;\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1820:5-62");
+  update_cn_error_message_info("  u64 pfn = ((range_start) >> 12);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1829:5-62");
   cn_bits_i64* O_hyp_physvirt_offset43_cn = owned_signed_long_long(convert_to_cn_pointer(cn_test_get_static_driverpp_hyp_physvirt_offset()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("/*@ accesses __hyp_vmemmap, hyp_physvirt_offset, cn_virt_ptr;\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1820:5-62");
+  update_cn_error_message_info("  u64 pfn = ((range_start) >> 12);\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1829:5-62");
   cn_pointer* O_cn_virt_ptr31_cn = owned_void_pointer(convert_to_cn_pointer(cn_test_get_static_driverpp_cn_virt_ptr()), POST, 0);
   cn_pop_msg_info();
-  update_cn_error_message_info("    ensures take H = Hyp_pool(return, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); \n                 ^./driver.pp.c:1821:18:");
+  update_cn_error_message_info("  u64 npfn = 0-pfn;\n                 ^./driver.pp.c:1830:18:");
   struct Hyp_pool_ex1_record* H_cn = Hyp_pool(return_cn, O___hyp_vmemmap41_cn, O_cn_virt_ptr31_cn, O_hyp_physvirt_offset43_cn, POST, 0);
   cn_pop_msg_info();
   ghost_stack_depth_decr();
@@ -7568,7 +7548,7 @@ static cn_bits_i64* MAXi64()
 static struct list_head_cn* O_struct_list_head(cn_pointer* p, cn_bool* condition, enum spec_mode spec_mode, struct loop_ownership* loop_ownership)
 {
   if (convert_from_cn_bool(condition)) {
-    update_cn_error_message_info("    take v = Owned<struct list_head>(p);\n         ^./driver.pp.c:869:10:");
+    update_cn_error_message_info("lemma order_dec_inv (u64 pool_range_end, // phys_addr_t\n         ^./driver.pp.c:880:10:");
     struct list_head_cn* v = owned_struct_list_head(p, spec_mode, loop_ownership);
     cn_pop_msg_info();
     return v;
@@ -7581,14 +7561,14 @@ static struct Hyp_pool_ex1_record* Hyp_pool(cn_pointer* pool_l, cn_pointer* vmem
 {
   struct exclude_none_record* ex;
   ex = exclude_none();
-  update_cn_error_message_info("  take P = Owned<struct hyp_pool>(pool_l);\n       ^./driver.pp.c:839:8:");
+  update_cn_error_message_info("                 {AllocatorPage(array_shift<PAGE_SIZE_t>(ptr_phys_0, i), true, (V[i]).order)};\n       ^./driver.pp.c:850:8:");
   struct hyp_pool_cn* P = owned_struct_hyp_pool(pool_l, spec_mode, loop_ownership);
   cn_pop_msg_info();
   cn_bits_u64* start_i;
   start_i = cn_bits_u64_divide(P->range_start, page_size());
   cn_bits_u64* end_i;
   end_i = cn_bits_u64_divide(P->range_end, page_size());
-  update_cn_error_message_info("  take V = each(u64 i; (start_i <= i) && (i < end_i))\n       ^./driver.pp.c:842:8:");
+  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i)\n       ^./driver.pp.c:853:8:");
   cn_map* V = map_create();
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7604,12 +7584,12 @@ static struct Hyp_pool_ex1_record* Hyp_pool(cn_pointer* pool_l, cn_pointer* vmem
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (hyp_pool_wf (pool_l, P, vmemmap_l, physvirt_offset));\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:844:3-860:41");
+  update_cn_error_message_info("            && ((V[i]).order != (hyp_no_order ()))\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:855:3-871:41");
   cn_assert(hyp_pool_wf(pool_l, P, vmemmap_l, physvirt_offset), spec_mode);
   cn_pop_msg_info();
   cn_pointer* ptr_phys_0;
   ptr_phys_0 = cn__hyp_va(virt_ptr, physvirt_offset, convert_to_cn_bits_u64(0ULL));
-  update_cn_error_message_info("  take APs = each(u64 i; (start_i <= i) && (i < end_i)\n       ^./driver.pp.c:846:8:");
+  update_cn_error_message_info("    {vmemmap_l_wf (i, physvirt_offset, virt_ptr, V, APs, pool_l, P, ex)});\n       ^./driver.pp.c:857:8:");
   cn_map* APs = map_create();
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7625,7 +7605,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool(cn_pointer* pool_l, cn_pointer* vmem
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i))\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:851:3-860:41");
+  update_cn_error_message_info("\n  ^./driver.pp.c:862:3-871:41");
   cn_bool* a_14627 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7641,7 +7621,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool(cn_pointer* pool_l, cn_pointer* vmem
   }
   cn_assert(a_14627, spec_mode);
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:853:3-860:41");
+  update_cn_error_message_info("\n  ^./driver.pp.c:864:3-871:41");
   cn_bool* a_14677 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7657,7 +7637,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool(cn_pointer* pool_l, cn_pointer* vmem
   }
   cn_assert(a_14677, spec_mode);
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each(u8 i; 0u8 <= i && i < P.max_order)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:858:3-860:41");
+  update_cn_error_message_info("    take v = Owned<struct list_head>(p);\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:869:3-871:41");
   cn_bool* a_14706 = convert_to_cn_bool(true);
   {
     cn_bits_u8* i = cast_cn_bits_u8_to_cn_bits_u8(convert_to_cn_bits_u8(0UL));
@@ -7683,17 +7663,17 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex2(cn_pointer* pool_l, cn_pointer* 
 {
   struct exclude_none_record* ex;
   ex = exclude_two(ex1, ex2);
-  update_cn_error_message_info("  take pool = Owned<struct hyp_pool>(pool_l);\n       ^./driver.pp.c:802:8:");
+  update_cn_error_message_info("                 {AllocatorPage(array_shift<PAGE_SIZE_t>(ptr_phys_0, i), true, (V[i]).order)};\n       ^./driver.pp.c:813:8:");
   struct hyp_pool_cn* pool = owned_struct_hyp_pool(pool_l, spec_mode, loop_ownership);
   cn_pop_msg_info();
   cn_bits_u64* start_i;
   start_i = cn_bits_u64_divide(pool->range_start, page_size());
   cn_bits_u64* end_i;
   end_i = cn_bits_u64_divide(pool->range_end, page_size());
-  update_cn_error_message_info("  assert (hyp_pool_wf (pool_l, pool, vmemmap_l, physvirt_offset));\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:805:3-823:44");
+  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:816:3-834:44");
   cn_assert(hyp_pool_wf(pool_l, pool, vmemmap_l, physvirt_offset), spec_mode);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take V = each(u64 i; (start_i <= i) && (i < end_i))\n       ^./driver.pp.c:806:8:");
+  update_cn_error_message_info("            && ((V[i]).refcount == 0u16)\n       ^./driver.pp.c:817:8:");
   cn_map* V = map_create();
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7711,7 +7691,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex2(cn_pointer* pool_l, cn_pointer* 
   cn_pop_msg_info();
   cn_pointer* ptr_phys_0;
   ptr_phys_0 = cn__hyp_va(virt_ptr, physvirt_offset, convert_to_cn_bits_u64(0ULL));
-  update_cn_error_message_info("  take APs = each(u64 i; (start_i <= i) && (i < end_i)\n       ^./driver.pp.c:809:8:");
+  update_cn_error_message_info("    {vmemmap_l_wf (i, physvirt_offset, virt_ptr, V, APs, pool_l, pool, ex)});\n       ^./driver.pp.c:820:8:");
   cn_map* APs = map_create();
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7727,7 +7707,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex2(cn_pointer* pool_l, cn_pointer* 
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i))\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:814:3-823:44");
+  update_cn_error_message_info("\n  ^./driver.pp.c:825:3-834:44");
   cn_bool* a_14372 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7743,7 +7723,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex2(cn_pointer* pool_l, cn_pointer* 
   }
   cn_assert(a_14372, spec_mode);
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:816:3-823:44");
+  update_cn_error_message_info("    struct hyp_pool pool\n  ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:827:3-834:44");
   cn_bool* a_14422 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7759,7 +7739,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex2(cn_pointer* pool_l, cn_pointer* 
   }
   cn_assert(a_14422, spec_mode);
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each(u8 i; 0u8 <= i && i < pool.max_order)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:821:3-823:44");
+  update_cn_error_message_info("    pointer pool_l\n  ^~~~~~~~~~~~~~~~ ./driver.pp.c:832:3-834:44");
   cn_bool* a_14451 = convert_to_cn_bool(true);
   {
     cn_bits_u8* i = cast_cn_bits_u8_to_cn_bits_u8(convert_to_cn_bits_u8(0UL));
@@ -7785,17 +7765,17 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex1(cn_pointer* pool_l, cn_pointer* 
 {
   struct exclude_none_record* ex;
   ex = exclude_one(ex1);
-  update_cn_error_message_info("  take pool = Owned<struct hyp_pool>(pool_l);\n       ^./driver.pp.c:763:8:");
+  update_cn_error_message_info("                 {AllocatorPage(array_shift<PAGE_SIZE_t>(ptr_phys_0, i), true, (V[i]).order)};\n       ^./driver.pp.c:774:8:");
   struct hyp_pool_cn* pool = owned_struct_hyp_pool(pool_l, spec_mode, loop_ownership);
   cn_pop_msg_info();
   cn_bits_u64* start_i;
   start_i = cn_bits_u64_divide(pool->range_start, page_size());
   cn_bits_u64* end_i;
   end_i = cn_bits_u64_divide(pool->range_end, page_size());
-  update_cn_error_message_info("  assert (hyp_pool_wf (pool_l, pool, vmemmap_l, physvirt_offset));\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:766:3-784:44");
+  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:777:3-795:44");
   cn_assert(hyp_pool_wf(pool_l, pool, vmemmap_l, physvirt_offset), spec_mode);
   cn_pop_msg_info();
-  update_cn_error_message_info("  take V = each(u64 i; (start_i <= i) && (i < end_i))\n       ^./driver.pp.c:767:8:");
+  update_cn_error_message_info("            && ((V[i]).refcount == 0u16)\n       ^./driver.pp.c:778:8:");
   cn_map* V = map_create();
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7813,7 +7793,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex1(cn_pointer* pool_l, cn_pointer* 
   cn_pop_msg_info();
   cn_pointer* ptr_phys_0;
   ptr_phys_0 = cn__hyp_va(virt_ptr, physvirt_offset, convert_to_cn_bits_u64(0ULL));
-  update_cn_error_message_info("  take APs = each(u64 i; (start_i <= i) && (i < end_i)\n       ^./driver.pp.c:770:8:");
+  update_cn_error_message_info("    {vmemmap_l_wf (i, physvirt_offset, virt_ptr, V, APs, pool_l, pool, ex)});\n       ^./driver.pp.c:781:8:");
   cn_map* APs = map_create();
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7829,7 +7809,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex1(cn_pointer* pool_l, cn_pointer* 
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i))\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:775:3-784:44");
+  update_cn_error_message_info("\n  ^./driver.pp.c:786:3-795:44");
   cn_bool* a_14118 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7845,7 +7825,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex1(cn_pointer* pool_l, cn_pointer* 
   }
   cn_assert(a_14118, spec_mode);
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each (u64 i; (start_i <= i) && (i < end_i)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:777:3-784:44");
+  update_cn_error_message_info("    struct hyp_pool pool\n  ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:788:3-795:44");
   cn_bool* a_14168 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i);
@@ -7861,7 +7841,7 @@ static struct Hyp_pool_ex1_record* Hyp_pool_ex1(cn_pointer* pool_l, cn_pointer* 
   }
   cn_assert(a_14168, spec_mode);
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (each(u8 i; 0u8 <= i && i < pool.max_order)\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:782:3-784:44");
+  update_cn_error_message_info("    pointer pool_l\n  ^~~~~~~~~~~~~~~~ ./driver.pp.c:793:3-795:44");
   cn_bool* a_14197 = convert_to_cn_bool(true);
   {
     cn_bits_u8* i = cast_cn_bits_u8_to_cn_bits_u8(convert_to_cn_bits_u8(0UL));
@@ -7891,10 +7871,10 @@ static struct list_head_cn* AllocatorPage(cn_pointer* vbase, cn_bool* guard, cn_
   else {
     cn_pointer* zero_start;
     zero_start = cn_array_shift(vbase, sizeof(struct list_head), convert_to_cn_bits_u8(1UL));
-    update_cn_error_message_info("    take ZeroPart = AllocatorPageZeroPart (zero_start, order);\n         ^./driver.pp.c:742:10:");
+    update_cn_error_message_info("}\n         ^./driver.pp.c:753:10:");
     AllocatorPageZeroPart(zero_start, order, spec_mode, loop_ownership);
     cn_pop_msg_info();
-    update_cn_error_message_info("    take Node = Owned<struct list_head>(vbase);\n         ^./driver.pp.c:743:10:");
+    update_cn_error_message_info("Hyp_pool_ex1 (\n         ^./driver.pp.c:754:10:");
     struct list_head_cn* Node = owned_struct_list_head(vbase, spec_mode, loop_ownership);
     cn_pop_msg_info();
     return Node;
@@ -7908,7 +7888,7 @@ static void AllocatorPageZeroPart(cn_pointer* zero_start, cn_bits_u8* order, enu
   region_length = page_size_of_order(order);
   cn_bits_u64* length;
   length = cn_bits_u64_sub(region_length, convert_to_cn_bits_u64(sizeof(struct list_head)));
-  update_cn_error_message_info("  take Bytes = each (u64 i; (start <= i) && (i < (start + length)))\n       ^./driver.pp.c:725:8:");
+  update_cn_error_message_info("{\n       ^./driver.pp.c:736:8:");
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start);
     while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(start), i), cn_bits_u64_lt(i, cn_bits_u64_add(start, length))))) {
@@ -7935,7 +7915,7 @@ static void ZeroPage(cn_pointer* vbase, cn_bool* guard, cn_bits_u8* order, enum 
     length = page_size_of_order(order);
     cn_bits_u64* vbaseI;
     vbaseI = cast_cn_pointer_to_cn_bits_u64(vbase);
-    update_cn_error_message_info("    take Bytes = each (u64 i; (vbaseI <= i) && (i < (vbaseI + length)))\n         ^./driver.pp.c:714:10:");
+    update_cn_error_message_info("  take Bytes = each (u64 i; (start <= i) && (i < (start + length)))\n         ^./driver.pp.c:725:10:");
     {
       cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(vbaseI);
       while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(vbaseI), i), cn_bits_u64_lt(i, cn_bits_u64_add(vbaseI, length))))) {
@@ -7963,7 +7943,7 @@ static void Page(cn_pointer* vbase, cn_bool* guard, cn_bits_u8* order, enum spec
     length = page_size_of_order(order);
     cn_bits_u64* vbaseI;
     vbaseI = cast_cn_pointer_to_cn_bits_u64(vbase);
-    update_cn_error_message_info("    take Bytes = each (u64 i; (vbaseI <= i) && (i < (vbaseI + length)))\n         ^./driver.pp.c:700:10:");
+    update_cn_error_message_info("  else {\n         ^./driver.pp.c:711:10:");
     {
       cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(vbaseI);
       while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(vbaseI), i), cn_bits_u64_lt(i, cn_bits_u64_add(vbaseI, length))))) {
@@ -7983,17 +7963,17 @@ static void Page(cn_pointer* vbase, cn_bool* guard, cn_bits_u8* order, enum spec
 }
 static void ByteV(cn_pointer* virt, cn_bits_u8* the_value, enum spec_mode spec_mode, struct loop_ownership* loop_ownership)
 {
-  update_cn_error_message_info("  take B = Owned<char>(virt);\n       ^./driver.pp.c:687:8:");
+  update_cn_error_message_info("    let length = page_size_of_order(order);\n       ^./driver.pp.c:698:8:");
   cn_bits_u8* B = owned_char(virt, spec_mode, loop_ownership);
   cn_pop_msg_info();
-  update_cn_error_message_info("  assert (B == the_value);\n  ^~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:688:3-689:9");
+  update_cn_error_message_info("    let vbaseI = (u64) vbase;\n  ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:699:3-700:9");
   cn_assert(cn_bits_u8_equality(B, the_value), spec_mode);
   cn_pop_msg_info();
   return;
 }
 static void Byte(cn_pointer* virt, enum spec_mode spec_mode, struct loop_ownership* loop_ownership)
 {
-  update_cn_error_message_info("  take B = Block<char>(virt);\n       ^./driver.pp.c:681:8:");
+  update_cn_error_message_info("predicate void Page (pointer vbase, boolean guard, u8 order)\n       ^./driver.pp.c:692:8:");
   cn_bits_u8* B = owned_char(virt, spec_mode, loop_ownership);
   cn_pop_msg_info();
   return;
@@ -8011,7 +7991,7 @@ static void bytes_to_struct_list_head(cn_pointer* node, cn_bits_u8* order)
   length_cn = page_size_of_order(order);
   cn_bits_u64* nodeI_cn;
   nodeI_cn = cast_cn_pointer_to_cn_bits_u64(node);
-  update_cn_error_message_info("           take B = each (u64 i; (nodeI <= i) && (i < (nodeI + length))) {ByteV(array_shift<char>(NULL, i), 0u8)};\n                ^./driver.pp.c:1046:17:");
+  update_cn_error_message_info("    requires let b_i = (u64) b;\n                ^./driver.pp.c:1057:17:");
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(nodeI_cn);
     while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(nodeI_cn), i), cn_bits_u64_lt(i, cn_bits_u64_add(nodeI_cn, length_cn))))) {
@@ -8027,10 +8007,10 @@ static void bytes_to_struct_list_head(cn_pointer* node, cn_bits_u8* order)
   }
   cn_pop_msg_info();
   {
-    update_cn_error_message_info("  ensures take Node = Owned<struct list_head>(node) ;\n               ^./driver.pp.c:1047:16:");
+    update_cn_error_message_info("             let c = (u8) cc;\n               ^./driver.pp.c:1058:16:");
     struct list_head_cn* Node_cn = owned_struct_list_head(node, POST, 0);
     cn_pop_msg_info();
-    update_cn_error_message_info("          take BR = each (u64 i; (nodeI + (sizeof<struct list_head>)) <= i && i < (nodeI + length)){ByteV(array_shift<char>(NULL, i), 0u8)};\n               ^./driver.pp.c:1048:16:");
+    update_cn_error_message_info("             take B = each (u64 i; b_i <= i && i < b_i+len){Byte(array_shift<char>(NULL, i))};\n               ^./driver.pp.c:1059:16:");
     {
       cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(nodeI_cn, convert_to_cn_bits_u64(sizeof(struct list_head))));
       while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(cn_bits_u64_add(nodeI_cn, convert_to_cn_bits_u64(sizeof(struct list_head)))), i), cn_bits_u64_lt(i, cn_bits_u64_add(nodeI_cn, length_cn))))) {
@@ -8056,11 +8036,11 @@ static void struct_list_head_to_bytes(cn_pointer* node)
   ghost_stack_depth_incr();
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("  requires take Node = Owned<struct list_head>(node);\n                ^./driver.pp.c:1038:17:");
+  update_cn_error_message_info("\n                ^./driver.pp.c:1049:17:");
   struct list_head_cn* Node_cn = owned_struct_list_head(node, PRE, 0);
   cn_pop_msg_info();
   {
-    update_cn_error_message_info("  ensures take B = each (u64 i; ((u64) node) <= i && i < (((u64) node) + (sizeof<struct list_head>))){Byte(array_shift<char>(NULL, i))};\n               ^./driver.pp.c:1039:16:");
+    update_cn_error_message_info("@*/\n               ^./driver.pp.c:1050:16:");
     {
       cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(cast_cn_pointer_to_cn_bits_u64(node));
       while (convert_from_cn_bool(cn_bool_and(cn_bits_u64_le(cast_cn_bits_u64_to_cn_bits_u64(cast_cn_pointer_to_cn_bits_u64(node)), i), cn_bits_u64_lt(i, cn_bits_u64_add(cast_cn_pointer_to_cn_bits_u64(node), convert_to_cn_bits_u64(sizeof(struct list_head))))))) {
@@ -8086,19 +8066,19 @@ static void page_size_of_order2(cn_bits_u8* order)
   ghost_stack_depth_incr();
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("  requires order < 11u8;\n           ^~~~~~~~~~~~~ ./driver.pp.c:1030:12-25");
+  update_cn_error_message_info("\n           ^~~~~~~~~~~~~ ./driver.pp.c:1041:12-25");
   cn_assert(cn_bits_u8_lt(order, convert_to_cn_bits_u8(11UL)), PRE);
   cn_pop_msg_info();
   {
-    update_cn_error_message_info("  ensures 0u64 < power_uf(2u64, (u64) order) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1031:11-47");
+    update_cn_error_message_info("lemma bytes_to_struct_list_head(pointer node, // struct list_head *\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1042:11-47");
     cn_assert(cn_bits_u64_lt(convert_to_cn_bits_u64(0ULL), cn_bits_u64_pow(convert_to_cn_bits_u64(2ULL), cast_cn_bits_u8_to_cn_bits_u64(order))), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          power_uf(2u64, (u64) order) < shift_left(1u64, 11u64) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1032:11-66");
+    update_cn_error_message_info("                                u8 order)\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1043:11-66");
     cn_assert(cn_bits_u64_lt(cn_bits_u64_pow(convert_to_cn_bits_u64(2ULL), cast_cn_bits_u8_to_cn_bits_u64(order)), cn_bits_u64_shift_left(convert_to_cn_bits_u64(1ULL), convert_to_cn_bits_u64(11ULL))), POST);
     cn_pop_msg_info();
     cn_bits_u64* size_cn;
     size_cn = cn_bits_u64_multiply(page_size(), cn_bits_u64_pow(convert_to_cn_bits_u64(2ULL), cast_cn_bits_u8_to_cn_bits_u64(order)));
-    update_cn_error_message_info("          size == (page_size_of_order(order));\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1034:11-47");
+    update_cn_error_message_info("           let nodeI = ((u64) node) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1045:11-47");
     cn_assert(cn_bits_u64_equality(size_cn, page_size_of_order(order)), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
@@ -8112,35 +8092,35 @@ static void find_buddy_xor(cn_bits_u64* addr_i, cn_bits_u8* order)
   ghost_stack_depth_incr();
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("  requires order_aligned(addr_i, order) ;\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1016:12-42");
+  update_cn_error_message_info("\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1027:12-42");
   cn_assert(order_aligned(addr_i, order), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("           order < 11u8;\n           ^~~~~~~~~~~~~ ./driver.pp.c:1017:12-25");
+  update_cn_error_message_info("\n           ^~~~~~~~~~~~~ ./driver.pp.c:1028:12-25");
   cn_assert(cn_bits_u8_lt(order, convert_to_cn_bits_u8(11UL)), PRE);
   cn_pop_msg_info();
   {
     cn_bits_u64* two_to_order_cn;
     two_to_order_cn = cn_bits_u64_pow(convert_to_cn_bits_u64(2ULL), cast_cn_bits_u8_to_cn_bits_u64(order));
-    update_cn_error_message_info("          0u64 < two_to_order ;\n          ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1019:11-32");
+    update_cn_error_message_info("  requires order < 11u8;\n          ^~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1030:11-32");
     cn_assert(cn_bits_u64_lt(convert_to_cn_bits_u64(0ULL), two_to_order_cn), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          two_to_order < shift_left(1u64, 11u64) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1020:11-51");
+    update_cn_error_message_info("  ensures 0u64 < power_uf(2u64, (u64) order) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1031:11-51");
     cn_assert(cn_bits_u64_lt(two_to_order_cn, cn_bits_u64_shift_left(convert_to_cn_bits_u64(1ULL), convert_to_cn_bits_u64(11ULL))), POST);
     cn_pop_msg_info();
     cn_bits_u64* buddy_addr_cn;
     buddy_addr_cn = calc_buddy(cn_bits_u64_multiply(addr_i, page_size()), order);
     cn_bits_u64* buddy_i_cn;
     buddy_i_cn = cn_bits_u64_divide(buddy_addr_cn, page_size());
-    update_cn_error_message_info("          buddy_i == (pfn_buddy (addr_i, order)) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1023:11-51");
+    update_cn_error_message_info("          size == (page_size_of_order(order));\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1034:11-51");
     cn_assert(cn_bits_u64_equality(buddy_i_cn, pfn_buddy(addr_i, order)), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          (mod(buddy_addr, page_size())) == 0u64 ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1024:11-51");
+    update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1035:11-51");
     cn_assert(cn_bits_u64_equality(cn_bits_u64_mod(buddy_addr_cn, page_size()), convert_to_cn_bits_u64(0ULL)), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          order_aligned(buddy_i, order) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1025:11-42");
+    update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1036:11-42");
     cn_assert(order_aligned(buddy_i_cn, order), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          addr_i != buddy_i;\n          ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1026:11-29");
+    update_cn_error_message_info("lemma struct_list_head_to_bytes(pointer node) // struct list_head * \n          ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:1037:11-29");
     cn_assert(cn_bool_not(cn_bits_u64_equality(addr_i, buddy_i_cn)), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
@@ -8160,7 +8140,7 @@ static void attach_inc_loop(cn_map* V, cn_pointer* __hypvmemmap, struct hyp_pool
   start_i_cn = cn_bits_u64_divide(pool->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(pool->range_end, page_size());
-  update_cn_error_message_info("          cellPointer(hypvmemmap, 4u64, start_i, end_i, p) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:994:11-61");
+  update_cn_error_message_info("          let min_i = (p_i < buddy_i) ? p_i : buddy_i ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1005:11-61");
   cn_assert(cellPointer(hypvmemmap_cn, convert_to_cn_bits_u64(4ULL), start_i_cn, end_i_cn, p), PRE);
   cn_pop_msg_info();
   cn_bits_u64* p_i_cn;
@@ -8169,25 +8149,25 @@ static void attach_inc_loop(cn_map* V, cn_pointer* __hypvmemmap, struct hyp_pool
   buddy_i_cn = pfn_buddy(p_i_cn, order);
   cn_bits_u8* buddy_order_cn;
   buddy_order_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(V, cast_cn_bits_u64_to_cn_integer(buddy_i_cn)))->order;
-  update_cn_error_message_info("          start_i <= buddy_i; buddy_i < end_i ;\n          ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:998:11-30");
+  update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1009:11-30");
   cn_assert(cn_bits_u64_le(start_i_cn, buddy_i_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          start_i <= buddy_i; buddy_i < end_i ;\n                              ^~~~~~~~~~~~~~~~~ ./driver.pp.c:998:31-48");
+  update_cn_error_message_info("\n                              ^~~~~~~~~~~~~~~~~ ./driver.pp.c:1009:31-48");
   cn_assert(cn_bits_u64_lt(buddy_i_cn, end_i_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          order + 1u8 < 11u8; buddy_order == order ;\n          ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:999:11-30");
+  update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1010:11-30");
   cn_assert(cn_bits_u8_lt(cn_bits_u8_add(order, convert_to_cn_bits_u8(1UL)), convert_to_cn_bits_u8(11UL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          order + 1u8 < 11u8; buddy_order == order ;\n                              ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:999:31-53");
+  update_cn_error_message_info("\n                              ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1010:31-53");
   cn_assert(cn_bits_u8_equality(buddy_order_cn, order), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          order_aligned(p_i, order) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1000:11-38");
+  update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1011:11-38");
   cn_assert(order_aligned(p_i_cn, order), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          order_aligned(buddy_i, order) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1001:11-42");
+  update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1012:11-42");
   cn_assert(order_aligned(buddy_i_cn, order), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          (V[p_i]).order == (hyp_no_order ()) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1002:11-48");
+  update_cn_error_message_info("// TODO: is this (and other) lemma even useful anymore?\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1013:11-48");
   cn_assert(cn_bits_u8_equality(((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(V, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order, hyp_no_order()), PRE);
   cn_pop_msg_info();
   struct hyp_page_cn* p_page_tweaked_cn;
@@ -8196,7 +8176,7 @@ static void attach_inc_loop(cn_map* V, cn_pointer* __hypvmemmap, struct hyp_pool
   a_15378->order = order;
   a_15378->flags = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(V, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->flags;
   p_page_tweaked_cn = a_15378;
-  update_cn_error_message_info("          each(u64 i; start_i <= i && i < end_i) { page_group_ok(i, V[p_i: p_page_tweaked], pool) } ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1004:11-102");
+  update_cn_error_message_info("                     u8 order) // unsigned int\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1015:11-102");
   cn_bool* a_15399 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -8235,7 +8215,7 @@ static void attach_inc_loop(cn_map* V, cn_pointer* __hypvmemmap, struct hyp_pool
   a_15440->flags = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(V, cast_cn_bits_u64_to_cn_integer(buddy_i_cn)))->flags;
   buddy_page_cn = a_15440;
   {
-    update_cn_error_message_info(" ensures each(u64 i; start_i <= i && i < end_i) { page_group_ok(i, V[buddy_i: buddy_page,min_i: min_page], pool) };\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1008:10-116");
+    update_cn_error_message_info("          0u64 < two_to_order ;\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:1019:10-116");
     cn_bool* a_15468 = convert_to_cn_bool(true);
     {
       cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -8258,14 +8238,14 @@ static void attach_inc_loop(cn_map* V, cn_pointer* __hypvmemmap, struct hyp_pool
   }
   cn_bump_free_after(cn_frame_id);
 }
-static void page_size_of_order()
+static void page_size_of_order_lemma()
 {
   cn_bump_frame_id cn_frame_id = cn_bump_get_frame_id();
   ghost_stack_depth_incr();
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
   {
-    update_cn_error_message_info("  ensures (page_size_of_order(0u8)) == page_size();\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:983:11-52");
+    update_cn_error_message_info("          cellPointer(hypvmemmap, 4u64, start_i, end_i, p) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:994:11-52");
     cn_assert(cn_bits_u64_equality(page_size_of_order(convert_to_cn_bits_u8(0UL)), page_size()), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
@@ -8280,7 +8260,7 @@ static void order_aligned_init(cn_bits_u64* i)
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
   {
-    update_cn_error_message_info("  ensures order_aligned(i, 0u8);\n          ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:979:11-33");
+    update_cn_error_message_info("                            u8 order) // unsigned int\n          ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:990:11-33");
     cn_assert(order_aligned(i, convert_to_cn_bits_u8(0UL)), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
@@ -8300,7 +8280,7 @@ static void page_group_ok_easy(cn_pointer* __hypvmemmap, struct hyp_pool_cn* poo
   start_i_cn = cn_bits_u64_divide(pool->range_start, page_size());
   cn_bits_u64* end_i_cn;
   end_i_cn = cn_bits_u64_divide(pool->range_end, page_size());
-  update_cn_error_message_info("           take V = each (u64 i; start_i <= i && i < end_i) { Owned(array_shift<struct hyp_page>(hypvmemmap, i)) } ;\n                ^./driver.pp.c:970:17:");
+  update_cn_error_message_info("lemma page_size_of_order_lemma ()\n                ^./driver.pp.c:981:17:");
   cn_map* V_cn = map_create();
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -8316,7 +8296,7 @@ static void page_group_ok_easy(cn_pointer* __hypvmemmap, struct hyp_pool_cn* poo
     }
   }
   cn_pop_msg_info();
-  update_cn_error_message_info("           each (u64 i; start_i <= i && i < end_i) { (V[i]).order == 0u8 };\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:971:12-76");
+  update_cn_error_message_info("  requires true;\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:982:12-76");
   cn_bool* a_15179 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -8333,7 +8313,7 @@ static void page_group_ok_easy(cn_pointer* __hypvmemmap, struct hyp_pool_cn* poo
   cn_assert(a_15179, PRE);
   cn_pop_msg_info();
   {
-    update_cn_error_message_info("  ensures take V2 = each (u64 i; start_i <= i && i < end_i) { Owned(array_shift<struct hyp_page>(hypvmemmap, i)) } ;\n               ^./driver.pp.c:972:16:");
+    update_cn_error_message_info("  ensures (page_size_of_order(0u8)) == page_size();\n               ^./driver.pp.c:983:16:");
     cn_map* V2_cn = map_create();
     {
       cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -8349,10 +8329,10 @@ static void page_group_ok_easy(cn_pointer* __hypvmemmap, struct hyp_pool_cn* poo
       }
     }
     cn_pop_msg_info();
-    update_cn_error_message_info("          V2 == V ;\n          ^~~~~~~~~ ./driver.pp.c:973:11-20");
+    update_cn_error_message_info("\n          ^~~~~~~~~ ./driver.pp.c:984:11-20");
     cn_assert(cn_map_equality(V2_cn, V_cn, struct_hyp_page_cn_equality), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          each(u64 i; start_i <= i && i < end_i) { page_group_ok(i, V2, pool) };\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:974:11-81");
+    update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:985:11-81");
     cn_bool* a_15245 = convert_to_cn_bool(true);
     {
       cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -8389,21 +8369,21 @@ static void order_align_inv_loop(cn_pointer* __hypvmemmap, cn_map* V, struct hyp
   end_i_cn = cn_bits_u64_divide(pool->range_end, page_size());
   cn_bits_u8* p_order_cn;
   p_order_cn = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(V, cast_cn_bits_u64_to_cn_integer(p_i_cn)))->order;
-  update_cn_error_message_info("          p_order >= 1u8; p_order < 11u8 ;\n          ^~~~~~~~~~~~~~~ ./driver.pp.c:954:11-26");
+  update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~ ./driver.pp.c:965:11-26");
   cn_assert(cn_bits_u8_le(convert_to_cn_bits_u8(1UL), p_order_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          p_order >= 1u8; p_order < 11u8 ;\n                          ^~~~~~~~~~~~~~~~ ./driver.pp.c:954:27-43");
+  update_cn_error_message_info("\n                          ^~~~~~~~~~~~~~~~ ./driver.pp.c:965:27-43");
   cn_assert(cn_bits_u8_lt(p_order_cn, convert_to_cn_bits_u8(11UL)), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          order_aligned(p_i, p_order) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:955:11-40");
+  update_cn_error_message_info("lemma page_group_ok_easy (pointer __hypvmemmap, struct hyp_pool pool)\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:966:11-40");
   cn_assert(order_aligned(p_i_cn, p_order_cn), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          cellPointer(hypvmemmap, 4u64, start_i, end_i, p) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:956:11-61");
+  update_cn_error_message_info("  requires let hypvmemmap = __hypvmemmap ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:967:11-61");
   cn_assert(cellPointer(hypvmemmap_cn, convert_to_cn_bits_u64(4ULL), start_i_cn, end_i_cn, p), PRE);
   cn_pop_msg_info();
   cn_bits_u64* buddy_i_cn;
   buddy_i_cn = pfn_buddy(p_i_cn, cn_bits_u8_sub(p_order_cn, convert_to_cn_bits_u8(1UL)));
-  update_cn_error_message_info("          each(u64 i; start_i <= i && i < end_i) { page_group_ok(i, V, pool) };\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:958:11-80");
+  update_cn_error_message_info("           let end_i = (pool).range_end / page_size() ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:969:11-80");
   cn_bool* a_15021 = convert_to_cn_bool(true);
   {
     cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -8420,7 +8400,7 @@ static void order_align_inv_loop(cn_pointer* __hypvmemmap, cn_map* V, struct hyp
   cn_assert(a_15021, PRE);
   cn_pop_msg_info();
   {
-    update_cn_error_message_info(" ensures buddy_i <= max_pfn () ;\n         ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:959:10-33");
+    update_cn_error_message_info("           take V = each (u64 i; start_i <= i && i < end_i) { Owned(array_shift<struct hyp_page>(hypvmemmap, i)) } ;\n         ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:970:10-33");
     cn_assert(cn_bits_u64_le(buddy_i_cn, max_pfn()), POST);
     cn_pop_msg_info();
     struct hyp_page_cn* p_new_page_cn;
@@ -8435,7 +8415,7 @@ static void order_align_inv_loop(cn_pointer* __hypvmemmap, cn_map* V, struct hyp
     a_15062->order = cn_bits_u8_sub(p_order_cn, convert_to_cn_bits_u8(1UL));
     a_15062->flags = ((struct hyp_page_cn*) cn_map_get_struct_hyp_page_cn(V, cast_cn_bits_u64_to_cn_integer(buddy_i_cn)))->flags;
     buddy_new_page_cn = a_15062;
-    update_cn_error_message_info("         each(u64 i; start_i <= i && i < end_i) { page_group_ok(i, V[p_i: p_new_page, buddy_i: buddy_new_page], pool) };\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:962:10-121");
+    update_cn_error_message_info("          V2 == V ;\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:973:10-121");
     cn_bool* a_15090 = convert_to_cn_bool(true);
     {
       cn_bits_u64* i = cast_cn_bits_u64_to_cn_bits_u64(start_i_cn);
@@ -8464,44 +8444,44 @@ static void lemma4(cn_bits_u64* p_i, cn_bits_u8* order)
   ghost_stack_depth_incr();
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("  requires order >= 1u8 ;\n           ^~~~~~~~~~~~~~ ./driver.pp.c:927:12-26");
+  update_cn_error_message_info("          (page_size_of_order(order - 1u8)) * 2u64 == (page_size_of_order(order)) ;\n           ^~~~~~~~~~~~~~ ./driver.pp.c:938:12-26");
   cn_assert(cn_bits_u8_le(convert_to_cn_bits_u8(1UL), order), PRE);
   cn_pop_msg_info();
   cn_bits_u64* p_phys_cn;
   p_phys_cn = cn_bits_u64_multiply(p_i, page_size());
-  update_cn_error_message_info("           order_aligned(p_i, order) ;\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:929:12-39");
+  update_cn_error_message_info("          (order_align(buddy_i, order)) == p_i;\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:940:12-39");
   cn_assert(order_aligned(p_i, order), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("           p_i <= max_pfn ();\n           ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:930:12-30");
+  update_cn_error_message_info("\n           ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:941:12-30");
   cn_assert(cn_bits_u64_le(p_i, max_pfn()), PRE);
   cn_pop_msg_info();
   {
     cn_bits_u64* buddy_i_cn;
     buddy_i_cn = pfn_buddy(p_i, cn_bits_u8_sub(order, convert_to_cn_bits_u8(1UL)));
-    update_cn_error_message_info("          buddy_i <= max_pfn () ;\n          ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:932:11-34");
+    update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:943:11-34");
     cn_assert(cn_bits_u64_le(buddy_i_cn, max_pfn()), POST);
     cn_pop_msg_info();
     cn_bits_u64* buddy_phys_cn;
     buddy_phys_cn = cn_bits_u64_multiply(buddy_i_cn, page_size());
-    update_cn_error_message_info("          !(order_aligned(buddy_i, order)) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:934:11-45");
+    update_cn_error_message_info("lemma order_align_inv_loop (pointer __hypvmemmap,\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:945:11-45");
     cn_assert(cn_bool_not(order_aligned(buddy_i_cn, order)), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          buddy_phys == p_phys + (page_size_of_order(order - 1u8)) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:935:11-69");
+    update_cn_error_message_info("                            map<u64, struct hyp_page> V,\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:946:11-69");
     cn_assert(cn_bits_u64_equality(buddy_phys_cn, cn_bits_u64_add(p_phys_cn, page_size_of_order(cn_bits_u8_sub(order, convert_to_cn_bits_u8(1UL))))), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          0u64 < (page_size_of_order(order)) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:936:11-47");
+    update_cn_error_message_info("                            struct hyp_pool pool,\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:947:11-47");
     cn_assert(cn_bits_u64_lt(convert_to_cn_bits_u64(0ULL), page_size_of_order(order)), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          0u64 < (page_size_of_order(order - 1u8)) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:937:11-53");
+    update_cn_error_message_info("                            pointer p) // struct hyp_page* \n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:948:11-53");
     cn_assert(cn_bits_u64_lt(convert_to_cn_bits_u64(0ULL), page_size_of_order(cn_bits_u8_sub(order, convert_to_cn_bits_u8(1UL)))), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          (page_size_of_order(order - 1u8)) * 2u64 == (page_size_of_order(order)) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:938:11-84");
+    update_cn_error_message_info(" requires let hypvmemmap = __hypvmemmap ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:949:11-84");
     cn_assert(cn_bits_u64_equality(cn_bits_u64_multiply(page_size_of_order(cn_bits_u8_sub(order, convert_to_cn_bits_u8(1UL))), convert_to_cn_bits_u64(2ULL)), page_size_of_order(order)), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          (page_size_of_order(order - 1u8)) <= (page_size_of_order(order)) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:939:11-77");
+    update_cn_error_message_info("          let p_i = ((u64) p - (u64) __hypvmemmap) / 4u64 ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:950:11-77");
     cn_assert(cn_bits_u64_le(page_size_of_order(cn_bits_u8_sub(order, convert_to_cn_bits_u8(1UL))), page_size_of_order(order)), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          (order_align(buddy_i, order)) == p_i;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:940:11-48");
+    update_cn_error_message_info("          let start_i = (pool).range_start / page_size() ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:951:11-48");
     cn_assert(cn_bits_u64_equality(order_align(buddy_i_cn, order), p_i), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
@@ -8516,7 +8496,7 @@ static void page_size_of_order_inc(cn_bits_u8* order)
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
   {
-    update_cn_error_message_info("  ensures (page_size_of_order(order+1u8)) == 2u64*(page_size_of_order(order));\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:922:11-79");
+    update_cn_error_message_info("          let buddy_phys = buddy_i * page_size() ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:933:11-79");
     cn_assert(cn_bits_u64_equality(page_size_of_order(cn_bits_u8_add(order, convert_to_cn_bits_u8(1UL))), cn_bits_u64_multiply(convert_to_cn_bits_u64(2ULL), page_size_of_order(order))), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
@@ -8536,20 +8516,20 @@ static void extract_l(cn_bits_u64* p_i, cn_bits_u8* order)
   buddy_i_cn = pfn_buddy(p_i, order);
   cn_bits_u64* buddy_phys_cn;
   buddy_phys_cn = cn_bits_u64_multiply(buddy_i_cn, page_size());
-  update_cn_error_message_info("          order_aligned(p_i, order + 1u8) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:913:11-44");
+  update_cn_error_message_info("\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:924:11-44");
   cn_assert(order_aligned(p_i, cn_bits_u8_add(order, convert_to_cn_bits_u8(1UL))), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("          p_i <= max_pfn ();\n          ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:914:11-29");
+  update_cn_error_message_info("lemma lemma4 (u64 p_i, // intptr_t\n          ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:925:11-29");
   cn_assert(cn_bits_u64_le(p_i, max_pfn()), PRE);
   cn_pop_msg_info();
   {
-    update_cn_error_message_info(" ensures p_phys + (page_size_of_order(order)) == buddy_phys ;\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:915:10-62");
+    update_cn_error_message_info("              u8 order) // unsigned int\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:926:10-62");
     cn_assert(cn_bits_u64_equality(cn_bits_u64_add(p_phys_cn, page_size_of_order(order)), buddy_phys_cn), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("         page_aligned(p_phys, order) ;\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:916:10-39");
+    update_cn_error_message_info("  requires order >= 1u8 ;\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:927:10-39");
     cn_assert(page_aligned(p_phys_cn, order), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("         page_aligned(buddy_phys, order);\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:917:10-42");
+    update_cn_error_message_info("           let p_phys = p_i * page_size() ;\n         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:928:10-42");
     cn_assert(page_aligned(buddy_phys_cn, order), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
@@ -8569,13 +8549,13 @@ static void lemma2(cn_bits_u64* p_i, cn_bits_u8* order)
   buddy_i_cn = pfn_buddy(p_i, order);
   cn_bits_u64* buddy_phys_cn;
   buddy_phys_cn = cn_bits_u64_multiply(buddy_i_cn, page_size());
-  update_cn_error_message_info("           order_aligned(p_i, order);\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:897:12-38");
+  update_cn_error_message_info("lemma extract_l (u64 p_i, // intptr_t\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:908:12-38");
   cn_assert(order_aligned(p_i, order), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("           order_aligned(buddy_i, order);\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:898:12-42");
+  update_cn_error_message_info("                 u8 order) // unsigned int\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:909:12-42");
   cn_assert(order_aligned(buddy_i_cn, order), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("           p_i <= max_pfn ();\n           ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:899:12-30");
+  update_cn_error_message_info(" requires let p_phys = p_i * page_size() ;\n           ^~~~~~~~~~~~~~~~~~ ./driver.pp.c:910:12-30");
   cn_assert(cn_bits_u64_le(p_i, max_pfn()), PRE);
   cn_pop_msg_info();
   {
@@ -8590,16 +8570,16 @@ static void lemma2(cn_bits_u64* p_i, cn_bits_u8* order)
     min_i_cn = a_14780;
     cn_bits_u64* min_i_phys_cn;
     min_i_phys_cn = cn_bits_u64_multiply(min_i_cn, page_size());
-    update_cn_error_message_info("          buddy_i <= max_pfn ();\n          ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:902:11-33");
+    update_cn_error_message_info("          order_aligned(p_i, order + 1u8) ;\n          ^~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:913:11-33");
     cn_assert(cn_bits_u64_le(buddy_i_cn, max_pfn()), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          order_aligned(min_i, order+1u8);\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:903:11-43");
+    update_cn_error_message_info("          p_i <= max_pfn ();\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:914:11-43");
     cn_assert(order_aligned(min_i_cn, cn_bits_u8_add(order, convert_to_cn_bits_u8(1UL))), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          page_aligned(min_i_phys, order+1u8);\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:904:11-47");
+    update_cn_error_message_info(" ensures p_phys + (page_size_of_order(order)) == buddy_phys ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:915:11-47");
     cn_assert(page_aligned(min_i_phys_cn, cn_bits_u8_add(order, convert_to_cn_bits_u8(1UL))), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          (p_phys + (page_size_of_order(order)) == buddy_phys) || (p_phys - (page_size_of_order(order)) == buddy_phys);\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:905:11-120");
+    update_cn_error_message_info("         page_aligned(p_phys, order) ;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:916:11-120");
     cn_assert(cn_bool_or(cn_bits_u64_equality(cn_bits_u64_add(p_phys_cn, page_size_of_order(order)), buddy_phys_cn), cn_bits_u64_equality(cn_bits_u64_sub(p_phys_cn, page_size_of_order(order)), buddy_phys_cn)), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
@@ -8613,20 +8593,20 @@ static void order_dec_inv(cn_bits_u64* pool_range_end, cn_bits_u64* pfn, cn_bits
   ghost_stack_depth_incr();
   clear_ghost_array(0);
   ghost_call_site = CLEARED;
-  update_cn_error_message_info("  requires order_aligned(pfn, order1);\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:884:12-39");
+  update_cn_error_message_info("           let buddy_i = pfn_buddy(p_i, order);\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:895:12-39");
   cn_assert(order_aligned(pfn, order1), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("           (pfn*page_size()) + (page_size_of_order(order1)) <= pool_range_end;\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:885:12-79");
+  update_cn_error_message_info("           let buddy_phys = buddy_i * page_size();\n           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:896:12-79");
   cn_assert(cn_bits_u64_le(cn_bits_u64_add(cn_bits_u64_multiply(pfn, page_size()), page_size_of_order(order1)), pool_range_end), PRE);
   cn_pop_msg_info();
-  update_cn_error_message_info("           order2 <= order1;\n           ^~~~~~~~~~~~~~~~~ ./driver.pp.c:886:12-29");
+  update_cn_error_message_info("           order_aligned(p_i, order);\n           ^~~~~~~~~~~~~~~~~ ./driver.pp.c:897:12-29");
   cn_assert(cn_bits_u8_le(order2, order1), PRE);
   cn_pop_msg_info();
   {
-    update_cn_error_message_info("  ensures order_aligned(pfn, order2);\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:887:11-38");
+    update_cn_error_message_info("           order_aligned(buddy_i, order);\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:898:11-38");
     cn_assert(order_aligned(pfn, order2), POST);
     cn_pop_msg_info();
-    update_cn_error_message_info("          (pfn * page_size()) + (page_size_of_order(order2)) <= pool_range_end;\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:888:11-80");
+    update_cn_error_message_info("           p_i <= max_pfn ();\n          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ./driver.pp.c:899:11-80");
     cn_assert(cn_bits_u64_le(cn_bits_u64_add(cn_bits_u64_multiply(pfn, page_size()), page_size_of_order(order2)), pool_range_end), POST);
     cn_pop_msg_info();
     ghost_stack_depth_decr();
