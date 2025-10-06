@@ -436,6 +436,8 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 !is_null(node.prev);
+                // Workaround for https://github.com/rems-project/cn/issues/369
+                let prev_chunk = array_shift<char>(node.prev, -offsetof(chunk_hdr, node)); !is_null(prev_chunk);
                 (u64)node.prev & 0x7u64 == 0u64;
         ensures
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
