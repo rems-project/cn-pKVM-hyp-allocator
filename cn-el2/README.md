@@ -1,6 +1,9 @@
 # Fulminating hyp-alloc for EL2
 
-WIP. Accurate as of 2025-09-17
+For running Fulminate on the heap-allocator-for-EL2 file (`alloc.carved.c`), see the first section below.
+(For most use cases, this is probably all you need.)
+
+For understanding how the sausage is made (i.e. how `alloc.carved.c` is generated from the original `alloc.c` file in the pKVM source), read past the first section (at your own risk).
 
 ## Run Fulminate on the carved, preprocessed heap allocator
 
