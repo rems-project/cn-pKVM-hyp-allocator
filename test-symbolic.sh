@@ -5,7 +5,6 @@ cn test --no-run \
     src/alloc.c \
     -Isrc -Iinclude \
     -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS \
-    --inline-everything \
     --experimental-product-arg-destruction \
     --input-timeout=0 \
     --smt-pruning-before-absint=fast \

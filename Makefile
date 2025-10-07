@@ -59,7 +59,47 @@ cn-test-random: src/alloc.c
 
 .PHONY: cn-test-symbolic
 cn-test-symbolic: src/alloc.c
-	./test-symbolic.sh --cc=$(CC) --only=chunk_addr_fixup,chunk_needs_mapping,my_list_is_last,LemmaMergeChunk,chunk_list_insert,chunk_get_prev,chunk_get_next,__chunk_prev
+	./test-symbolic.sh --cc=$(CC) --inline-everything --only=chunk_addr_fixup,chunk_needs_mapping,my_list_is_last,LemmaMergeChunk,chunk_list_insert,chunk_get_prev,chunk_get_next,__chunk_prev
+
+.PHONY: cn-test-symbolic-lite
+cn-test-symbolic-lite: src/alloc.c
+	./test-symbolic.sh --cc=$(CC) \
+		--skip=my_list_is_last,chunk_list_del \
+		--skip=chunk_list_insert \
+		--skip=LemmaCreateNewChunk \
+		--skip=LemmaCreateChunkHdr \
+		--skip=LemmaCnChunkHdrsRevToCnChunkHdrs \
+		--skip=LemmaConcatCnChunkHdrsRev \
+		--skip=LemmaNextChunk \
+		--skip=LemmaPrevChunk \
+		--skip=LemmaMergeChunk \
+		--skip=LemmaMergeChunks \
+		--skip=chunk_install \
+		--skip=chunk_reclaimable \
+		--skip=chunk_destroyable \
+		--skip=LemmaLsegToChunkHdrs \
+		--skip=chunk_recycle \
+		--skip=LemmaGetLastChunk \
+		--skip=get_free_chunk \
+		--skip=setup_first_chunk \
+		--skip=LemmaCnChunkHdrsRevToCnHypAllocator \
+		--skip=chunk_merge \
+		--skip=hyp_allocator_map \
+		--skip=hyp_allocator_unmap \
+		--skip=chunk_inc_map \
+		--skip=chunk_can_split \
+		--skip=brain_exploding_calculation \
+		--skip=chunk_hash_update \
+		--skip=chunk_hash_validate \
+		--skip=chunk_get_next \
+		--skip=chunk_get_prev \
+		--skip=chunk_get \
+		--skip=hyp_alloc \
+		--skip=hyp_free \
+		--skip=hyp_alloc_init \
+		--skip=pkvm_alloc_private_va_range \
+		--skip=chunk_unmapped_size \
+		--skip=chunk_needs_mapping
 
 .PHONY: clean
 clean:
