@@ -23,7 +23,7 @@ eval $(opam env --switch=el2-hyp-alloc)
 
 2. Clone [David's Cerberus fork](https://github.com/pqwy/cerberus) and checkout the right branch:
 ```bash
-git checkout -b for-fulminate origin/for-fulminate
+git checkout -b el2-fulminate origin/el2-fulminate
 ```
 
 3. In the cerberus subdirectory, run the following opam commands:
@@ -34,7 +34,7 @@ opam pin add cerberus.dev $(pwd)
 
 4. Now, in the parent directory, clone [David's CN fork](https://github.com/pqwy/cn) and checkout the right branch:
 ```bash
-git checkout -b update-cerberus-for-fulminate+unions origin/update-cerberus-for-fulminate+unions
+git checkout -b el2-fulminate origin/el2-fulminate
 ```
 5. In the cn subdirectory, run the following opam commands:
 ```bash
