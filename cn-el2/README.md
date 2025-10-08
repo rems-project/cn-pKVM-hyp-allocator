@@ -1,11 +1,15 @@
 # Fulminating hyp-alloc for EL2
 
-For running Fulminate on the heap-allocator-for-EL2 file (`alloc.carved.c`), see the first section below.
-(For most use cases, this is probably all you need.)
+For running Fulminate on the heap-allocator-for-EL2 file (`alloc.carved.c`), see
+the [first section][run-fulminate-on-the-preprocessed-carved-heap-allocator]
+below. (For most use cases, this is probably all you need.)
 
-For understanding how the sausage is made (i.e. how `alloc.carved.c` is generated from the original `alloc.c` file in the pKVM source), read past the first section (at your own risk).
+For understanding how the sausage is made (i.e. how `alloc.carved.c` is
+generated from the original `alloc.c` file in the pKVM source), read
+[past the first section][make-a-preprocessed-carved-heap-allocator] (at your own
+risk).
 
-## Run Fulminate on the carved, preprocessed heap allocator
+## Run Fulminate on the preprocessed, carved heap allocator
 
 Tried on Ubuntu (legion). 
 
@@ -20,8 +24,7 @@ and switch to it:
 eval $(opam env --switch=el2-hyp-alloc)
 ```
 
-
-2. Clone [David's Cerberus fork](https://github.com/pqwy/cerberus) and checkout the right branch:
+2. Clone [this Cerberus fork][cerberus-fork] and checkout the right branch:
 ```bash
 git checkout -b el2-fulminate origin/el2-fulminate
 ```
@@ -32,10 +35,11 @@ opam pin add cerberus-lib.dev $(pwd)
 opam pin add cerberus.dev $(pwd)
 ```
 
-4. Now, in the parent directory, clone [David's CN fork](https://github.com/pqwy/cn) and checkout the right branch:
+4. Now, in the parent directory, clone [this CN fork][cn-fork] and checkout the right branch:
 ```bash
 git checkout -b el2-fulminate origin/el2-fulminate
 ```
+
 5. In the cn subdirectory, run the following opam commands:
 ```bash
 opam install --ignore-pin-depends ./cn.opam
@@ -53,7 +57,10 @@ the file that Cerberus or CN don't support.
 non-annotated, but pre-processed and carved original source that was specced
 (elsewhere in this repo). Until that file works, nothing possibly can.
 
-## Preprocessing linux source file in-situ
+[cerberus-fork]: https://github.com/pqwy/cerberus/tree/el2-fulminate
+[cn-fork]: https://github.com/pqwy/cn/tree/el2-fulminate
+
+## Make a preprocessed, carved heap allocator
 
 Linux supports wide variety of environments, so the build system uses a
 complicated network of conditional includes, some auto generated. A good idea is
@@ -151,12 +158,14 @@ code than needed.
 
 ### Carver
 
-Carver is used to remove code not directly referenced from the target file.
+[Carver][carver] is used to remove code not directly referenced from the target file.
 
-[Install it](https://github.com/rems-project/c-tree-carver);
-if [this PR](https://github.com/rems-project/c-tree-carver/pull/26)
-is still open, use
-[this branch](https://github.com/pqwy/c-tree-carver/tree/fix-segfault).
+[Install it][carver]; if [this PR][carver-pr] is still open, use
+[this branch][carver-fork] instead.
+
+[carver]: https://github.com/rems-project/c-tree-carver
+[carver-pr]: https://github.com/rems-project/c-tree-carver/pull/26
+[carver-fork]: https://github.com/pqwy/c-tree-carver/tree/fix-segfault
 
 Carver cannot consume the standard `compile_commands.json` format, requiring
 relative paths. Save a copy of the file:
@@ -166,11 +175,11 @@ cp compile_commands.json compile_commands.original.json
 assuming `/path/to/LINUX` is the absolute path to your linux working tree,
 produce a relative-path version by running:
 ```bash
-jq < compile_commands.json '[.[]|.file|=ltrimstr("/path/to/LINUX/")]' > compile_commands.json
+jq < compile_commands.original.json '[.[]|.file|=ltrimstr("/path/to/LINUX/")]' > compile_commands.json
 ```
-The tool will use `compile_commands.json` to look up compiler args, and the
-pre-processed file (`alloc.pp.c`) is not listed there. Replace the original with
-it:
+The tool will use `compile_commands.json` to look up compiler args, but the
+pre-processed file (`alloc.pp.c`) is not listed there. Move it in place of the
+original:
 ```bash
 cp arch/arm64/kvm/hyp/nvhe/alloc.c arch/arm64/kvm/hyp/nvhe/alloc.original.c
 cp arch/arm64/kvm/hyp/nvhe/alloc.pp.c arch/arm64/kvm/hyp/nvhe/alloc.c
@@ -178,7 +187,8 @@ cp arch/arm64/kvm/hyp/nvhe/alloc.pp.c arch/arm64/kvm/hyp/nvhe/alloc.c
 
 Finally, run the carver:
 ```bash
-c-tree-carve -p . -r hyp_alloc,hyp_alloc_account,hyp_free,hyp_free_account,hyp_alloc_reclaimable,hyp_alloc_reclaim,hyp_alloc_refill,hyp_alloc_init,hyp_alloc_errno,hyp_alloc_missing_donations arch/arm64/kvm/hyp/nvhe/alloc.c
+ROOT='hyp_alloc,hyp_alloc_account,hyp_free,hyp_free_account,hyp_alloc_reclaimable,hyp_alloc_reclaim,hyp_alloc_refill,hyp_alloc_init,hyp_alloc_errno,hyp_alloc_missing_donations'
+c-tree-carve -p . -r $ROOTS arch/arm64/kvm/hyp/nvhe/alloc.c
 ```
 It will reject the source file as not being valid C. Look at the error messages
 and source locations, and correct them by hand using an editor; it should
