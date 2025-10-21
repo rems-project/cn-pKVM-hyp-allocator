@@ -47,11 +47,15 @@ opam install --ignore-pin-depends ./cn.opam
 
 6. Now cd to `el2-hyp-alloc` in the parent directory and run Fulminate:
 ```bash
-cn instrument --include shim.h alloc.carved.c
+cn instrument --include shim.h --skip alternative_has_cap_likely --exec-c-locs-mode alloc.carved.c
 ```
 
 `shim.h` is a crime in progress — it uses the C preprocessor to remove bits of
 the file that Cerberus or CN don't support.
+
+`alternative_has_cap_likey` is a function that should not be instrumented, for
+reasons. It is even marked with `__attribute__((__no_instrument_function__))`;
+but since we ignore attributes, we manually ask it to be skipped.
 
 `alloc.carved.c` — at the time of writing — is the sacred litmus: the
 non-annotated, but pre-processed and carved original source that was specced
