@@ -204,7 +204,7 @@ source file; copy it from there back into the linux source tree, as
 ## Fulminating the files
 
 ```bash
-cn instrument --include shim.c alloc.which.ever.version.c
+cn instrument --include shim.h --skip alternative_has_cap_likely --exec-c-locs-mode alloc.carved.c
 ```
 
 ## C compiler
