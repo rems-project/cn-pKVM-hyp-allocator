@@ -3030,11 +3030,15 @@ void *hyp_alloc_account(size_t size, struct kvm *host_kvm)
 void hyp_free(void *addr)
 /*@
         requires
+                cn_ghost u64 size;
                 !is_null(addr);
                 let header_address = array_shift<byte>(addr, - Cn_chunk_hdr_size());
                 take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator,header_address);
                 let C = HA_pre.lseg.chunk;
-                take U = Cn_char_array(addr, (u64)C.alloc_size);
+                take U = Cn_char_array(addr, (u64)size);
+                size <= (u64)C.alloc_size;
+                take V = Cn_char_array_with_offset(addr, (u64)C.alloc_size - size, size);
+                //take U = Cn_char_array(addr, (u64)C.alloc_size);
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
@@ -3045,7 +3049,10 @@ void hyp_free(void *addr)
 
         hyp_spin_lock(&allocator->lock);
 
+        // Merge the remaining part into the current chunk
+
         chunk = chunk_get(container_of(chunk_data, struct chunk_hdr, data));
+        /*@ unpack Cn_char_array(...); @*/
         /*@ unpack MaybeChunkHdr(...); @*/
         /*@
         split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
@@ -3061,6 +3068,7 @@ void hyp_free(void *addr)
 
         // HK: free is easy :) except for merging
 #ifdef __CN_VERIFY
+        /*@ unpack Cn_char_array(...); @*/
         LemmaMergeArrays(chunk_data, chunk->alloc_size, chunk->mapped_size + chunk_unmapped_size(chunk, allocator) - chunk_hdr_size() - chunk->alloc_size);
 #endif
         chunk->alloc_size = 0;
