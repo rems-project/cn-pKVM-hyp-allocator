@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 cn test --no-run \
     --output-dir=_test_random/ \
