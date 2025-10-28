@@ -60,14 +60,13 @@ targets=(
   chunk_destroyable
   chunk_reclaimable
 )
-# unproved: chunk_install, get_free_hunk, chunk_recycle, hyp_alloc
 
+OPT="${OPT:-"-p 20"}"
 run_test() {
   target="$1"
   start=$(date +%s.%N)
-  opt="-p 20"
 
-  if make ONLY="$target" cn-verify OPT="$opt" > "verify-${target}.log" 2>&1  &&
+  if make ONLY="$target" cn-verify OPT="$OPT" > "verify-${target}.log" 2>&1  &&
      grep -q "\[1/1\]: $target -- pass" "verify-${target}.log"; then
     status="passed"
   else
@@ -97,6 +96,7 @@ run_test() {
 date
 git log -1 --format="%H"
 cn --version
+echo "option: $OPT"
 
 export -f run_test
 
