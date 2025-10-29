@@ -821,13 +821,8 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 
         //  [prev]    [+alloc_size]             [chunk]     [+(old)va_size]
         //    ------- ------------------------- ----------- -------------
-        (u64)HA_pre.ha.start <= (u64)prev;
         (u64)prev < (u64)chunk;
         (u64)prev + Cn_chunk_hdr_size() +  (u64)Prev_pre.alloc_size <= (u64)chunk;
-        (u64)chunk <= (u64)chunk + Cn_chunk_hdr_size();
-        (u64)chunk + Cn_chunk_hdr_size() <= (u64)alloc_size + (u64)chunk + Cn_chunk_hdr_size();
-        (u64)chunk + Cn_chunk_hdr_size() + (u64)alloc_size <= (u64)chunk + (u64)HA_pre.va_size;
-        (u64)chunk + (u64)HA_pre.va_size <= (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
         let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size);
         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
         take X = Cn_char_array(start, owned_by_ha);
