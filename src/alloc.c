@@ -815,13 +815,13 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         take node = W<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
         take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
         take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk, explicit_padding));
-        (u64)alloc_size + Cn_chunk_hdr_size() <= (u64)mapped_size;
-        (u64)mapped_size <= HA_pre.va_size;
 
         //  [prev]    [+alloc_size]             [chunk]     [+(old)va_size]
         //    ------- ------------------------- ----------- -------------
-        (u64)prev < (u64)chunk;
+        (u64)alloc_size + Cn_chunk_hdr_size() <= (u64)mapped_size;
+        (u64)mapped_size <= HA_pre.va_size;
         (u64)prev + Cn_chunk_hdr_size() +  (u64)Prev_pre.alloc_size <= (u64)chunk;
+
         let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size);
         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
         take X = Cn_char_array(start, owned_by_ha);
