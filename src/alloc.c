@@ -953,7 +953,6 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     take ha_full = Cn_hyp_allocator_only(allocator);
     let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
     let end = ha.start + (u64)ha.size;
-    ha.start < end;  // no overflow
 
     // own this chunk
     take cn_hdr = Cn_chunk_hdr(chunk, ha);
