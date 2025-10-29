@@ -1,0 +1,19 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb302..d9cf8e1 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -1350,12 +1350,11 @@ requires
+         // (iv)      <= prev_old_mapped_size
+         // (v)       <= prev old_va_size
+         // (vi)      <= allocator_end
+-        let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size + Cn_chunk_hdr_size();
++        let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size;
+         let chunk_alloc_end = (u64)chunk + size + Cn_chunk_hdr_size();
+         let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
+         let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
+-        (u64)prev <= (u64)prev + Cn_chunk_hdr_size(); // (i)
+-        (u64)prev + Cn_chunk_hdr_size() <= prev_alloc_end; // (i')
++        (u64)prev <= prev_alloc_end;
+         prev_alloc_end <= (u64)chunk; // (ii)
+         (u64)chunk < (u64)chunk + Cn_chunk_hdr_size(); // (iii')
+         (u64)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end; // (iii'')
