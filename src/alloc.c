@@ -583,7 +583,6 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 take A_pre = RW<struct hyp_allocator>(allocator);
-                A_pre.start < A_pre.start + (u64)A_pre.size;
                 !is_null(node.next);
                 let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node));
