@@ -1159,9 +1159,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 let ha = a_in.ha;
                 assert(ptr_eq(ha.head,ha.first));
 
-                assert(size != 0u64);
                 assert(size <= (u64)ha.size);
-                assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)MAXu32());
                 assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
 
@@ -1177,8 +1175,6 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
         {
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
                 let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
-                // chunk is located in the allocator's memory
-                assert(HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end);
 
                 let P_pre = HA_pre.lseg.chunk;
                 // order
