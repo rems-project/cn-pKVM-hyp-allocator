@@ -95,3 +95,5 @@ clean:
 	rm -f *.exec.c
 	rm -f *.exec.o
 	rm -f *.exe
+	rm -rf _test_symbolic
+	rm -rf _test_random
