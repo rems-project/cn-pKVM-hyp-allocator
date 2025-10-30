@@ -583,7 +583,6 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 take A_pre = RW<struct hyp_allocator>(allocator);
-                A_pre.start < A_pre.start + (u64)A_pre.size;
                 !is_null(node.next);
                 let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node));
@@ -816,23 +815,16 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         take node = W<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
         take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
         take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk, explicit_padding));
-        (u64)alloc_size + Cn_chunk_hdr_size() <= (u64)mapped_size;
-        (u64)mapped_size <= HA_pre.va_size;
 
         //  [prev]    [+alloc_size]             [chunk]     [+(old)va_size]
         //    ------- ------------------------- ----------- -------------
-        (u64)HA_pre.ha.start <= (u64)prev;
-        (u64)prev < (u64)chunk;
+        (u64)alloc_size + Cn_chunk_hdr_size() <= (u64)mapped_size;
+        (u64)mapped_size <= HA_pre.va_size;
         (u64)prev + Cn_chunk_hdr_size() +  (u64)Prev_pre.alloc_size <= (u64)chunk;
-        (u64)chunk <= (u64)chunk + Cn_chunk_hdr_size();
-        (u64)chunk + Cn_chunk_hdr_size() <= (u64)alloc_size + (u64)chunk + Cn_chunk_hdr_size();
-        (u64)chunk + Cn_chunk_hdr_size() + (u64)alloc_size <= (u64)chunk + (u64)HA_pre.va_size;
-        (u64)chunk + (u64)HA_pre.va_size <= (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
+
         let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size);
         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
         take X = Cn_char_array(start, owned_by_ha);
-
-        let new_last = lseg_pre.after == Chunk_nil{} ? member_shift<struct chunk_hdr>(chunk, node) : HA_pre.ha.last;
 
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
@@ -960,7 +952,6 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     take ha_full = Cn_hyp_allocator_only(allocator);
     let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
     let end = ha.start + (u64)ha.size;
-    ha.start < end;  // no overflow
 
     // own this chunk
     take cn_hdr = Cn_chunk_hdr(chunk, ha);
@@ -1168,9 +1159,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 let ha = a_in.ha;
                 assert(ptr_eq(ha.head,ha.first));
 
-                assert(size != 0u64);
                 assert(size <= (u64)ha.size);
-                assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)MAXu32());
                 assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
 
@@ -1186,8 +1175,6 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
         {
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
                 let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
-                // chunk is located in the allocator's memory
-                assert(HA_pre.ha.start <= (u64)chunk && (u64)chunk < allocator_end);
 
                 let P_pre = HA_pre.lseg.chunk;
                 // order
