@@ -9,6 +9,7 @@ cn test --no-run \
     -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS \
     --print-seed \
     --experimental-product-arg-destruction \
+    --max-generator-size=100 \
     --input-timeout=0 \
     --smt-pruning-before-absint=fast \
     --skip=chunk_try_destroy \
