@@ -1,0 +1,21 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 37be18f..c0aa478 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -577,7 +577,6 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
+                                                 struct hyp_allocator *allocator)
+ /*@
+         requires
+-                !is_null(chunk);
+                 (u64)chunk & 0x7u64 == 0u64;
+                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+@@ -607,7 +606,7 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
+                                 (u64)next_chunk
+                         }
+                 };
+-                return == end - (u64)chunk - (u64)mapped_size;
++                return == end - (u64)chunk;
+ @*/
+ {
+         /*@ split_case(cond); @*/
