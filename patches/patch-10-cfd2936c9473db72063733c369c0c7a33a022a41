@@ -1,0 +1,13 @@
+diff --git a/specs/spec.c b/specs/spec.c
+index 6ac46d8..f0efd32 100644
+--- a/specs/spec.c
++++ b/specs/spec.c
+@@ -230,7 +230,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
+ 
+         let end = ha.start + (u64)ha.size;
+         // The following does not hold, because the node.next can be ha.head.
+-        // assert(check_node implies (u64)hdr.node.next <= end);
++        assert(check_node implies (u64)hdr.node.next <= end);
+ 
+         let va_size = match (va_size_opt) {
+                 Option_u64_none {} => {

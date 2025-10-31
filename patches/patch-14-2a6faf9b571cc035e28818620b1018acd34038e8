@@ -1,0 +1,25 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb302..333f364 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -761,6 +761,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
+         take HA_pre = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_none{}, true);
+         let lseg_pre = HA_pre.lseg;
+         let Prev_pre = lseg_pre.chunk;
++        let Chunk = lseg_pre.chunk;
+ 
+         // chunk is not constructed yet
+         take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+@@ -793,12 +794,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
+         let ha = HA_pre.ha;
+         HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
+         lseg_pre.before == lseg_post.before;
+-        let Chunk = {
+-                header_address: (u64)chunk,
+-                va_size: (u32)HA_pre.va_size,
+-                alloc_size: alloc_size,
+-                mapped_size: mapped_size
+-        };
+         lseg_post.after == Chunk_cons {hd: Chunk, tl: HA_pre.lseg.after};
+         lseg_pre.chunk == Prev_post;
+ @*/
