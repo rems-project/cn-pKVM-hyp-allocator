@@ -3,9 +3,11 @@ set -e
 
 cn test --no-run \
     --output-dir=_test_symbolic/ \
+    --output-tyche=results.jsonl \
     src/alloc.c \
     -Isrc -Iinclude \
     -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS \
+    --print-seed \
     --experimental-product-arg-destruction \
     --input-timeout=0 \
     --smt-pruning-before-absint=fast \
@@ -15,4 +17,4 @@ cn test --no-run \
     --skip-fulminate=chunk_try_destroy \
     "$@"
 
-CPPFLAGS="-include ../fulminate2.h" ./_test_symbolic/run_tests.sh
+CPPFLAGS="-include ../fulminate2.h -O3" ./_test_symbolic/run_tests.sh
