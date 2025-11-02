@@ -59,7 +59,8 @@ cn-test-random: src/alloc.c
 
 .PHONY: cn-test-symbolic
 cn-test-symbolic: src/alloc.c
-	./test-symbolic.sh --cc=$(CC) --inline-everything --only=chunk_addr_fixup,chunk_needs_mapping,my_list_is_last,LemmaMergeChunk,chunk_list_insert,chunk_get_prev,chunk_get_next,__chunk_prev
+	./test-symbolic.sh --cc=$(CC) \
+		--skip=hyp_alloc
 
 .PHONY: cn-test-symbolic-lite
 cn-test-symbolic-lite: src/alloc.c
@@ -86,6 +87,20 @@ cn-test-symbolic-lite: src/alloc.c
 		--skip=brain_exploding_calculation \
 		--skip=hyp_alloc \
 		--skip=hyp_free
+
+.PHONY: collect-pbt-comparison
+collect-pbt-comparison:
+	./pbt_bench/collect_comparison.py \
+		--should-fail=shim_create_hyp_mapping \
+		--should-fail=__chunk_next \
+		--should-fail=LemmaMergeChunks \
+		--might-fail=hyp_alloc_init \
+		--might-fail=__pkvm_alloc_private_va_range \
+		--might-fail=hyp_allocator_map
+
+.PHONY: analyze-pbt-comparison
+analyze-pbt-comparison:
+	./pbt_bench/analyze_comparison.py
 
 .PHONY: clean
 clean:

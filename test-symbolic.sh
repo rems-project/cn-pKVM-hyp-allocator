@@ -11,6 +11,7 @@ cn test --no-run \
     --experimental-product-arg-destruction \
     --input-timeout=0 \
     --smt-pruning-before-absint=fast \
+    --smt-pruning-keep-redundant-assertions \
     --smt-pruning-at-runtime \
     --symbolic \
     --skip=chunk_try_destroy \
