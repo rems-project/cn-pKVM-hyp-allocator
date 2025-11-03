@@ -1546,22 +1546,6 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         return 0;
 }
 
-void LemmaMergeChunks(char *chunk_data, size_t size, size_t size2)
-/*@
-requires
-        !is_null(chunk_data);
-        take C1 = Cn_char_array(chunk_data, size);
-        let next_chunk = array_shift<byte>(chunk_data, Cn_chunk_hdr_size());
-        take C_hdr = RW<struct chunk_hdr_only>(next_chunk);
-        let next_chunk_data = array_shift<byte>(chunk_data, Cn_chunk_hdr_size() + size);
-        take C2 = Cn_char_array(next_chunk_data, size2);
-ensures
-        take C3 = Cn_char_array(chunk_data, size + size2 + Cn_chunk_hdr_size());
-@*/
-{
-
-}
-
 static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 /*@
 requires
