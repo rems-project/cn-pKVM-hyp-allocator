@@ -1,0 +1,13 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb302..a8f121b 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -791,7 +791,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
+         let lseg_post = HA_post.lseg;
+         let Prev_post = lseg_post.chunk;
+         let ha = HA_pre.ha;
+-        HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
++        ha == HA_post.ha;
+         lseg_pre.before == lseg_post.before;
+         let Chunk = {
+                 header_address: (u64)chunk,

@@ -1,0 +1,15 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index f1574b6..857eb5e 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -1659,7 +1648,7 @@ function (boolean) Cn_chunk_can_split(cn_lseg lseg, u64 addr)
+                 // last chunk
+                 Chunk_nil {} => { false }
+                 Chunk_cons {hd:hdr, tl:tl} => {
+-                        ((addr + Cn_chunk_size(0u64)) < lseg.chunk.header_address + (u64)lseg.chunk.va_size)
++                        ((addr + Cn_chunk_size(0u64)) < hdr.header_address + (u64)hdr.va_size)
+                 }
+         }
+ }
+ 
+ 

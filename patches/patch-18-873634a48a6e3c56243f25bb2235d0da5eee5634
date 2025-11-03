@@ -1,0 +1,13 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb302..180f348 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -1213,8 +1213,6 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
+                 };
+                 assert(HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
+ 
+-                take U = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size);
+-
+                 return;
+         }
+         else {
