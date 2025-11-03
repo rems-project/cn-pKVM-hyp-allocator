@@ -93,7 +93,6 @@ collect-pbt-comparison:
 	./pbt_bench/collect_comparison.py \
 		--should-fail=shim_create_hyp_mapping \
 		--should-fail=__chunk_next \
-		--should-fail=LemmaMergeChunks \
 		--might-fail=hyp_alloc_init \
 		--might-fail=__pkvm_alloc_private_va_range \
 		--might-fail=hyp_allocator_map
