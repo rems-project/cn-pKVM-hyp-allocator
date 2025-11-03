@@ -1,0 +1,54 @@
+[
+    {
+        "path": "patches/patch-01-5ccdfb6659a38b23da715b43683cb6b5626fddef",
+        "fut": "LemmaCreateNewChunk"
+    },
+    {
+        "path": "patches/patch-03-399f71bb7be66e051c788a23ff7229156ce42654",
+        "fut": "chunk_list_insert"
+    },
+    {
+        "path": "patches/patch-05-67e7286eee2fdafb57312d90b5c9ddea946b2970",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-06-d26b8b37d38c3e3fa2250cc482e2504742702fc4",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-07-d26b8b37d38c3e3fa2250cc482e2504742702fc4",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-08-1fd1cf9ac84c4f2dcfa6803c4caffb3591f7c0c5",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-09-6568d1e23cb35fe791fee8216f9dd53d704f2113",
+        "fut": "chunk_merge"
+    },
+    {
+        "path": "patches/patch-10-cfd2936c9473db72063733c369c0c7a33a022a41",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-11-729a674386f12801e71c5ef2ac4c65851bf9db28",
+        "fut": "chunk_merge"
+    },
+    {
+        "path": "patches/patch-12-729a674386f12801e71c5ef2ac4c65851bf9db28",
+        "fut": "hyp_free"
+    },
+    {
+        "path": "patches/patch-13-729a674386f12801e71c5ef2ac4c65851bf9db28",
+        "fut": "chunk_recycle"
+    },
+    {
+        "path": "patches/patch-14-2a6faf9b571cc035e28818620b1018acd34038e8",
+        "fut": "chunk_list_insert"
+    },
+    {
+        "path": "patches/patch-15-ec2afcb925b79a2dc81cd46e1492cb223c993d74",
+        "fut": "chunk_unmapped_size"
+    }
+]
