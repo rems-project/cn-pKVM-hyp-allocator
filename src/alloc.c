@@ -24,10 +24,6 @@ extern unsigned long hyp_nr_cpus;
 #endif /* STANDALONE */
 
 #define MIN_ALLOC 8UL
-static unsigned long c_MIN_ALLOC()
-{
-        return MIN_ALLOC;
-}
 
 /*@
 function (u64) MIN_ALLOC () {
@@ -73,7 +69,7 @@ struct chunk_hdr {
         u32                     mapped_size;
         struct list_head        node;
         u32                     hash;
-        /* CN DIFF */ u32            explicit_padding;
+        /*CN*/ u32              explicit_padding;
         char                    data __aligned(8);
 };
 // HK: having char data at the end of the struct is very annoying
@@ -1851,48 +1847,6 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
         return addr;
 }
 
-// HK: for sanity check
-// Note:
-//   - Implementation says chunk->node->next == &allocator->chunks
-//   - Spec says &chunk->node == allocator->chunks->prev
-//   - This should be verified assuming that "chunks" satisfy the invariant for
-//     doubly-linked lists, which should be a part of the global invariant for
-//     chunks and allocators.
-//   - To enforce this invariant holds, we probably need to write a kind
-//     of specs like: chunk ∈ allocator-chunks (using lookup predicate).
-//   - However, this is going to be a very "inefficient" spec (involves recursively
-//     defined predicate). Is there any good way to avoid this?
-// HK(Update): Even though the above comments will be applicable to somewhere in the
-// future, to prove the following spec, it is actually not a problem.
-// (if you replace Cn_list_is_last with is_last_chunk, you will have the problem)
-static bool my_list_is_last(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
-/*@
-        requires
-                take A_pre = Cn_hyp_allocator_only(allocator);
-                let ha = {
-                        start: A_pre.start,
-                        size: A_pre.size,
-                        head: A_pre.head,
-                        first: A_pre.first
-                };
-                take B_pre = Cn_chunk_hdr(chunk, ha);
-                let chunk_node_ptr = member_shift<struct chunk_hdr>(chunk, node);
-        ensures
-                take A_post = Cn_hyp_allocator_only(allocator);
-                let ha_post = {
-                        start: A_post.start,
-                        size: A_post.size,
-                        head: A_post.head,
-                        first: A_post.first
-                };
-                take B_post = Cn_chunk_hdr(chunk, ha_post);
-                return == (Cn_list_is_last(B_pre.Node, member_shift<struct hyp_allocator>(allocator, chunks))? 1u8 : 0u8);
-@*/
-{
-        return list_is_last(&(chunk)->node, &(allocator)->chunks);
-}
-
-
 /*@
 function (boolean) Cn_chunk_can_split(cn_lseg lseg, u64 addr)
 {
@@ -1965,27 +1919,6 @@ function (u64) Cn_expected_mapping(pointer chunk, u64 size)
         Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size)) - (u64)chunk
 }
 @*/
-
-// 🤯
-static unsigned long brain_exploding_calculation(struct chunk_hdr *chunk, size_t size, struct hyp_allocator *allocator)
-/*@
-    requires
-        !is_null(chunk);
-        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-    ensures
-        take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-        HA_pre.ha == HA_post.ha;
-        return == Cn_expected_mapping(chunk, size);
-@*/
-{
-        unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);
-        size_t missing_map, expected_mapping = size;
-
-        new_chunk_addr = chunk_addr_fixup(new_chunk_addr);
-        expected_mapping = new_chunk_addr + chunk_hdr_size() -
-                                (unsigned long)chunk_data(chunk);
-        return expected_mapping;
-}
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
