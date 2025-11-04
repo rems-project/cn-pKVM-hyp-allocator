@@ -2533,9 +2533,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         /* CN DIFF */
         // version: e6f1cbbab1843a62714bf19329cbabf43adbd297
         struct chunk_hdr *chunk, *best_chunk = NULL;
-        /* CN DIFF */
-        // SIZE MAX is not supported
-	size_t best_available_size = 0xFFFFFFFFFFFFFFFFUL; // max size_t value
+        size_t best_available_size = SIZE_MAX;
 
         // HK: O(n) search for the best chunk
         // Several thoughts:
@@ -2871,21 +2869,23 @@ void *hyp_alloc(unsigned long size)
         struct hyp_allocator *allocator = &hyp_allocator;
         struct chunk_hdr *chunk, *last_chunk;
         unsigned long chunk_addr;
+        size_t missing_map;
         int ret = 0;
+        /* constrained by chunk_hdr *_size types */
+        if (size > U32_MAX)
+        {
+                ret = -E2BIG;
+                goto end_unlocked;
+        }
+
 #ifdef __CN_VERIFY
         /* CN */ int no_free_chunk = 0;
 #endif
-        /* CN DIFF */
-        // missing_map should be size_t to match the type of chunk_needs_mapping
-        size_t missing_map;
-        int cn_flag = 1;
+        /* CN */ int cn_flag = 1;
 
-        if (size >= 0x100000000UL) {
-            ret = -ENOMEM;
-            goto end;
-        }
-      	size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
-
+        // size = ALIGN(size ?: MIN_ALLOC, MIN_ALLOC);
+        // the above gcc syntax is not supported by CN
+        /*CN*/ size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
 
         hyp_spin_lock(&allocator->lock);
         //PS: ownership from lock invariant
@@ -2975,6 +2975,7 @@ void *hyp_alloc(unsigned long size)
 #endif
 end:
         hyp_spin_unlock(&allocator->lock);
+end_unlocked:
 
         *(this_cpu_ptr(&hyp_allocator_errno)) = ret;
 
