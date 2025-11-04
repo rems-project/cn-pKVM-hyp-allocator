@@ -1007,13 +1007,13 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
         chunk_hash_update(prev);
         chunk_hash_update(next);
         /*@ unpack MaybeChunkHdr(...); @*/
+#ifdef __CN_VERIFY
         unsigned long prev_va_size = (unsigned long)chunk - (unsigned long)prev;
         unsigned long cn_va_size = (next ?
                 (unsigned long)next :
                 allocator->start + allocator->size) - (unsigned long)chunk;
         /*@ assert(prev_va_size == (u64)prev_hdr.Hdr.va_size); @*/
         /*@ assert(cn_va_size == (u64)cn_hdr.Hdr.va_size); @*/
-#ifdef __CN_VERIFY
         LemmaMergeChunk((char *)chunk_data(prev) + prev->alloc_size,
                         prev_va_size - (chunk_hdr_size() + prev->alloc_size),
                         cn_va_size - chunk_hdr_size());
@@ -2651,6 +2651,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                         )
                 );
                 @*/
+#ifdef __CN_VERIFY
                 if (!list_entry_is_head(list_next_entry(chunk, node), &allocator->chunks, node))
                 {
                         /*@
@@ -2661,6 +2662,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                         );
                         @*/
                 }
+#endif
                 // if (best_chunk) {
                         // /*@
                         // split_case(ptr_eq(member_shift<struct chunk_hdr>(best_chunk, node)->next,
@@ -2709,7 +2711,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
         /*CN*/ retv = chunk_get(best_chunk);
 	/*@ unpack MaybeChunkHdr(...); @*/
-	return retv;
+	/*CN*/ return retv;
 }
 
 #ifdef __CN_VERIFY
@@ -2937,7 +2939,9 @@ void *hyp_alloc(unsigned long size)
         struct chunk_hdr *chunk, *last_chunk;
         unsigned long chunk_addr;
         int ret = 0;
+#ifdef __CN_VERIFY
         /* CN */ int no_free_chunk = 0;
+#endif
         /* CN DIFF */
         // missing_map should be size_t to match the type of chunk_needs_mapping
         size_t missing_map;
@@ -2988,9 +2992,9 @@ void *hyp_alloc(unsigned long size)
                 goto end;
         }
         // HK: when there is no free chunk, we divide the last chunk
+#ifdef __CN_VERIFY
         no_free_chunk = 1;
 	/*@ unpack GetFreeChunk(...); @*/
-#ifdef __CN_VERIFY
         LemmaGetLastChunk(allocator);
 #endif
 
@@ -3028,8 +3032,8 @@ void *hyp_alloc(unsigned long size)
 
         //LemmaSplitAndNewChunk(chunk_data(last_chunk) + last_chunk->alloc_size, , allocator->start + allocator->size - last_chunk->alloc_size - (unsigned long)chunk_data(last_chunk));
         /* CN DIFF */
-        int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
-        WARN_ON(res_chunk_install);
+        /*CN*/ int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
+        /*CN*/ WARN_ON(res_chunk_install);
         /*@ split_case(is_null(chunk)); @*/
         /*@ split_case(res_chunk_install == 0i32); @*/
 	/*@ unpack ChunkInstallPost(...); @*/
@@ -3042,11 +3046,11 @@ end:
         *(this_cpu_ptr(&hyp_allocator_errno)) = ret;
 
         /* CN DIFF for proof */
-        if ((!ret || !cn_flag) && !no_free_chunk) {
 #ifdef __CN_VERIFY
+        if ((!ret || !cn_flag) && !no_free_chunk) {
                 LemmaLsegToChunkHdrs(allocator, chunk);
-#endif
         }
+#endif
 
         /* Enforce zeroing allocated memory */
         if (!ret)
@@ -3227,9 +3231,9 @@ ensures
         }
 
         /* CN DIFF */
-        struct chunk_hdr *tmp = chunk_get_prev(chunk, allocator);
+        /*CN*/struct chunk_hdr *tmp = chunk_get_prev(chunk, allocator);
         /*@ unpack MaybeChunkHdr(...); @*/
-        return !chunk_is_used(tmp);
+        /*CN*/return !chunk_is_used(tmp);
 }
 
 static size_t chunk_reclaimable(struct chunk_hdr *chunk,
@@ -3416,20 +3420,20 @@ int hyp_alloc_init(unsigned long size)
 
 
         ret = pkvm_alloc_private_va_range(size, &allocator->start);
+#ifdef __CN_VERIFY
         if (ret) {
-                #ifdef __CN_VERIFY
                 /*@ unpack Conditional_Cn_char_array(...); @*/
-                #endif
                 return ret;
         }
+#endif
 
         allocator->size = size;
         INIT_LIST_HEAD(&allocator->chunks);
         hyp_spin_lock_init(&allocator->lock);
 
-        #ifdef __CN_VERIFY
+#ifdef __CN_VERIFY
         /*@ unpack Conditional_Cn_char_array(...); @*/
-        #endif
+#endif
         return 0;
 }
 
