@@ -6,9 +6,28 @@ import sys
 
 
 def preprocess(path):
+    tmp2 = tempfile.NamedTemporaryFile('w+', suffix='.c', delete=False)
+    with open(path, 'r') as f:
+        s = f.read()
+    res = ""
+    skip = False
+    for line in s.splitlines():
+        if line.startswith('#ifdef __CN_VERIFY'):
+            assert (not skip)
+            skip = True
+            continue
+        if skip and line.startswith('#endif'):
+            skip = False
+            continue
+        if not skip:
+            res += line + '\n'
+    tmp2.write(res)
+    tmp2.flush()
+    tmp2.close()
+
     tmp = tempfile.NamedTemporaryFile('w+', suffix='.c', delete=False)
     proc = subprocess.run(
-        ['gcc-15', '-E', '-P', '-fpreprocessed', path],
+        ['gcc-15', '-E', '-P', '-fpreprocessed', tmp2.name],
         stdout=tmp,
         stderr=subprocess.PIPE,
         text=True
