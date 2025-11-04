@@ -2871,6 +2871,7 @@ void *hyp_alloc(unsigned long size)
         unsigned long chunk_addr;
         size_t missing_map;
         int ret = 0;
+        /* CN */ int cn_flag = 1;
         /* constrained by chunk_hdr *_size types */
         if (size > U32_MAX)
         {
@@ -2881,7 +2882,6 @@ void *hyp_alloc(unsigned long size)
 #ifdef __CN_VERIFY
         /* CN */ int no_free_chunk = 0;
 #endif
-        /* CN */ int cn_flag = 1;
 
         // size = ALIGN(size ?: MIN_ALLOC, MIN_ALLOC);
         // the above gcc syntax is not supported by CN
