@@ -1315,21 +1315,6 @@ ensures
         }
 }
 
-/*@
-lemma CreateChunkHdr(pointer chunk_data)
-    requires
-        !is_null(chunk_data);
-        take U = each(u64 i; i < Cn_chunk_hdr_size()){
-                W<char>(array_shift<char>(chunk_data, i))
-        };
-        Cn_chunk_hdr_size() == sizeof<struct chunk_hdr_only>;
-    ensures
-        take alloc_size = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, alloc_size));
-        take mapped_size = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, mapped_size));
-        take node = W<struct list_head>(member_shift<struct chunk_hdr>(chunk_data, node));
-        take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, hash));
-        take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk_data, explicit_padding));
-@*/
 void LemmaCreateChunkHdr(char *chunk_data)
 /*@
     requires
@@ -1699,25 +1684,6 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
         return 0;
 }
 
-/*@
-// HK: This lemma is unsound because it ignores pointer provenance.
-// Workaround: attach a single provenance with the address in [HA.start, HA.end)
-// and use it everywhere (TODO).
-lemma ConcatArray (pointer va, u64 size1, u64 size2)
-requires
-    let va2 = (u64)va + size1;
-    take U = each(u64 i; i < size1){
-        W<char>(array_shift<char>(va, i))
-    };
-    take V = each(u64 i; i < size2){
-        W<char>(array_shift<char>((pointer)va2, i))
-    };
-ensures
-    take X = each(u64 i; i < size1 + size2){
-        W<char>(array_shift<char>(va, i))
-    };
-@*/
-
 // TODO(HK): fix this after the elaboration bug is fixed
 //static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
 // HK: It takes a lot of time to prove this spec (more than 8 minutes on my machine)
@@ -2009,39 +1975,6 @@ static unsigned long brain_exploding_calculation(struct chunk_hdr *chunk, size_t
                                 (unsigned long)chunk_data(chunk);
         return expected_mapping;
 }
-
-/*@
-lemma SplitAndNewChunk(pointer p, u32 size1, u32 size2, u32 size3)
-requires
-        let size = (u64)size1 + (u64)size2 + (u64)size3;
-        take X = Cn_char_array(p, size);
-ensures
-        take X1 = Cn_char_array(p, (u64)size1);
-        let owned_by_ha = array_shift<char>(p, (u64)size1);
-        take X2 = Cn_char_array(owned_by_ha, (u64)(size2 + size3));
-        //let new_chunk = array_shift<char>(owned_by_ha, (u64)size2);
-        //take X3 = Cn_char_array(new_chunk, (u64)size3);
-@*/
-
-/*
-
-predicate void Cn_char_array(pointer p, u64 size)
-{
-        take U = each(u64 i; i < size){
-                W<char>(array_shift<char>(p, i))
-        };
-        return;
-}
-predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
-{
-        take U = each(u64 i; offset <= i && i < offset + size){
-                W<char>(array_shift<char>(p, i))
-        };
-        return;
-}
-
-*/
-
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
