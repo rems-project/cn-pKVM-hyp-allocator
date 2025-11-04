@@ -144,6 +144,8 @@ function (u64) MergeU32s(u32 x, u32 y)
 }
 
 @*/
+
+#ifdef __CN_VERIFY
 void LemmaTurnU32sToU64(unsigned *a, unsigned *b)
 /*@
 requires
@@ -220,6 +222,7 @@ ensures
         /*@ to_bytes RW<unsigned long long>(a); @*/
         /*@ from_bytes RW<struct list_head*>(a); @*/
 }
+#endif
 
 // HK: This requires CN to have a normal conjunction in addition to the
 // separating conjunction.
@@ -257,8 +260,10 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 
         BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
         /*@ assert(ptr_eq(data, alloc_size)); @*/
+#ifdef __CN_VERIFY
         LemmaPtrToU64(&chunk->node.next);
         LemmaPtrToU64(&chunk->node.prev);
+#endif
 
     while (len >= sizeof(u64))
     /*@
@@ -691,7 +696,7 @@ function [rec] (cn_chunk_hdrs) SnocHdr(cn_chunk_hdrs hdrs, cn_chunk_hdr hdr)
 
 
 @*/
-
+#ifdef __CN_VERIFY
 void LemmaNextChunk(struct chunk_hdr *chunk,
                     struct hyp_allocator *allocator)
 /*@
@@ -768,6 +773,8 @@ void LemmaPrevChunk(struct chunk_hdr *chunk,
         /*@ unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct chunk_hdr>(chunk, node), X.ha.first, Cn_hyp_allocator_core(X.ha)); @*/
 }
+
+#endif
 
 
 // This function takes
@@ -877,6 +884,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 	/*@ unpack MaybeChunkHdr(...); @*/
 }
 
+#ifdef __CN_VERIFY
 void LemmaMergeArrays(
         char *p, unsigned long size1, unsigned long size2
 )
@@ -936,6 +944,7 @@ ensures
         LemmaMergeArrays(start, size1, chunk_hdr_size());
         LemmaMergeArrays(start, size1 + chunk_hdr_size(), size2);
 }
+#endif
 
 
 static inline void chunk_list_del(struct chunk_hdr *chunk,
@@ -1278,6 +1287,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
 }
 @*/
 
+#ifdef __CN_VERIFY
 void LemmaSplitAndNewChunk(
         char *p, unsigned int size1, unsigned int size2
 )
@@ -1450,6 +1460,7 @@ ensures
         LemmaCreateNewChunkAux((char*)chunk_data(prev) + prev->alloc_size, size_1, size, size_2);
 	/*@ unpack MaybeChunkHdr(...); @*/
 }
+#endif
 
 // chunk: the new chunk to install
 // size: alloc size for chunk
@@ -2280,6 +2291,7 @@ predicate ({cn_hyp_allocator ha, cn_chunk_hdr best_chunk, struct list_head node}
 }
 @*/
 
+#ifdef __CN_VERIFY
 void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *best_chunk)
 /*@
         requires
@@ -2465,14 +2477,13 @@ void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr
                 return;
         } else {
                 chunk = list_prev_entry(chunk, node);
-#ifdef __CN_VERIFY
                 LemmaConcatCnChunkHdrsRev(allocator, chunk, best_chunk);
-#endif
                 return;
         }
 }
-/*@
+#endif
 
+/*@
 predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
 {
         if (ptr_eq(result, NULL)) {
@@ -2491,6 +2502,7 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
         }
 }
 @*/
+
 
 /*@
 
@@ -2700,6 +2712,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 	return retv;
 }
 
+#ifdef __CN_VERIFY
 /*@
 predicate (cn_hyp_allocator) LemmaLsegToChunkHdrsInv(pointer chunk, pointer allocator)
 {
@@ -2875,6 +2888,7 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
         unpack Cn_chunk_hdrs(...);
         @*/
 }
+#endif
 
 
 void my_memset(char *s, char c, size_t n)
