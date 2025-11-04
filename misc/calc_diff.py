@@ -11,15 +11,45 @@ def preprocess(path):
         s = f.read()
     res = ""
     skip = False
+    skip2 = 0
+    nested = False  # workaround for the last lines
     for line in s.splitlines():
         if line.startswith('#ifdef __CN_VERIFY'):
-            assert (not skip)
+            assert (not skip and skip2 == 0)
             skip = True
             continue
+        if line.startswith('#ifdef STANDALONE'):
+            assert (not skip and skip2 == 0)
+            skip2 = 1
+            continue
+
+        if line.startswith('#ifndef STANDALONE'):
+            assert (not skip and skip2 == 0)
+            skip2 = 3
+            continue
+
+        if skip2 >= 1 and line.startswith('#ifndef'):
+            nested = True
+            continue
+
         if skip and line.startswith('#endif'):
             skip = False
             continue
-        if not skip:
+
+        if skip2 in [1, 2, 3] and line.startswith('#endif'):
+            if nested:
+                nested = False
+                continue
+            skip2 = 0
+            continue
+        if skip2 == 1 and line.startswith('#else'):
+            skip2 = 2
+            continue
+        if skip2 == 3 and line.startswith('#else'):
+            skip2 = 1
+            continue
+
+        if not skip and skip2 in [0, 2, 3]:
             res += line + '\n'
     tmp2.write(res)
     tmp2.flush()
