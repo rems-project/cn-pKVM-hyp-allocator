@@ -401,6 +401,9 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(node.next);
+                // Workaround for https://github.com/rems-project/cn/issues/369
+                let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node)); !is_null(next_chunk);
+
                 (u64)node.next & 0x7u64 == 0u64;
         ensures
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
