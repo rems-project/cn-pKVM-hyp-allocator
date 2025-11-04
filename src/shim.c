@@ -62,6 +62,7 @@ void shim_create_hyp_mapping(size_t size)
 // handle type mismatch
 static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size)
 //static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
+#ifdef __CN_VERIFY
 /*@
     trusted;
 	accesses __io_map_base;
@@ -69,6 +70,7 @@ static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size
 	requires start != 0u64; start >= __io_map_base;
 	ensures take X = Conditional_Cn_char_array((pointer)start, PAGE_ALIGN(size), return == 0i32);
 @*/
+#endif
 {
 	unsigned long cur;
 
@@ -99,6 +101,7 @@ static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size
  * Return: 0 on success or negative error code on failure.
  */
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
+#ifdef __CN_VERIFY
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
@@ -110,6 +113,7 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 	v2 > 0u64;
 	v2 + size > v2;
 @*/
+#endif
 {
 	unsigned long addr;
 	int ret;

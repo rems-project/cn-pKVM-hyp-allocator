@@ -251,21 +251,9 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         u64 *data = (u64 *)chunk;
 
         u32 hash = 0;
+#ifdef __CN_VERIFY
         LemmaTurnU32sToU64(&chunk->alloc_size, &chunk->mapped_size);
-        // /*@ inv {&hash} unchanged; {&len} unchanged; {&data} unchanged;
-        //         take X = each(u64 i; i < 4u64 + j) { RW<unsigned char>(array_shift<unsigned char>(alloc_size, i)) };
-        //         take Y = each(u64 i; j <= i && i < 4u64) { RW<unsigned char>(array_shift<unsigned char>(mapped_size, i)) };
-        //         take N_inv = RW<struct list_head>(node);
-        //         N_inv == node_pre;
-        //         //X == [alloc_size / 8 & 0xff, alloc_size / (8*8) & 0xff , ...]
-        // @*/
-        // {
-        //         /*@ focus RW<unsigned char>, j; @*/
-        // }
-        // /*@
-        //     to_bytes RW<struct list_head*>(member_shift<struct list_head>(node, next));
-        //     to_bytes RW<struct list_head*>(member_shift<struct list_head>(node, prev));
-        // @*/
+#endif
 
         BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
         /*@ assert(ptr_eq(data, alloc_size)); @*/
@@ -303,9 +291,11 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         if (len) {
                 hash ^= hash_32(*(u32 *)data, 32);
         }
+#ifdef __CN_VERIFY
         LemmaU64ToPtr(&chunk->node.next);
         LemmaU64ToPtr(&chunk->node.prev);
         LemmaTurnU64ToU32s(&chunk->alloc_size, &chunk->mapped_size);
+#endif
 
         return hash;
 }
@@ -1014,9 +1004,11 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
                 allocator->start + allocator->size) - (unsigned long)chunk;
         /*@ assert(prev_va_size == (u64)prev_hdr.Hdr.va_size); @*/
         /*@ assert(cn_va_size == (u64)cn_hdr.Hdr.va_size); @*/
+#ifdef __CN_VERIFY
         LemmaMergeChunk((char *)chunk_data(prev) + prev->alloc_size,
                         prev_va_size - (chunk_hdr_size() + prev->alloc_size),
                         cn_va_size - chunk_hdr_size());
+#endif
 }
 
 static void hyp_allocator_unmap(struct hyp_allocator *allocator,
@@ -1042,6 +1034,7 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 
 static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
+#ifdef __CN_VERIFY
 /*@
         requires
                 take HA_pre = Cn_hyp_allocator_only(allocator);
@@ -1053,6 +1046,7 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 return == 0i32 implies
                 (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
 @*/
+#endif
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
 {
@@ -1497,7 +1491,9 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         if (!prev) {
 	        /*@ unpack ChunkInstallPre(...); @*/
 	        /*@ unpack FirstAllocation(...); @*/
+#ifdef __CN_VERIFY
                 LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
+#endif
                 // Drop the garbage due to the lemma
                 /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
                 INIT_LIST_HEAD(&chunk->node);
@@ -1525,8 +1521,9 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         if ((unsigned long)chunk_data(prev) + prev->alloc_size > (unsigned long)chunk) {
                 return -EINVAL;
         }
-
+#ifdef __CN_VERIFY
         LemmaCreateNewChunk(chunk, size, prev, allocator);
+#endif
         prev_mapped_size = prev->mapped_size;
         prev->mapped_size = (unsigned long)chunk - (unsigned long)prev;
 
@@ -2128,8 +2125,10 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         }
 
         /*@ unpack Cn_chunk_hdrs(...); @*/
+#ifdef __CN_VERIFY
         LemmaSplitAndNewChunk(chunk_data(chunk), size, chunk->mapped_size +
                                                         chunk_unmapped_size(chunk, allocator)- size - chunk_hdr_size());
+#endif
         chunk->alloc_size = size;
 
         chunk_hash_update(chunk);
@@ -2533,7 +2532,9 @@ void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr
                 return;
         } else {
                 chunk = list_prev_entry(chunk, node);
+#ifdef __CN_VERIFY
                 LemmaConcatCnChunkHdrsRev(allocator, chunk, best_chunk);
+#endif
                 return;
         }
 }
@@ -2739,9 +2740,11 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 		if (best_available_size <= available_size) {
 			continue;
                 }
+#ifdef __CN_VERIFY
                 if (best_chunk) {
                         LemmaConcatCnChunkHdrsRev(allocator, chunk, best_chunk);
                 }
+#endif
 		best_chunk = chunk;
 		best_available_size = available_size;
                 // ghost state manipulation
@@ -2749,6 +2752,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 // (empty)  hdrs2 <- Chunk_nil {}
         }
         /*@ split_case(is_null(best_chunk)); @*/
+#ifdef __CN_VERIFY
         if (best_chunk) {
                 /*@ unpack GetFreeChunkInv(...); @*/
                 LemmaCnChunkHdrsRevToCnChunkHdrs(allocator, best_chunk);
@@ -2756,6 +2760,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 /*@ unpack GetFreeChunkInv(...); @*/
                 LemmaCnChunkHdrsRevToCnHypAllocator(allocator);
         }
+#endif
 
         /*CN*/ retv = chunk_get(best_chunk);
 	/*@ unpack MaybeChunkHdr(...); @*/
@@ -3038,7 +3043,9 @@ void *hyp_alloc(unsigned long size)
         // HK: when there is no free chunk, we divide the last chunk
         no_free_chunk = 1;
 	/*@ unpack GetFreeChunk(...); @*/
+#ifdef __CN_VERIFY
         LemmaGetLastChunk(allocator);
+#endif
 
 
         last_chunk = chunk_get(list_last_entry(&allocator->chunks, struct chunk_hdr, node));
@@ -3065,7 +3072,9 @@ void *hyp_alloc(unsigned long size)
         if (missing_map) {
                 ret = chunk_inc_map(last_chunk, missing_map, allocator);
                 if (ret){
+#ifdef __CN_VERIFY
                         LemmaLsegToChunkHdrs(allocator, last_chunk);
+#endif
                         goto end;
                 }
         }
@@ -3077,7 +3086,9 @@ void *hyp_alloc(unsigned long size)
         /*@ split_case(is_null(chunk)); @*/
         /*@ split_case(res_chunk_install == 0i32); @*/
 	/*@ unpack ChunkInstallPost(...); @*/
+#ifdef __CN_VERIFY
         LemmaLsegToChunkHdrs(allocator, last_chunk);
+#endif
 end:
         hyp_spin_unlock(&allocator->lock);
 
@@ -3085,7 +3096,9 @@ end:
 
         /* CN DIFF for proof */
         if ((!ret || !cn_flag) && !no_free_chunk) {
+#ifdef __CN_VERIFY
                 LemmaLsegToChunkHdrs(allocator, chunk);
+#endif
         }
 
         /* Enforce zeroing allocated memory */
@@ -3162,7 +3175,9 @@ void hyp_free(void *addr)
         next_chunk = chunk_get_next(chunk, allocator);
 
         // HK: free is easy :) except for merging
+#ifdef __CN_VERIFY
         LemmaMergeArrays(chunk_data, chunk->alloc_size, chunk->mapped_size + chunk_unmapped_size(chunk, allocator) - chunk_hdr_size() - chunk->alloc_size);
+#endif
         chunk->alloc_size = 0;
         // TODO: merge buffer
         chunk_hash_update(chunk);
@@ -3182,12 +3197,16 @@ void hyp_free(void *addr)
 
                 // HK: not sure why it's needed
                 /*@ unpack MaybeChunkHdr(...); @*/
+#ifdef __CN_VERIFY
                 LemmaLsegToChunkHdrs(allocator, prev_chunk);
+#endif
         }
         /* CN DIFF */ else {
                 // HK: not sure why it's needed
                 /*@ unpack MaybeChunkHdr(...); @*/
+#ifdef __CN_VERIFY
                 LemmaLsegToChunkHdrs(allocator, chunk);
+#endif
         }
 
         hyp_spin_unlock(&allocator->lock);
@@ -3425,6 +3444,7 @@ predicate (void) MaybeHypAlloc(pointer p, boolean cond)
 // avoid type mismatch
 //int hyp_alloc_init(size_t size)
 int hyp_alloc_init(unsigned long size)
+#ifdef __CN_VERIFY
 /*@
         accesses __io_map_base;
         accesses __hyp_vmemmap;
@@ -3435,6 +3455,7 @@ int hyp_alloc_init(unsigned long size)
       take HA1 = W<struct hyp_allocator>(&hyp_allocator);
     ensures take HA2 = MaybeHypAlloc(&hyp_allocator, return == 0i32);
 @*/
+#endif
 {
         struct hyp_allocator *allocator = &hyp_allocator;
         int ret;
@@ -3449,7 +3470,9 @@ int hyp_alloc_init(unsigned long size)
 
         ret = pkvm_alloc_private_va_range(size, &allocator->start);
         if (ret) {
+                #ifdef __CN_VERIFY
                 /*@ unpack Conditional_Cn_char_array(...); @*/
+                #endif
                 return ret;
         }
 
@@ -3457,7 +3480,9 @@ int hyp_alloc_init(unsigned long size)
         INIT_LIST_HEAD(&allocator->chunks);
         hyp_spin_lock_init(&allocator->lock);
 
+        #ifdef __CN_VERIFY
         /*@ unpack Conditional_Cn_char_array(...); @*/
+        #endif
         return 0;
 }
 
