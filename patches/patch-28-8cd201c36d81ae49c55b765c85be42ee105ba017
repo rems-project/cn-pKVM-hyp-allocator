@@ -1,0 +1,29 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb302..01de90b 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -282,13 +282,21 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
+         return hash;
+ }
+ 
++/*@
++function (boolean) hash_change_only (struct chunk_hdr_only pre, struct chunk_hdr_only post) {
++    pre.alloc_size == post.alloc_size &&
++    pre.mapped_size == post.mapped_size &&
++    pre.node == post.node
++}
++@*/
++
+ static inline void chunk_hash_update(struct chunk_hdr *chunk)
+ /*@
+     requires
+-        take C_pre = MaybeChunkHdrU(chunk, !is_null(chunk));
++        take C_pre = RW<struct chunk_hdr_only>(chunk);
+     ensures
+-        take C_post = MaybeChunkHdr(chunk, !is_null(chunk));
+-        bind_hash_change_only_u(C_pre, C_post);
++        take C_post = RW<struct chunk_hdr_only>(chunk);
++        hash_change_only(C_pre, C_post);
+ @*/
+ {
+         if (chunk) {

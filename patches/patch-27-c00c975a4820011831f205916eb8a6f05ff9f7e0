@@ -1,0 +1,20 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb302..9bbf1e6 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -1170,14 +1170,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
+                 assert(HA_post.lseg.after == Chunk_nil {});
+                 assert(HA_post.lseg.chunk == first_chunk);
+                 assert(HA_post.lseg.before == Chunk_nil {} );
+-                let ha_post = {
+-                        head: ha.head,
+-                        size: ha.size,
+-                        start: ha.start,
+-                        first: member_shift<struct chunk_hdr_only>(chunk, node),
+-                        last: member_shift<struct chunk_hdr_only>(chunk, node)
+-                };
+-                assert(HA_post.ha == ha_post);
++                assert(HA_post.ha == ha);
+                 assert(ret == 0i32);
+                 take U = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size);
+                 return;

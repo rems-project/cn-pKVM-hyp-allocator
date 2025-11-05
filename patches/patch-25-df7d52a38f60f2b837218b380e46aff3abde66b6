@@ -1,0 +1,22 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb302..124ddbd 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -519,15 +519,14 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
+ static inline struct chunk_hdr* chunk_get(void *addr)
+ /*@
+         requires
+-                take C_pre = MaybeChunkHdr(addr, !is_null(addr));
++                take C_pre = RW<struct chunk_hdr_only>(addr);
+         ensures
+-                take C_post = MaybeChunkHdr(addr, !is_null(addr));
++                take C_post = RW<struct chunk_hdr_only>(addr);
+                 C_post == C_pre;
+                 ptr_eq(return, addr);
+ @*/
+ {
+ 	/*@ split_case (!is_null(addr)); @*/
+-	/*@ unpack MaybeChunkHdr(addr, !is_null(addr)); @*/
+         struct chunk_hdr *chunk = (struct chunk_hdr *)addr;
+         chunk_hash_validate(chunk);
+         return chunk;
