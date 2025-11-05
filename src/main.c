@@ -137,6 +137,9 @@ void shim_create_hyp_mapping(size_t size);
 
 #define NR_PAGES	16
 int main(void)
+/*@
+	accesses host_mc;
+@*/
 {
 	int ret;
 	// SHIM INIT
