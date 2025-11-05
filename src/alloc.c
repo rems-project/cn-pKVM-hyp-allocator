@@ -3354,12 +3354,12 @@ int hyp_alloc_init(unsigned long size)
 
 
         ret = pkvm_alloc_private_va_range(size, &allocator->start);
-#ifdef __CN_VERIFY
         if (ret) {
+#ifdef __CN_VERIFY
                 /*@ unpack Conditional_Cn_char_array(...); @*/
+#endif
                 return ret;
         }
-#endif
 
         allocator->size = size;
         INIT_LIST_HEAD(&allocator->chunks);
