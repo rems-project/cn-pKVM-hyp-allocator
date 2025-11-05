@@ -289,9 +289,8 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
             data++;
     }
 
-        if (len) {
+        if (len)
                 hash ^= hash_32(*(u32 *)data, 32);
-        }
 #ifdef __CN_VERIFY
         LemmaU64ToPtr(&chunk->node.next);
         LemmaU64ToPtr(&chunk->node.prev);
@@ -1059,13 +1058,11 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
         unsigned long va_end = va + size;
         int ret, nr_pages = 0;
 
-        if (!PAGE_ALIGNED(va) || !PAGE_ALIGNED(size)) {
+        if (!PAGE_ALIGNED(va) || !PAGE_ALIGNED(size))
                 return -EINVAL;
-        }
 
-        if (va_end < va || va_end > (allocator->start + allocator->size)) {
+        if (va_end < va || va_end > (allocator->start + allocator->size))
                 return -E2BIG;
-        }
 
         if (mc->nr_pages < (size >> PAGE_SHIFT)) {
                 u8 *missing_donations = this_cpu_ptr(&hyp_allocator_missing_donations);
@@ -1507,12 +1504,12 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         }
 	/*@ unpack ChunkInstallPre(...); @*/
 
-        if (chunk_unmapped_region(prev) < (unsigned long)chunk) {
+        if (chunk_unmapped_region(prev) < (unsigned long)chunk)
                 return -EINVAL;
-        }
-        if ((unsigned long)chunk_data(prev) + prev->alloc_size > (unsigned long)chunk) {
+
+        if ((unsigned long)chunk_data(prev) + prev->alloc_size > (unsigned long)chunk)
                 return -EINVAL;
-        }
+
 #ifdef __CN_VERIFY
         LemmaCreateNewChunk(chunk, size, prev, allocator);
 #endif
@@ -1587,19 +1584,19 @@ ensures
         /* The caller already validates prev */
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
 
-        if (WARN_ON(!prev)) {
+        if (WARN_ON(!prev))
                 return -EINVAL;
-        }
+
 
         /* Can only merge free chunks */
-        if (chunk_is_used(chunk) || chunk_is_used(prev)) {
+        if (chunk_is_used(chunk) || chunk_is_used(prev))
                 return -EBUSY;
-        }
+
 
         /* Can't merge non-contiguous mapped regions */
-        if (chunk_unmapped_region(prev) != (unsigned long)chunk) {
+        if (chunk_unmapped_region(prev) != (unsigned long)chunk)
                 return 0;
-        }
+
 
         /* mapped region inheritance */
         prev->mapped_size += chunk->mapped_size;
@@ -1630,9 +1627,9 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
         // size_t mapping_missing, mapping_needs = chunk_size(size);
         unsigned long mapping_missing, mapping_needs = chunk_size(size);
 
-        if (mapping_needs <= chunk->mapped_size) {
+        if (mapping_needs <= chunk->mapped_size)
                 return 0;
-        }
+
 
         mapping_missing = PAGE_ALIGN(mapping_needs - chunk->mapped_size);
 
@@ -1669,14 +1666,14 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
         unsigned long delta, mapped_end = chunk_unmapped_region(chunk);
         struct chunk_hdr *new_chunk;
 
-        if (PAGE_ALIGNED(mapped_end)) {
+        if (PAGE_ALIGNED(mapped_end))
                 return 0;
-        }
+
 
         new_chunk = (struct chunk_hdr *)PAGE_ALIGN_DOWN(mapped_end);
-        if ((unsigned long)new_chunk <= (unsigned long)chunk) {
+        if ((unsigned long)new_chunk <= (unsigned long)chunk)
                 return -EINVAL;
-        }
+
 
         delta = ((unsigned long)next_chunk - (unsigned long)new_chunk);
 
@@ -1750,9 +1747,9 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
 
         ret = hyp_allocator_map(allocator, chunk_unmapped_region(chunk),
                                 map_size);
-        if (ret) {
+        if (ret)
                 return ret;
-        }
+
 
         chunk->mapped_size += map_size;
         /*@ split_case(ptr_eq(
@@ -1779,18 +1776,18 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                            chunk_size(chunk->alloc_size));
         end = chunk_unmapped_region(chunk);
 
-        if (start >= end) {
+        if (start >= end)
                 return 0;
-        }
+
 
         reclaimable = end - start;
-        if (reclaimable < PAGE_SIZE) {
+        if (reclaimable < PAGE_SIZE)
                 return 0;
-        }
 
-        if (chunk_split_aligned(chunk, allocator)) {
+
+        if (chunk_split_aligned(chunk, allocator))
                 return 0;
-        }
+
 
         end = chunk_unmapped_region(chunk);
 #ifdef NO_STATEMENT_EXPRS
@@ -1831,17 +1828,17 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
         unsigned long page = PAGE_ALIGN_DOWN(addr);
         unsigned long delta = addr - page;
 
-        if (!delta) {
+        if (!delta)
                 return addr;
-        }
+
 
         /*
          * To maximize reclaim, a chunk must fit between the page start and this
          * addr.
          */
-        if (delta < min_chunk_size) {
+        if (delta < min_chunk_size)
                 return page + min_chunk_size;
-        }
+
 
 
         return addr;
@@ -1892,9 +1889,9 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha)); @*/
-        if (list_is_last(&chunk->node, &allocator->chunks)) {
+        if (list_is_last(&chunk->node, &allocator->chunks))
                 return false;
-        }
+
 
         chunk_end = (unsigned long)chunk + chunk->mapped_size +
                     chunk_unmapped_size(chunk, allocator);
@@ -1996,9 +1993,9 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         missing_map = chunk_needs_mapping(chunk, expected_mapping);
         if (missing_map) {
                 ret = chunk_inc_map(chunk, missing_map, allocator);
-                if (ret) {
+                if (ret)
                         return ret;
-                }
+
         }
 
         /*@ unpack Cn_chunk_hdrs(...); @*/
@@ -2040,20 +2037,20 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
 {
         size_t unmapped;
 
-        if (chunk_is_used(chunk)) {
+        if (chunk_is_used(chunk))
                 return 0;
-        }
+
 
         /* Don't kill the entire chunk if this is not necessary */
-        if (chunk->mapped_size > reclaim_target) {
+        if (chunk->mapped_size > reclaim_target)
                 return 0;
-        }
+
 
         if (list_is_first(&chunk->node, &allocator->chunks)) {
                 /* last standing chunk ? */
-                if (!list_is_last(&chunk->node, &allocator->chunks)) {
+                if (!list_is_last(&chunk->node, &allocator->chunks))
                         return 0;
-                }
+
 
                 list_del(&chunk->node);
                 goto unmap;
@@ -2069,21 +2066,21 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
          * unmapped zone (see chunk_recycle()).
          */
 
-        if (!PAGE_ALIGNED((unsigned long)chunk)) {
+        if (!PAGE_ALIGNED((unsigned long)chunk))
                 return 0;
-        }
 
-        if (list_is_last(&chunk->node, &allocator->chunks)) {
+
+        if (list_is_last(&chunk->node, &allocator->chunks))
                 goto destroy;
-        }
 
-        if (chunk_is_used(chunk_get_prev(chunk, allocator))) {
-                return 0;
-        }
 
-        if (chunk_split_aligned(chunk, allocator)) {
+        if (chunk_is_used(chunk_get_prev(chunk, allocator)))
                 return 0;
-        }
+
+
+        if (chunk_split_aligned(chunk, allocator))
+                return 0;
+
 destroy:
         chunk_list_del(chunk, allocator);
 unmap:
@@ -2157,9 +2154,9 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 
         ret = hyp_allocator_map(allocator, allocator->start,
                                 PAGE_ALIGN(chunk_size(size)));
-        if (ret) {
+        if (ret)
                 return ret;
-        }
+
 
         /*@ split_case(a_in.hdrs==Chunk_nil{}); @*/
         /*@ split_case(is_null(NULL)); @*/
@@ -2609,15 +2606,15 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 size_t available_size = chunk->mapped_size +
 					chunk_unmapped_size(chunk, allocator);
 		/*@ unpack MaybeChunkHdr(...); @*/
-		if (chunk_is_used(chunk)) {
+		if (chunk_is_used(chunk))
 			continue;
-                }
-		if (chunk_size(size) > available_size) {
+
+		if (chunk_size(size) > available_size)
 			continue;
-                }
-		if (best_available_size <= available_size) {
+
+		if (best_available_size <= available_size)
 			continue;
-                }
+
 #ifdef __CN_VERIFY
                 if (best_chunk) {
                         LemmaConcatCnChunkHdrsRev(allocator, chunk, best_chunk);
@@ -2908,9 +2905,9 @@ void *hyp_alloc(unsigned long size)
 	        /*@ unpack FirstAllocation(...); @*/
                 ret = setup_first_chunk(allocator, size);
 		/*@ split_case(ret == 0i32); @*/
-                if (ret) {
+                if (ret)
                         goto end;
-                }
+
 		/*@ unpack SetupFirstChunk(...); @*/
                 chunk = (struct chunk_hdr *)allocator->start;
         	/*@ split_case(is_null(chunk)); @*/
@@ -3139,13 +3136,13 @@ ensures
         (Cn_chunk_destroyable(HA.lseg) ? 1u8 : 0u8) == return;
 @*/
 {
-        if (chunk_is_used(chunk)) {
+        if (chunk_is_used(chunk))
                 return false;
-        }
 
-        if (!PAGE_ALIGNED(chunk)) {
+
+        if (!PAGE_ALIGNED(chunk))
                 return false;
-        }
+
 
         /*@
         split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
@@ -3157,9 +3154,9 @@ ensures
         @*/
 
         if (list_is_first(&chunk->node, &allocator->chunks)) {
-                if (list_is_last(&chunk->node, &allocator->chunks)) {
+                if (list_is_last(&chunk->node, &allocator->chunks))
                         return true;
-                }
+
 
                 return false;
         }
@@ -3194,17 +3191,16 @@ ensures
         WARN_ON(!PAGE_ALIGNED(end) &&
                 (end - PAGE_ALIGN_DOWN(end) < chunk_size(0UL)));
 
-        if (chunk_destroyable(chunk, allocator)) {
+        if (chunk_destroyable(chunk, allocator))
                 start = (unsigned long)chunk;
-        }
-        else {
+        else
                 start = PAGE_ALIGN((unsigned long)chunk + chunk_size(chunk->alloc_size));
-        }
+
 
         end = PAGE_ALIGN_DOWN(end);
-        if (start > end) {
+        if (start > end)
                 return 0;
-        }
+
 
         return end - start;
 }
@@ -3247,9 +3243,9 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
         struct chunk_hdr *chunk, *tmp;
         int cpu;
 
-        if (target <= 0) {
+        if (target <= 0)
                 return;
-        }
+
 
         hyp_spin_lock(&allocator->lock);
 
@@ -3266,9 +3262,9 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                         WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(page), 1));
 
                         target--;
-                        if (target <= 0) {
+                        if (target <= 0)
                                 goto done;
-                        }
+
                 }
         }
 
@@ -3277,14 +3273,14 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 
                 chunk_hash_validate(chunk);
                 r = chunk_try_destroy(chunk, allocator, target << PAGE_SHIFT);
-                if (!r) {
+                if (!r)
                         r = chunk_dec_map(chunk, allocator, target << PAGE_SHIFT);
-                }
+
 
                 target -= r >> PAGE_SHIFT;
-                if (target <= 0) {
+                if (target <= 0)
                         break;
-                }
+
         }
 
         alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
@@ -3348,9 +3344,9 @@ int hyp_alloc_init(unsigned long size)
         size = PAGE_ALIGN(size);
 
         /* constrained by chunk_hdr *_size types */
-        if (size > U32_MAX) {
+        if (size > U32_MAX)
                 return -EINVAL;
-        }
+
 
 
         ret = pkvm_alloc_private_va_range(size, &allocator->start);
