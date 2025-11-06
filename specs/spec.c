@@ -77,6 +77,25 @@ struct chunk_hdr {
         char                    data /* __aligned(8) */;
 };
 #endif
+/*@
+
+function (u64) PAGE_SIZE() {
+        shift_left(1u64, 12u64)
+}
+
+function (boolean) cn_IS_ALIGNED(u64 addr) {
+        (addr & (PAGE_SIZE() - 1u64)) == 0u64
+}
+
+function (u64) PAGE_ALIGN_DOWN(u64 addr) {
+        let page_mask = shift_left(1u64, 12u64) - 1u64;
+        (addr & ~page_mask)
+}
+function (u64) PAGE_ALIGN(u64 addr) {
+        let page_mask = shift_left(1u64, 12u64) - 1u64;
+        (addr + page_mask) & ~page_mask
+}
+@*/
 
 /*@
 type_synonym va = u64

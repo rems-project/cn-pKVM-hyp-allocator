@@ -117,17 +117,6 @@ void hyp_spin_unlock(hyp_spinlock_t *lock);
 #define PAGE_SIZE		(1UL << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 
-/*@
-
-function (u64) PAGE_SIZE() {
-	shift_left(1u64, 12u64)
-}
-
-function (boolean) cn_IS_ALIGNED(u64 addr) {
-	(addr & (PAGE_SIZE() - 1u64)) == 0u64
-}
-
-@*/
 
 // HK: we cannot define c_PAGE_ALIGN_DOWN until here because PAGE_SIZE is defined just above.
 // /*@ function (u64) PAGE_ALIGN_DOWN(u64 addr) @*/
@@ -143,16 +132,7 @@ static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr)
 // 	return PAGE_ALIGN(addr);
 // }
 
-/*@
-function (u64) PAGE_ALIGN_DOWN(u64 addr) {
-	let page_mask = shift_left(1u64, 12u64) - 1u64;
-	(addr & ~page_mask)
-}
-function (u64) PAGE_ALIGN(u64 addr) {
-	let page_mask = shift_left(1u64, 12u64) - 1u64;
-	(addr + page_mask) & ~page_mask
-}
-@*/
+
 
 /*
  * KVM MEMCACHE ***************************************************************
