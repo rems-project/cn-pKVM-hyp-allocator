@@ -77,7 +77,14 @@ struct chunk_hdr {
         char                    data /* __aligned(8) */;
 };
 #endif
+
 /*@
+function (i32) EINVAL() {
+       22i32
+}
+function (u64) cn_ALIGN(u64 x, u64 a) {
+       (x + (a - 1u64)) & ~(a - 1u64)
+}
 
 function (u64) PAGE_SIZE() {
         shift_left(1u64, 12u64)

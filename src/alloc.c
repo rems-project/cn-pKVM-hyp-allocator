@@ -624,7 +624,9 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.first, Cn_hyp_allocator_core(HA_pre.ha));
         @*/
         list_add(&chunk->node, &prev->node);
+#ifdef __CN_VERIFY
         /*@ unpack CondListHead(...); @*/
+#endif
 
         /*@ split_case(ptr_eq(
                 member_shift<struct chunk_hdr>(chunk, node)->next,
@@ -1255,8 +1257,10 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 
                 chunk_hash_update(chunk);
 
+#ifdef __CN_VERIFY
 		/*@ unpack MaybeChunkHdr(...); @*/
 		/*@ unpack CondListHead(...); @*/
+#endif
                 return 0;
         }
 	/*@ unpack ChunkInstallPre(...); @*/
