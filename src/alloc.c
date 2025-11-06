@@ -332,331 +332,51 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 }
 
 #define chunk_is_used(chunk) \
-        (!!(chunk)->alloc_size)
-
-// HK: eliminate the cast to unsigned long
+	(!!(chunk)->alloc_size)
 #define chunk_hdr_size() \
-        ((unsigned long)offsetof(struct chunk_hdr, data))
-// #define chunk_hdr_size() \
-//         offsetof(struct chunk_hdr, data)
-
-#ifdef NO_STATEMENT_EXPRS
-/* CN DIFF */
-// HK: replace unsigned long with size_t
+	offsetof(struct chunk_hdr, data)
 #define chunk_size(size) \
-        (chunk_hdr_size() + max_u64((unsigned long)(size), MIN_ALLOC))
-//#define chunk_size(size) \
-        //(chunk_hdr_size() + max_u64((size_t)(size), MIN_ALLOC))
-#else /* NO_STATEMENT_EXPRS */
-#define chunk_size(size) \
-        (chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
-#endif /* NO_STATEMENT_EXPRS */
-
-#ifdef __cerb__
-/*@
-function (u64) Cn_chunk_hdr_size ()
-{
-        (u64) offsetof(chunk_hdr, data)
-}
-// HK: size_t cast is removed. Macro requires cast because it does not know what the
-// argument type is.
-function (u64) Cn_chunk_size (u64 size)
-{
-        Cn_chunk_hdr_size() + (size > MIN_ALLOC() ? size : MIN_ALLOC())
-        //(u64) member_shift<struct chunk_hdr>(NULL, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
-}
-function (pointer) Cn_chunk_data (struct chunk_hdr chunk)
-{
-    (pointer)chunk.data
-}
-
-@*/
-#endif
-
-#ifdef __cerb__
-#include "../specs/spec.c"
-#endif
-
+	(chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
 #define chunk_data(chunk) \
-        ((void *)(&(chunk)->data))
-#ifdef NO_STATEMENT_EXPRS
-static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
-                           struct hyp_allocator *allocator)
-/*@
-        requires
-                !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
-                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_pre = RW<struct hyp_allocator>(allocator);
-                !is_null(node.next);
-                // Workaround for https://github.com/rems-project/cn/issues/369
-                let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node)); !is_null(next_chunk);
-
-                (u64)node.next & 0x7u64 == 0u64;
-        ensures
-                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_post = RW<struct hyp_allocator>(allocator);
-                alloc_size == alloc_size2 &&
-                mapped_size == mapped_size2 &&
-                node == node2;
-                A_pre == A_post;
-                let cond = ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
-                if (cond) {
-                        is_null(return)
-                } else {
-                        !is_null(return) &&
-                        ptr_eq(member_shift<struct chunk_hdr>(return, node), node.next)
-                };
-@*/
-{
-        //*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        return list_is_last(&(chunk)->node, &(allocator)->chunks) ?
-                NULL : list_next_entry(chunk, node);
-}
-
-static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
-                           struct hyp_allocator *allocator)
-/*@
-        requires
-                !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
-                take A_pre = RW<struct hyp_allocator>(allocator);
-                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                !is_null(node.prev);
-                // Workaround for https://github.com/rems-project/cn/issues/369
-                let prev_chunk = array_shift<char>(node.prev, -offsetof(chunk_hdr, node)); !is_null(prev_chunk);
-                (u64)node.prev & 0x7u64 == 0u64;
-        ensures
-                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_post = RW<struct hyp_allocator>(allocator);
-                alloc_size == alloc_size2 &&
-                mapped_size == mapped_size2 &&
-                node == node2;
-                A_pre == A_post;
-                let cond = ptr_eq(node.prev, member_shift<struct hyp_allocator>(allocator, chunks));
-                if (cond) {
-                        is_null(return)
-                } else {
-                        !is_null(return) &&
-                        ptr_eq(member_shift<struct chunk_hdr>(return, node), node.prev)
-                };
-@*/
-{
-        return list_is_first(&(chunk)->node, &(allocator)->chunks) ?
-                NULL : list_prev_entry(chunk, node);
-}
-
-static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
-                                               struct hyp_allocator *allocator)
-/*@
-        requires
-                !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
-                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_pre = RW<struct hyp_allocator>(allocator);
-                !is_null(node.next);
-                let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
-                let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node));
-                take Next = MaybeChunkHdr(next_chunk, cond);
-        ensures
-                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_post = RW<struct hyp_allocator>(allocator);
-                alloc_size == alloc_size2 &&
-                mapped_size == mapped_size2 &&
-                node == node2;
-                A_pre == A_post;
-                take Next_post = MaybeChunkHdr(next_chunk, cond);
-                Next == Next_post;
-                if (cond) {
-                        !is_null(return) &&
-                        ptr_eq(member_shift<struct chunk_hdr>(return, node), node.next)
-                } else {
-                        is_null(return)
-                };
-@*/
-{
-        /*@ split_case(cond); @*/
-	/*@ unpack MaybeChunkHdr(next_chunk, cond); @*/
-        struct chunk_hdr *next = __chunk_next(chunk, allocator);
-        chunk_hash_validate(next);
-	/*@ unpack MaybeChunkHdr(next, !is_null(next)); @*/
-        return next;
-}
-
-static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
-                                               struct hyp_allocator *allocator)
-/*@
-        requires
-                !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
-                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_pre = RW<struct hyp_allocator>(allocator);
-                !is_null(node.prev);
-                let cond = !ptr_eq(node.prev, member_shift<struct hyp_allocator>(allocator, chunks));
-                let prev_chunk = array_shift<char>(node.prev, -offsetof(chunk_hdr, node));
-                take Prev = MaybeChunkHdr(prev_chunk, cond);
-        ensures
-                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_post = RW<struct hyp_allocator>(allocator);
-                alloc_size == alloc_size2 &&
-                mapped_size == mapped_size2 &&
-                node == node2;
-                A_pre == A_post;
-                take Prev_post = MaybeChunkHdr(prev_chunk, cond);
-                Prev == Prev_post;
-                if (cond) {
-                        !is_null(return) &&
-                        ptr_eq(member_shift<struct chunk_hdr>(return, node), node.prev)
-                } else {
-                        is_null(return)
-                };
-
-@*/
-{
-        /*@ split_case(cond); @*/
-	/*@ unpack MaybeChunkHdr(prev_chunk, cond); @*/
-        struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
-        chunk_hash_validate(prev);
-	/*@ unpack MaybeChunkHdr(prev, !is_null(prev)); @*/
-        return prev;
-}
-
-static inline struct chunk_hdr* chunk_get(void *addr)
-/*@
-        requires
-                take C_pre = MaybeChunkHdr(addr, !is_null(addr));
-        ensures
-                take C_post = MaybeChunkHdr(addr, !is_null(addr));
-                C_post == C_pre;
-                ptr_eq(return, addr);
-@*/
-{
-	/*@ split_case (!is_null(addr)); @*/
-	/*@ unpack MaybeChunkHdr(addr, !is_null(addr)); @*/
-        struct chunk_hdr *chunk = (struct chunk_hdr *)addr;
-        chunk_hash_validate(chunk);
-        return chunk;
-}
-
+	((void *)(&(chunk)->data))
+#define __chunk_next(chunk, allocator)				\
+({								\
+	list_is_last(&(chunk)->node, &(allocator)->chunks) ?	\
+		NULL : list_next_entry(chunk, node);		\
+})
+#define __chunk_prev(chunk, allocator)				\
+({								\
+	list_is_first(&(chunk)->node, &(allocator)->chunks) ?	\
+		NULL : list_prev_entry(chunk, node);		\
+})
+#define chunk_get_next(chunk, allocator)			\
+({								\
+	struct chunk_hdr *next = __chunk_next(chunk, allocator);\
+	chunk_hash_validate(next);				\
+	next;							\
+})
+#define chunk_get_prev(chunk, allocator)			\
+({								\
+	struct chunk_hdr *prev = __chunk_prev(chunk, allocator);\
+	chunk_hash_validate(prev);				\
+	prev;							\
+})
+#define chunk_get(addr)						\
+({								\
+	struct chunk_hdr *chunk = (struct chunk_hdr *)addr;	\
+	chunk_hash_validate(chunk);				\
+	chunk;							\
+})
 #define chunk_unmapped_region(chunk) \
-        ((unsigned long)(chunk) + chunk->mapped_size)
-/*@
-function (u64) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
-{
-    (u64)chunk_p + (u64)chunk.mapped_size
-}
-@*/
-
-
-// TODO(HK): C_pre should replaced with cn_chunk_hdr_option to handle the
-// last chunk case
-static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
-                                                struct hyp_allocator *allocator)
-/*@
-        requires
-                !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
-                take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_pre = RW<struct hyp_allocator>(allocator);
-                !is_null(node.next);
-                let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
-                let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node));
-                take Next = MaybeChunkHdr(next_chunk, cond);
-        ensures
-                take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
-                take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
-                take node2 = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                take A_post = RW<struct hyp_allocator>(allocator);
-                alloc_size == alloc_size2 &&
-                mapped_size == mapped_size2 &&
-                node == node2;
-                A_pre == A_post;
-                take Next_post = MaybeChunkHdr(next_chunk, cond);
-                Next == Next_post;
-
-                let end = match (Next_post) {
-                        ChunkHdr_none {} => {
-                                A_pre.start + (u64)A_pre.size
-                        }
-                        ChunkHdr_some {hdr:hdr} => {
-                                (u64)next_chunk
-                        }
-                };
-                return == end - (u64)chunk - (u64)mapped_size;
-@*/
-{
-        /*@ split_case(cond); @*/
-        /*@ unpack MaybeChunkHdr(next_chunk, cond); @*/
-        struct chunk_hdr *next = chunk_get_next(chunk, allocator);
-        unsigned long allocator_end = (allocator)->start +
-                                      (allocator)->size;
-        return next ? (unsigned long)next - chunk_unmapped_region(chunk) :
-                allocator_end - chunk_unmapped_region(chunk);
-}
-#else /* NO_STATEMENT_EXPRS */
-#define __chunk_next(chunk, allocator)                          \
-({                                                              \
-        list_is_last(&(chunk)->node, &(allocator)->chunks) ?    \
-                NULL : list_next_entry(chunk, node);            \
+	((unsigned long)(chunk) + chunk->mapped_size)
+#define chunk_unmapped_size(chunk, allocator)				\
+({									\
+	struct chunk_hdr *next = chunk_get_next(chunk, allocator);	\
+	unsigned long allocator_end = (allocator)->start +		\
+				      (allocator)->size;		\
+	next ? (unsigned long)next - chunk_unmapped_region(chunk) :	\
+		allocator_end - chunk_unmapped_region(chunk);		\
 })
-
-#define __chunk_prev(chunk, allocator)                          \
-({                                                              \
-        list_is_first(&(chunk)->node, &(allocator)->chunks) ?   \
-                NULL : list_prev_entry(chunk, node);            \
-})
-
-#define chunk_get_next(chunk, allocator)                        \
-({                                                              \
-        struct chunk_hdr *next = __chunk_next(chunk, allocator);\
-        chunk_hash_validate(next);                              \
-        next;                                                   \
-})
-
-#define chunk_get_prev(chunk, allocator)                        \
-({                                                              \
-        struct chunk_hdr *prev = __chunk_prev(chunk, allocator);\
-        chunk_hash_validate(prev);                              \
-        prev;                                                   \
-})
-
-#define chunk_get(addr)                                         \
-({                                                              \
-        struct chunk_hdr *chunk = (struct chunk_hdr *)addr;     \
-        chunk_hash_validate(chunk);                             \
-        chunk;                                                  \
-})
-
-#define chunk_unmapped_region(chunk) \
-        ((unsigned long)(chunk) + chunk->mapped_size)
-
-#define chunk_unmapped_size(chunk, allocator)                           \
-({                                                                      \
-        struct chunk_hdr *next = chunk_get_next(chunk, allocator);      \
-        unsigned long allocator_end = (allocator)->start +              \
-                                      (allocator)->size;                \
-        next ? (unsigned long)next - chunk_unmapped_region(chunk) :     \
-                allocator_end - chunk_unmapped_region(chunk);           \
-})
-#endif /* NO_STATEMENT_EXPRS */
 
 /*@
 function (boolean) Cn_list_is_first(struct list_head node, pointer chunks)
@@ -1070,11 +790,7 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 
 /* CN DIFF */
 // originally `*missing_donations = (u8)min(delta, (u32) ~((u8)0));`
-#ifdef NO_STATEMENT_EXPRS
-                *missing_donations = min_u32(delta, U8_MAX);
-#else /* NO_STATEMENT_EXPRS*/
                 *missing_donations = min(delta, U8_MAX);
-#endif /* NO_STATEMENT_EXPRS */
 
                 return -ENOMEM;
         }
@@ -1790,11 +1506,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 
 
         end = chunk_unmapped_region(chunk);
-#ifdef NO_STATEMENT_EXPRS
-        reclaimable = min_u64(end - start, reclaim_target);
-#else /* NO_STATEMENT_EXPRS */
         reclaimable = min(end - start, reclaim_target);
-#endif /* NO_STATEMENT_EXPRS */
         start = end - reclaimable;
 
         hyp_allocator_unmap(allocator, start, reclaimable);
@@ -2820,22 +2532,6 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
 }
 #endif
 
-
-void my_memset(char *s, char c, size_t n)
-/*@
-    trusted;
-    requires
-        take U = Cn_char_array(s, n);
-    ensures
-         // should we capture W<> -> RW<> behavior?
-         // just i'm lazy not to write it
-        take V = Cn_char_array(s, n);
-@*/
-{
-        memset(s, c, n);
-}
-
-
 // HK: To avoid "mismatched types" error
 //void *hyp_alloc(size_t size)
 void *hyp_alloc(unsigned long size)
@@ -2989,7 +2685,7 @@ end_unlocked:
 	        /*@ unpack Conditional_Cn_char_array(...); @*/
                 /* CN DIFF */
                 // How do I write the spec to memset?
-                my_memset(chunk_data(chunk), 0, size);
+                memset(chunk_data(chunk), 0, size);
                 // memset(chunk_data(chunk), 0, size);
         }
 	/*@ unpack SetupFirstChunk(...); @*/
