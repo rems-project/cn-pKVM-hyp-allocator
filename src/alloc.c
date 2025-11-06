@@ -3020,18 +3020,21 @@ void *hyp_alloc_account(size_t size, struct kvm *host_kvm)
 }
 #endif /* STANDALONE */
 
+/*@
+predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ValidAllocatorAndAddr(pointer ha, pointer addr) {
+        assert(!is_null(addr));
+        let header_address = array_shift<byte>(addr, - Cn_chunk_hdr_size());
+        take HA_pre = Cn_hyp_allocator_focusing_on(ha, header_address);
+        return HA_pre;
+}
+@*/
+
 void hyp_free(void *addr)
 /*@
-        requires
-                cn_ghost u64 size;
-                !is_null(addr);
-                let header_address = array_shift<byte>(addr, - Cn_chunk_hdr_size());
-                take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator,header_address);
-                let C = HA_pre.lseg.chunk;
+        requires cn_ghost u64 size;
+                take HA_pre = ValidAllocatorAndAddr(&hyp_allocator, addr);
                 take U = Cn_char_array(addr, (u64)size);
-                size <= (u64)C.alloc_size;
-                take V = Cn_char_array_with_offset(addr, (u64)C.alloc_size - size, size);
-                //take U = Cn_char_array(addr, (u64)C.alloc_size);
+                take V = Cn_char_array_with_offset(addr, (u64)HA_pre.lseg.chunk.alloc_size - size, size);
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
