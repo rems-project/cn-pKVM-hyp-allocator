@@ -2846,24 +2846,13 @@ void *hyp_alloc(unsigned long size)
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
-
-                // The following check is done in memcache functions,
-                // which we ignore in this verification.
-                // So, we explicitly state the following.
-                // More precicely, only the first allocation requires
-                // `PAGE_ALIGN(Cn_chunk_size(actual_size))`. For the other allocations,
-                // we can allocate Cn_chunk_size(actual_size).
-                // However, for simplicity, we require this for all allocations.
-                // size <= PAGE_ALIGN(Cn_chunk_size(actual_size)); // no overflow
-                // PAGE_ALIGN(Cn_chunk_size(actual_size)) <= (u64)HA_pre.ha.size;
-                let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
+                take U = MaybeCn_char_array(return, size);
 
-                take U = MaybeCn_char_array(return, actual_size);
-                // HA_post.ha.size == HA_pre.ha.size;
-                // HA_post.ha.start == HA_pre.ha.start;
-                // HA_post.ha.head == HA_pre.ha.head;
+                let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
+                let remainder = is_null(return) ? return : array_shift<byte>(return, size);
+                take V = MaybeCn_char_array(remainder, actual_size - size);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -2881,6 +2870,7 @@ void *hyp_alloc(unsigned long size)
 
 #ifdef __CN_VERIFY
         /* CN */ int no_free_chunk = 0;
+        unsigned long original_size = size;
 #endif
 
         // size = ALIGN(size ?: MIN_ALLOC, MIN_ALLOC);
@@ -2993,6 +2983,9 @@ end_unlocked:
                 /* CN DIFF */
                 // How do I write the spec to memset?
                 my_memset(chunk_data(chunk), 0, size);
+#ifdef __CN_VERIFY
+        LemmaSplitAndNewChunk(chunk_data(chunk), original_size, size - original_size);
+#endif
                 // memset(chunk_data(chunk), 0, size);
         }
 	/*@ unpack SetupFirstChunk(...); @*/
