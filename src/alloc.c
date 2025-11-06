@@ -331,12 +331,49 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
         }
 }
 
+#ifdef __cerb__
+/*@
+function (u64) Cn_chunk_hdr_size ()
+{
+        (u64) offsetof(chunk_hdr, data)
+}
+// HK: size_t cast is removed. Macro requires cast because it does not know what the
+// argument type is.
+function (u64) Cn_chunk_size (u64 size)
+{
+        Cn_chunk_hdr_size() + (size > MIN_ALLOC() ? size : MIN_ALLOC())
+        //(u64) member_shift<struct chunk_hdr>(NULL, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
+}
+function (pointer) Cn_chunk_data (struct chunk_hdr chunk)
+{
+    (pointer)chunk.data
+}
+function (u64) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
+{
+    (u64)chunk_p + (u64)chunk.mapped_size
+}
+
+
+@*/
+#endif
+
+#ifdef __cerb__
+#include "../specs/spec.c"
+#endif
+
 #define chunk_is_used(chunk) \
 	(!!(chunk)->alloc_size)
 #define chunk_hdr_size() \
 	offsetof(struct chunk_hdr, data)
+
+#ifdef NO_STATEMENT_EXPRS
+#define chunk_size(size) \
+        (chunk_hdr_size() + max_u64((unsigned long)(size), MIN_ALLOC))
+#else /* NO_STATEMENT_EXPRS */
 #define chunk_size(size) \
 	(chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
+#endif
+
 #define chunk_data(chunk) \
 	((void *)(&(chunk)->data))
 #define __chunk_next(chunk, allocator)				\
@@ -790,7 +827,11 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 
 /* CN DIFF */
 // originally `*missing_donations = (u8)min(delta, (u32) ~((u8)0));`
+#ifdef NO_STATEMENT_EXPRS
+                *missing_donations = min_u32(delta, U8_MAX);
+#else  /* NO_STATEMENT_EXPRS*/
                 *missing_donations = min(delta, U8_MAX);
+#endif /* NO_STATEMENT_EXPRS */
 
                 return -ENOMEM;
         }
@@ -1506,7 +1547,11 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 
 
         end = chunk_unmapped_region(chunk);
+#ifdef NO_STATEMENT_EXPRS
+        reclaimable = min_u64(end - start, reclaim_target);
+#else  /* NO_STATEMENT_EXPRS */
         reclaimable = min(end - start, reclaim_target);
+#endif /* NO_STATEMENT_EXPRS */
         start = end - reclaimable;
 
         hyp_allocator_unmap(allocator, start, reclaimable);
