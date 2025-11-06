@@ -50,5 +50,53 @@
     {
         "path": "patches/patch-15-ec2afcb925b79a2dc81cd46e1492cb223c993d74",
         "fut": "chunk_unmapped_size"
+    },
+    {
+        "path": "patches/patch-16-9ea8103221f8f84fb7885ae3922aa6b699e9e156",
+        "fut": "chunk_hash_compute"
+    },
+    {
+        "path": "patches/patch-17-3413739244909ff7ab5cb0ec3abbff703b3ef5ac",
+        "fut": "chunk_can_split"
+    },
+    {
+        "path": "patches/patch-18-873634a48a6e3c56243f25bb2235d0da5eee5634",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-19-f3bfee5356cbe21f57da51468638cc87b2be63b6",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-20-19c0c403432f8fda1848ec23b0e245ed59ee0cff",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-22-6e9028ffdb89f8fe9cc70f83cf6ef7bf449ac4d1",
+        "fut": "chunk_list_insert"
+    },
+    {
+        "path": "patches/patch-23-c8828c02009d73bafcbe0c5a763b6951a23a3a63",
+        "fut": "chunk_list_insert"
+    },
+    {
+        "path": "patches/patch-24-c1a2c437231d9551087c0e204ebc3fd918ecd326",
+        "fut": "chunk_install"
+    },
+    {
+        "path": "patches/patch-25-df7d52a38f60f2b837218b380e46aff3abde66b6",
+        "fut": "chunk_get"
+    },
+    {
+        "path": "patches/patch-26-39208f33ad4fc85683c78e711272dd0a7b588394",
+        "fut": "setup_first_chunk"
+    },
+    {
+        "path": "patches/patch-27-c00c975a4820011831f205916eb8a6f05ff9f7e0",
+        "fut": "setup_first_chunk"
+    },
+    {
+        "path": "patches/patch-28-8cd201c36d81ae49c55b765c85be42ee105ba017",
+        "fut": "chunk_hash_update"
     }
 ]
