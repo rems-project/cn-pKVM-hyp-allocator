@@ -1382,7 +1382,7 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
         // TODO: fix this. Due to the Cerberus elaboration bug, we cannot use
         // size_t here currently.
         // size_t mapping_missing, mapping_needs = chunk_size(size);
-        unsigned long mapping_missing, mapping_needs = chunk_size(size);
+        size_t mapping_missing, mapping_needs = chunk_size(size);
 
         if (mapping_needs <= chunk->mapped_size)
                 return 0;
@@ -1448,7 +1448,7 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
 // TODO(HK): fix this after the elaboration bug is fixed
 //static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
 // HK: It takes a lot of time to prove this spec (more than 8 minutes on my machine)
-static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
+static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
                          struct hyp_allocator *allocator)
 /*@
         accesses hyp_allocator_mc;
@@ -2578,8 +2578,7 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
 #endif
 
 // HK: To avoid "mismatched types" error
-//void *hyp_alloc(size_t size)
-void *hyp_alloc(unsigned long size)
+void *hyp_alloc(size_t size)
 /*@
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
@@ -3064,8 +3063,7 @@ predicate (void) MaybeHypAlloc(pointer p, boolean cond)
 
 /* CN DIFF */
 // avoid type mismatch
-//int hyp_alloc_init(size_t size)
-int hyp_alloc_init(unsigned long size)
+int hyp_alloc_init(size_t size)
 #ifdef __CN_VERIFY
 /*@
         accesses __io_map_base;

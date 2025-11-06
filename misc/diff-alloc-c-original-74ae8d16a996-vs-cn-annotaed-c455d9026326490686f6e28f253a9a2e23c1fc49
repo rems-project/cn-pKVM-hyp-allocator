@@ -9,257 +9,53 @@
 >   u32 explicit_padding;
 > };
 > typedef unsigned char byte;
-36c45
-<   if (len)
----
->   if (len) {
-37a47
->   }
-41c51
+41c50
 <   if (chunk)
 ---
 >   if (chunk) {
-43a54
+43a53
 > }
-45c56
+45c55
 <   if (chunk)
 ---
 >   if (chunk) {
-48,51c59,76
+48,50c58,70
 < (!!(chunk)->alloc_size) offsetof(struct chunk_hdr, data)(
 <     chunk_hdr_size() +
 <     max((size_t)(size), MIN_ALLOC))((void *)(&(chunk)->data))({
-<   list_is_last(&(chunk)->node, &(allocator)->chunks)
 ---
 > }
-> (!!(chunk)->alloc_size)((unsigned long)offsetof(struct chunk_hdr, data))
-> #ifdef NO_STATEMENT_EXPRS
->     (chunk_hdr_size() + max_u64((unsigned long)(size), MIN_ALLOC))
-> #else
->         (chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
-> #endif
 > #ifdef __cerb__
 > #endif
 > #ifdef __cerb__
 > #include "../specs/spec.c"
 > #endif
->         ((void *)(&(chunk)->data))
+> (!!(chunk)->alloc_size) offsetof(struct chunk_hdr, data)
 > #ifdef NO_STATEMENT_EXPRS
->             static inline struct chunk_hdr *
->             __chunk_next(struct chunk_hdr *chunk,
->                          struct hyp_allocator *allocator) {
->   return list_is_last(&(chunk)->node, &(allocator)->chunks)
-54,55c79,82
-< })({
-<   list_is_first(&(chunk)->node, &(allocator)->chunks)
----
-> }
-> static inline struct chunk_hdr *__chunk_prev(struct chunk_hdr *chunk,
->                                              struct hyp_allocator *allocator) {
->   return list_is_first(&(chunk)->node, &(allocator)->chunks)
-58c85,87
-< })({
----
-> }
-> static inline struct chunk_hdr *
-> chunk_get_next(struct chunk_hdr *chunk, struct hyp_allocator *allocator) {
-61,62c90,93
-<   next;
-< })({
----
->   return next;
-> }
-> static inline struct chunk_hdr *
-> chunk_get_prev(struct chunk_hdr *chunk, struct hyp_allocator *allocator) {
-65,66c96,98
-<   prev;
-< })({
----
->   return prev;
-> }
-> static inline struct chunk_hdr *chunk_get(void *addr) {
-69,70c101,104
-<   chunk;
-< })((unsigned long)(chunk) + chunk->mapped_size)({
----
->   return chunk;
-> }
-> ((unsigned long)(chunk) + chunk->mapped_size) static inline unsigned long
-> chunk_unmapped_size(struct chunk_hdr *chunk, struct hyp_allocator *allocator) {
-73c107
-<   next ? (unsigned long)next - chunk_unmapped_region(chunk)
----
->   return next ? (unsigned long)next - chunk_unmapped_region(chunk)
-75,76c109,144
-< }) static inline void
-< chunk_list_insert(struct chunk_hdr *chunk, struct chunk_hdr *prev,
----
-> }
+>     (chunk_hdr_size() + max_u64((unsigned long)(size), MIN_ALLOC))
 > #else
-> ({ \
->         list_is_last(&(chunk)->node, &(allocator)->chunks) ? \
->                 NULL : list_next_entry(chunk, node); \
-> })
-> ({ \
->         list_is_first(&(chunk)->node, &(allocator)->chunks) ? \
->                 NULL : list_prev_entry(chunk, node); \
-> })
-> ({ \
->         struct chunk_hdr *next = __chunk_next(chunk, allocator);\
->         chunk_hash_validate(next); \
->         next; \
-> })
-> ({ \
->         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);\
->         chunk_hash_validate(prev); \
->         prev; \
-> })
-> ({ \
->         struct chunk_hdr *chunk = (struct chunk_hdr *)addr; \
->         chunk_hash_validate(chunk); \
->         chunk; \
-> })
->         ((unsigned long)(chunk) + chunk->mapped_size)
-> ({ \
->         struct chunk_hdr *next = chunk_get_next(chunk, allocator); \
->         unsigned long allocator_end = (allocator)->start + \
->                                       (allocator)->size; \
->         next ? (unsigned long)next - chunk_unmapped_region(chunk) : \
->                 allocator_end - chunk_unmapped_region(chunk); \
-> })
+>  (chunk_hdr_size() + max((size_t)(size), MIN_ALLOC))
 > #endif
-> static inline void chunk_list_insert(struct chunk_hdr *chunk,
->                                      struct chunk_hdr *prev,
-111c179
-<   if (!PAGE_ALIGNED(va) || !PAGE_ALIGNED(size))
----
->   if (!PAGE_ALIGNED(va) || !PAGE_ALIGNED(size)) {
-113c181,182
-<   if (va_end < va || va_end > (allocator->start + allocator->size))
----
->   }
->   if (va_end < va || va_end > (allocator->start + allocator->size)) {
-114a184
->   }
-118c188,192
-<     *missing_donations = (u8)min(delta, (u32) ~((u8)0));
----
+>         ((void *)(&(chunk)->data))({
+117a138,140
 > #ifdef NO_STATEMENT_EXPRS
 >     *missing_donations = min_u32(delta, U8_MAX);
 > #else
->     *missing_donations = min(delta, U8_MAX);
+118a142
 > #endif
-152c226
-<   if (chunk_unmapped_region(prev) < (unsigned long)chunk)
----
->   if (chunk_unmapped_region(prev) < (unsigned long)chunk) {
-154c228,230
-<   if ((unsigned long)chunk_data(prev) + prev->alloc_size > (unsigned long)chunk)
----
->   }
->   if ((unsigned long)chunk_data(prev) + prev->alloc_size >
->       (unsigned long)chunk) {
-155a232
->   }
-166c243
-<   if (WARN_ON(!prev))
----
->   if (WARN_ON(!prev)) {
-168c245,246
-<   if (chunk_is_used(chunk) || chunk_is_used(prev))
----
->   }
->   if (chunk_is_used(chunk) || chunk_is_used(prev)) {
-170c248,249
-<   if (chunk_unmapped_region(prev) != (unsigned long)chunk)
----
->   }
->   if (chunk_unmapped_region(prev) != (unsigned long)chunk) {
-171a251
->   }
-177,178c257,258
-<   size_t mapping_missing, mapping_needs = chunk_size(size);
-<   if (mapping_needs <= chunk->mapped_size)
----
->   unsigned long mapping_missing, mapping_needs = chunk_size(size);
->   if (mapping_needs <= chunk->mapped_size) {
-179a260
->   }
-188c269
-<   if (PAGE_ALIGNED(mapped_end))
----
->   if (PAGE_ALIGNED(mapped_end)) {
-189a271
->   }
-191c273
-<   if ((unsigned long)new_chunk <= (unsigned long)chunk)
----
->   if ((unsigned long)new_chunk <= (unsigned long)chunk) {
-192a275
->   }
-198c281
-< static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
----
-> static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
-201c284
+201c225
 <   if (chunk_unmapped_size(chunk, allocator) < map_size)
 ---
 >   if (chunk_unmapped_size(chunk, allocator) < map_size) {
-202a286
+202a227
 >   }
-204c288
-<   if (ret)
----
->   if (ret) {
-205a290
->   }
-217c302
-<   if (start >= end)
----
->   if (start >= end) {
-218a304
->   }
-220c306
-<   if (reclaimable < PAGE_SIZE)
----
->   if (reclaimable < PAGE_SIZE) {
-222c308,309
-<   if (chunk_split_aligned(chunk, allocator))
----
->   }
->   if (chunk_split_aligned(chunk, allocator)) {
-223a311
->   }
-224a313,315
+224a250,252
 > #ifdef NO_STATEMENT_EXPRS
 >   reclaimable = min_u64(end - start, reclaim_target);
 > #else
-225a317
+225a254
 > #endif
-236c328
-<   if (!delta)
----
->   if (!delta) {
-238c330,331
-<   if (delta < min_chunk_size)
----
->   }
->   if (delta < min_chunk_size) {
-239a333
->   }
-245c339
-<   if (list_is_last(&chunk->node, &allocator->chunks))
----
->   if (list_is_last(&chunk->node, &allocator->chunks)) {
-246a341
->   }
-266c361
-<     if (ret)
----
->     if (ret) {
-268a364
->   }
-271,272c367,370
+271,272c300,303
 <   if (new_chunk)
 <     WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
 ---
@@ -267,215 +63,67 @@
 >     int ret = chunk_install(new_chunk, 0, chunk, allocator);
 >     WARN_ON(ret);
 >   }
-279c377
-<   if (chunk_is_used(chunk))
----
->   if (chunk_is_used(chunk)) {
-281c379,380
-<   if (chunk->mapped_size > reclaim_target)
----
->   }
->   if (chunk->mapped_size > reclaim_target) {
-282a382
->   }
-284c384
-<     if (!list_is_last(&chunk->node, &allocator->chunks))
----
->     if (!list_is_last(&chunk->node, &allocator->chunks)) {
-285a386
->     }
-289c390
-<   if (!PAGE_ALIGNED((unsigned long)chunk))
----
->   if (!PAGE_ALIGNED((unsigned long)chunk)) {
-291c392,393
-<   if (list_is_last(&chunk->node, &allocator->chunks))
----
->   }
->   if (list_is_last(&chunk->node, &allocator->chunks)) {
-293c395,396
-<   if (chunk_is_used(chunk_get_prev(chunk, allocator)))
----
->   }
->   if (chunk_is_used(chunk_get_prev(chunk, allocator))) {
-295c398,399
-<   if (chunk_split_aligned(chunk, allocator))
----
->   }
->   if (chunk_split_aligned(chunk, allocator)) {
-296a401
->   }
-308c413
-<   if (ret)
----
->   if (ret) {
-310c415,416
+310c341
 <   return chunk_install((struct chunk_hdr *)allocator->start, size, NULL,
 ---
->   }
 >   int retv = chunk_install((struct chunk_hdr *)allocator->start, size, NULL,
-311a418
+311a343
 >   return retv;
-314a422
+314a347
 >   struct chunk_hdr *retv = NULL;
-316c424
-<   size_t best_available_size = allocator->size;
----
->   size_t best_available_size = 0xFFFFFFFFFFFFFFFFUL;
-320c428
-<     if (chunk_is_used(chunk))
----
->     if (chunk_is_used(chunk)) {
-322c430,431
-<     if (chunk_size(size) > available_size)
----
->     }
->     if (chunk_size(size) > available_size) {
-324,326d432
-<     if (!best_chunk) {
-<       best_chunk = chunk;
-<       continue;
-328c434
-<     if (best_available_size <= available_size)
----
->     if (best_available_size <= available_size) {
-329a436
->     }
-333c440,441
+329c362,363
 <   return chunk_get(best_chunk);
 ---
 >   retv = chunk_get(best_chunk);
 >   return retv;
-335c443,444
-< void *hyp_alloc(size_t size) {
----
-> void my_memset(char *s, char c, size_t n) { memset(s, c, n); }
-> void *hyp_alloc(unsigned long size) {
-339,340c448,455
-<   int missing_map, ret = 0;
-<   size = ALIGN(size, MIN_ALLOC);
----
->   int ret = 0;
->   size_t missing_map;
+336a371
 >   int cn_flag = 1;
->   if (size >= 0x100000000UL) {
->     ret = -ENOMEM;
->     goto end;
->   }
+341c376
+<   size = ALIGN(size ?: MIN_ALLOC, MIN_ALLOC);
+---
 >   size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
-342c457,458
+343c378,379
 <   if (list_empty(&hyp_allocator.chunks)) {
 ---
 >   cn_flag = list_empty(&hyp_allocator.chunks);
 >   if (cn_flag) {
-344c460
+365c401
 <     if (ret)
 ---
 >     if (ret) {
-345a462
->     }
-364c481
-<     if (ret)
----
->     if (ret) {
-367c484,486
+368c404,406
 <   WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
 ---
 >   }
 >   int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
 >   WARN_ON(res_chunk_install);
-371,372c490,492
+373c411
 <   if (!ret)
-<     memset(chunk_data(chunk), 0, size);
 ---
 >   if (!ret) {
->     my_memset(chunk_data(chunk), 0, size);
+374a413
 >   }
-402c522
+404c443
 <   if (next_chunk && !chunk_is_used(next_chunk))
 ---
 >   if (next_chunk && !chunk_is_used(next_chunk)) {
-404c524,525
+406c445,446
 <   if (prev_chunk && !chunk_is_used(prev_chunk))
 ---
 >   }
 >   if (prev_chunk && !chunk_is_used(prev_chunk)) {
-405a527,528
+407a448,449
 >   } else {
 >   }
-415c538
-<   if (chunk_is_used(chunk))
----
->   if (chunk_is_used(chunk)) {
-417c540,541
-<   if (!PAGE_ALIGNED(chunk))
----
->   }
->   if (!PAGE_ALIGNED(chunk)) {
-418a543
->   }
-420c545
-<     if (list_is_last(&chunk->node, &allocator->chunks))
----
->     if (list_is_last(&chunk->node, &allocator->chunks)) {
-421a547
->     }
-424c550,551
+426c468,469
 <   return !chunk_is_used(chunk_get_prev(chunk, allocator));
 ---
 >   struct chunk_hdr *tmp = chunk_get_prev(chunk, allocator);
 >   return !chunk_is_used(tmp);
-430c557
-<   if (chunk_destroyable(chunk, allocator))
----
->   if (chunk_destroyable(chunk, allocator)) {
-432c559
-<   else
----
->   } else {
-433a561
->   }
-435c563
-<   if (start > end)
----
->   if (start > end) {
-436a565
->   }
-459c588
-<   if (target <= 0)
----
->   if (target <= 0) {
-460a590
->   }
-471c601
-<       if (target <= 0)
----
->       if (target <= 0) {
-474a605
->   }
-479c610
-<     if (!r)
----
->     if (!r) {
-480a612
->     }
-482c614
-<     if (target <= 0)
----
->     if (target <= 0) {
-484a617
->   }
-503c636
-< int hyp_alloc_init(size_t size) {
----
-> int hyp_alloc_init(unsigned long size) {
-507c640
-<   if (size > U32_MAX)
----
->   if (size > U32_MAX) {
-508a642
->   }
-510,511d643
+512c555
 <   if (ret)
-<     return ret;
+---
+>   if (ret) {
+513a557
+>   }
 
