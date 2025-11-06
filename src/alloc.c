@@ -3029,12 +3029,43 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ValidAllocatorAndAddr(pointer ha
 }
 @*/
 
+void Lemma_Cn_char_array_to_Cn_char_array_with_offset(void *addr, u64 size, u64 offset)
+/*@
+requires
+  !is_null(addr);
+  (u64)addr < offset;
+  take V = Cn_char_array(addr, size);
+ensures
+  let base = array_shift<byte>(addr, -offset);
+  take V_post = Cn_char_array_with_offset(base, size, offset);
+@*/
+{
+        byte *ptr = (byte*)addr - offset;
+        /*@ unpack Cn_char_array(...); @*/
+        u64 i;
+        for (i = 0; i < size; i++)
+        /*@ inv
+                take U1 = each(u64 j; i <= j && j < size) { W<byte>(array_shift<byte>(addr, j)) };
+                take U2 = each(u64 j; offset <= j && j < offset + i) { W<byte>(array_shift<byte>(ptr, j)) };
+                {addr} unchanged;
+                {size} unchanged;
+                {offset} unchanged;
+                ptr_eq(ptr, array_shift<byte>(addr, -offset));
+                i <= (u64)size;
+        @*/
+        {
+                /*@ focus W<byte>, (u64)i; @*/
+                /*@ focus W<byte>, (u64)(i + offset); @*/
+        }
+}
+
 void hyp_free(void *addr)
 /*@
         requires cn_ghost u64 size;
                 take HA_pre = ValidAllocatorAndAddr(&hyp_allocator, addr);
                 take U = Cn_char_array(addr, (u64)size);
-                take V = Cn_char_array_with_offset(addr, (u64)HA_pre.lseg.chunk.alloc_size - size, size);
+                let remainder = array_shift<byte>(addr, size);
+                take V = Cn_char_array(addr, (u64)HA_pre.lseg.chunk.alloc_size - size);
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
