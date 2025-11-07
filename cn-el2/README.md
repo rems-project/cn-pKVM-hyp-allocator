@@ -47,7 +47,7 @@ opam install --ignore-pin-depends ./cn.opam
 
 6. Now cd to `el2-hyp-alloc` in the parent directory and run Fulminate:
 ```bash
-cn instrument --include shim.h --skip alternative_has_cap_likely --exec-c-locs-mode alloc.carved.c
+cn instrument --include shim.h --skip alternative_has_cap_likely --exec-c-locs-mode --experimental-unions alloc.carved.c
 ```
 
 `shim.h` is a crime in progress — it uses the C preprocessor to remove bits of
