@@ -3034,6 +3034,8 @@ void Lemma_Cn_char_array_to_Cn_char_array_with_offset(void *addr, u64 size, u64 
 requires
   !is_null(addr);
   (u64)addr < offset;
+  size < (u64)MAXu32();
+  offset < (u64)MAXu32();
   take V = Cn_char_array(addr, size);
 ensures
   let base = array_shift<byte>(addr, -offset);
@@ -3042,20 +3044,22 @@ ensures
 {
         byte *ptr = (byte*)addr - offset;
         /*@ unpack Cn_char_array(...); @*/
-        u64 i;
-        for (i = 0; i < size; i++)
+        unsigned long i = 0;
+        while (i < size)
         /*@ inv
                 take U1 = each(u64 j; i <= j && j < size) { W<byte>(array_shift<byte>(addr, j)) };
                 take U2 = each(u64 j; offset <= j && j < offset + i) { W<byte>(array_shift<byte>(ptr, j)) };
                 {addr} unchanged;
                 {size} unchanged;
                 {offset} unchanged;
-                ptr_eq(ptr, array_shift<byte>(addr, -offset));
+                ptr_eq(array_shift<byte>(ptr, offset), addr);
                 i <= (u64)size;
         @*/
         {
                 /*@ focus W<byte>, (u64)i; @*/
                 /*@ focus W<byte>, (u64)(i + offset); @*/
+                /*@ assert(ptr_eq(array_shift<byte>(ptr, offset), addr)); @*/
+                i++;
         }
 }
 
@@ -3076,9 +3080,15 @@ void hyp_free(void *addr)
 
         hyp_spin_lock(&allocator->lock);
 
+
         // Merge the remaining part into the current chunk
 
         chunk = chunk_get(container_of(chunk_data, struct chunk_hdr, data));
+#ifdef __CN_VERIFY
+        Lemma_Cn_char_array_to_Cn_char_array_with_offset(chunk_data,
+                                                          (u64)chunk,
+                                                          (u64)chunk_hdr_size());
+#endif
         /*@ unpack Cn_char_array(...); @*/
         /*@ unpack MaybeChunkHdr(...); @*/
         /*@
