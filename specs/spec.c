@@ -209,6 +209,7 @@ predicate (cn_chunk_hdr_raw) Own_chunk_hdr(pointer chunk)
         assert((u64)node.next != 0u64);
         assert((u64)node.prev != 0u64);
         assert((u64)chunk & 0x7u64 == 0u64);
+        assert((u64)alloc_size & 0x7u64 == 0u64);
         assert(!is_null(node.next));
         assert(!is_null(node.prev));
         take hash = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
