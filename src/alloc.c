@@ -1199,6 +1199,9 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 assert(prev_old_mapped_size <= prev_old_va_size); // (v)
                 assert(prev_old_va_size <= allocator_end); // (vi)
 
+                // workaround for Bennet/Fulminate
+                assert((u64)chunk & 7u64 == 0u64);
+
                 return {ha: HA_pre.ha, lseg: HA_pre.lseg};
         }
 }
