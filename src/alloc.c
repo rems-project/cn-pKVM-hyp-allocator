@@ -822,6 +822,10 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
         take X = Cn_char_array(start, owned_by_ha);
 
+        // workaround for Bennet/Fulminate
+        (u64)chunk & 0x7u64 == 0u64;
+        (u64)alloc_size & 0x7u64 == 0u64;
+
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
         let lseg_post = HA_post.lseg;
@@ -1166,6 +1170,10 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
 
+                // workaround for Bennet/Fulminate
+                assert((u64)chunk & 7u64 == 0u64);
+                assert(size & 0x7u64 == 0u64);
+
                 let dummy = {
                         header_address: 0u64,
                         mapped_size: 0u32,
@@ -1202,6 +1210,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
 
                 // workaround for Bennet/Fulminate
                 assert((u64)chunk & 7u64 == 0u64);
+                assert(size & 0x7u64 == 0u64);
 
                 return {ha: HA_pre.ha, lseg: HA_pre.lseg};
         }
