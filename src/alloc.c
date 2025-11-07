@@ -2851,8 +2851,7 @@ void *hyp_alloc(unsigned long size)
                 take U = MaybeCn_char_array(return, size);
 
                 let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
-                let remainder = is_null(return) ? return : array_shift<byte>(return, size);
-                take V = MaybeCn_char_array(remainder, actual_size - size);
+                take V = MaybeCn_char_array_with_offset(return, actual_size - size, size);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -2983,10 +2982,8 @@ end_unlocked:
                 /* CN DIFF */
                 // How do I write the spec to memset?
                 my_memset(chunk_data(chunk), 0, size);
-#ifdef __CN_VERIFY
-        LemmaSplitAndNewChunk(chunk_data(chunk), original_size, size - original_size);
-#endif
                 // memset(chunk_data(chunk), 0, size);
+                /*@ unpack Cn_char_array(...); @*/
         }
 	/*@ unpack SetupFirstChunk(...); @*/
 	/*@ unpack Conditional_Cn_char_array(...); @*/
