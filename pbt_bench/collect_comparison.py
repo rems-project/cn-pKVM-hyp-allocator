@@ -75,7 +75,7 @@ def select_benchmarks(should_fail: set[str], might_fail: set[str]) -> list[str]:
 
     try:
         result = subprocess.run(
-            ['./test-random.sh', '--progress-level=function', '--num-samples=1000'],
+            ['./test-random.sh', '--progress-level=function'],
             capture_output=True,
             text=True,
             timeout=3600  # 1 hour timeout

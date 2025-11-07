@@ -14,8 +14,6 @@ cn test --no-run \
     --smt-pruning-keep-redundant-assertions \
     --smt-pruning-at-runtime \
     --symbolic \
-    --skip=chunk_try_destroy \
-    --skip-fulminate=chunk_try_destroy \
     "$@"
 
 CPPFLAGS="-include ../fulminate2.h -O3" ./_test_symbolic/run_tests.sh

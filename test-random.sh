@@ -12,8 +12,6 @@ cn test --no-run \
     --input-timeout=0 \
     --smt-pruning-before-absint=fast \
     --smt-pruning-keep-redundant-assertions \
-    --skip=chunk_try_destroy \
-    --skip-fulminate=chunk_try_destroy \
     "$@"
 
 CPPFLAGS="-include ../fulminate2.h -O3" ./_test_random/run_tests.sh
