@@ -194,6 +194,8 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
         assert(!is_null(cn_hyp.last));
         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
         assert(ha.start > 0u64);
+        assert((u64)ha.start & 0x7u64 == 0u64);
+
         return cn_hyp;
 }
 @*/

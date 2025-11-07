@@ -2162,6 +2162,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     ptr_eq(a_in.ha.head, a_in.ha.first);
     size >= MIN_ALLOC();
     PAGE_ALIGN(Cn_chunk_size(size)) >= size; // no overflow
+    size & 0x7u64 == 0u64;
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
     PAGE_ALIGN(Cn_chunk_size(size)) > (u64)a_in.ha.size implies return != 0i32;
