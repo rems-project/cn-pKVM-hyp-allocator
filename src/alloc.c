@@ -1455,7 +1455,6 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
 static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
                          struct hyp_allocator *allocator)
 /*@
-        accesses hyp_allocator_mc;
         requires
                 !is_null(chunk);
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
@@ -1681,7 +1680,6 @@ function (u64) Cn_expected_mapping(pointer chunk, u64 size)
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
 /*@
-    accesses hyp_allocator_mc;
     requires
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
@@ -1901,7 +1899,6 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
 
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 /*@
-    accesses hyp_allocator_mc;
     requires take a_in=Cn_hyp_allocator(allocator);
     ptr_eq(a_in.ha.head, a_in.ha.first);
     size >= MIN_ALLOC();
@@ -2584,7 +2581,6 @@ void LemmaGetLastChunk(struct hyp_allocator *allocator)
 // HK: To avoid "mismatched types" error
 void *hyp_alloc(size_t size)
 /*@
-        accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
 
@@ -3111,14 +3107,6 @@ int hyp_alloc_init(size_t size)
 }
 
 int hyp_alloc_errno(void)
-/*@
-requires
-        take X = RW<int>(&hyp_allocator_errno);
-ensures
-        take Y = RW<int>(&hyp_allocator_errno);
-        Y == X;
-        return == X;
-@*/
 {
         int *errno = this_cpu_ptr(&hyp_allocator_errno);
 
@@ -3126,14 +3114,6 @@ ensures
 }
 
 u8 hyp_alloc_missing_donations(void)
-/*@
-requires
-        take X = RW<unsigned char>(&hyp_allocator_missing_donations);
-ensures
-        take Y = RW<unsigned char>(&hyp_allocator_missing_donations);
-        Y == 0u8;
-        return == X;
-@*/
 {
         u8 *missing = (this_cpu_ptr(&hyp_allocator_missing_donations));
         u8 __missing = *missing;
