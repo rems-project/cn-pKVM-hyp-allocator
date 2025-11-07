@@ -1124,6 +1124,7 @@ predicate (datatype chunk_hdr_u_option) MaybeChunkHdrU(pointer chunk, boolean co
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                assert((u64)alloc_size & 0x7u64 == 0u64);
                 assert((u64)node.next != 0u64);
                 assert((u64)node.prev != 0u64);
                 take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
