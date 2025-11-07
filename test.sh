@@ -59,7 +59,6 @@ targets=(
   hyp_alloc_missing_donations
   chunk_destroyable
   chunk_reclaimable
-  Lemma_Cn_char_array_to_Cn_char_array_with_offset
 )
 
 OPT="${OPT:-"-p 20"}"

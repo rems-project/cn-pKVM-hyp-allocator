@@ -3029,47 +3029,12 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ValidAllocatorAndAddr(pointer ha
 }
 @*/
 
-void Lemma_Cn_char_array_to_Cn_char_array_with_offset(void *addr, u64 size, u64 offset)
-/*@
-requires
-  !is_null(addr);
-  (u64)addr < offset;
-  size < (u64)MAXu32();
-  offset < (u64)MAXu32();
-  take V = Cn_char_array(addr, size);
-ensures
-  let base = array_shift<byte>(addr, -offset);
-  take V_post = Cn_char_array_with_offset(base, size, offset);
-@*/
-{
-        byte *ptr = (byte*)addr - offset;
-        /*@ unpack Cn_char_array(...); @*/
-        unsigned long i = 0;
-        while (i < size)
-        /*@ inv
-                take U1 = each(u64 j; i <= j && j < size) { W<byte>(array_shift<byte>(addr, j)) };
-                take U2 = each(u64 j; offset <= j && j < offset + i) { W<byte>(array_shift<byte>(ptr, j)) };
-                {addr} unchanged;
-                {size} unchanged;
-                {offset} unchanged;
-                ptr_eq(array_shift<byte>(ptr, offset), addr);
-                i <= (u64)size;
-        @*/
-        {
-                /*@ focus W<byte>, (u64)i; @*/
-                /*@ focus W<byte>, (u64)(i + offset); @*/
-                /*@ assert(ptr_eq(array_shift<byte>(ptr, offset), addr)); @*/
-                i++;
-        }
-}
-
 void hyp_free(void *addr)
 /*@
         requires cn_ghost u64 size;
                 take HA_pre = ValidAllocatorAndAddr(&hyp_allocator, addr);
                 take U = Cn_char_array(addr, (u64)size);
-                let remainder = array_shift<byte>(addr, size);
-                take V = Cn_char_array(addr, (u64)HA_pre.lseg.chunk.alloc_size - size);
+                take V = Cn_char_array_with_offset(addr, (u64)HA_pre.lseg.chunk.alloc_size - size, size);
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
@@ -3080,15 +3045,9 @@ void hyp_free(void *addr)
 
         hyp_spin_lock(&allocator->lock);
 
-
         // Merge the remaining part into the current chunk
 
         chunk = chunk_get(container_of(chunk_data, struct chunk_hdr, data));
-#ifdef __CN_VERIFY
-        Lemma_Cn_char_array_to_Cn_char_array_with_offset(chunk_data,
-                                                          (u64)chunk,
-                                                          (u64)chunk_hdr_size());
-#endif
         /*@ unpack Cn_char_array(...); @*/
         /*@ unpack MaybeChunkHdr(...); @*/
         /*@
