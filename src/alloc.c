@@ -3351,6 +3351,8 @@ int hyp_alloc_init(unsigned long size)
     requires
       // global variables
       __io_map_base > 0u64; __io_map_base + PAGE_ALIGN(size) > __io_map_base;
+      __io_map_base & 0x7u64 == 0u64;
+      size & 0x7u64 == 0u64;
       (u64)&hyp_allocator > 0u64;
       take HA1 = W<struct hyp_allocator>(&hyp_allocator);
     ensures take HA2 = MaybeHypAlloc(&hyp_allocator, return == 0i32);
