@@ -1577,32 +1577,30 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
         // (vi)      <= allocator_end
         let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size;
         let chunk_alloc_end = (u64)chunk + size + Cn_chunk_hdr_size();
-        let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
-        let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
+
+        // unimportant
+        // - some of them are for handing integer-overflow
+        // - some of them are verbose?
         (u64)prev <= prev_alloc_end; // (i)
-        prev_alloc_end <= (u64)chunk; // (ii)
         (u64)chunk < (u64)chunk + Cn_chunk_hdr_size(); // (iii')
         (u64)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end; // (iii'')
-        chunk_alloc_end <= prev_old_mapped_size; // (iv)
-        prev_old_mapped_size <= prev_old_va_size; // (v)
-        prev_old_va_size <= allocator_end; // (vi)
-
-        // workaround for Bennet/Fulminate
+        // - workaround for Bennet/Fulminate
         (u64)chunk & 7u64 == 0u64;
         size & 0x7u64 == 0u64;
 
+        // important
+        let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
+
+        prev_alloc_end <= (u64)chunk; // (ii)
+        chunk_alloc_end <= prev_old_mapped_size; // (iv)
+        prev_old_mapped_size <= (u64)prev + (u64)P_pre.va_size; // (v)
+        (u64)prev + Cn_chunk_hdr_size() + (u64)P_pre.alloc_size <= (u64) chunk;
 
         let Pre = {ha: HA_pre.ha, lseg: HA_pre.lseg};
-
-        let prev_u = (u64)prev + (u64)Pre.lseg.chunk.mapped_size;
-        let prev_cd = (u64)prev + (u64)offsetof(chunk_hdr, data);
-        let cond = prev_u < (u64)chunk;
-        let cond2 = (u64)prev_cd + (u64)Pre.lseg.chunk.alloc_size > (u64)chunk;
-        !cond && !cond2;
     ensures
         take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
-        let ha = Pre.ha;
-        let lseg = Pre.lseg;
+        let ha = HA_pre.ha;
+        let lseg = HA_pre.lseg;
         HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
         HA_post.lseg.before == lseg.before;
 
@@ -1637,7 +1635,6 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
 #endif
         prev_mapped_size = prev->mapped_size;
         prev->mapped_size = (unsigned long)chunk - (unsigned long)prev;
-
 
         chunk->mapped_size = prev_mapped_size - prev->mapped_size;
         chunk->alloc_size = size;
