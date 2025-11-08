@@ -1,5 +1,22 @@
+diff --git a/patches_for_paper/darcy b/patches_for_paper/darcy
+index de0267e..e69de29 100644
+--- a/patches_for_paper/darcy
++++ b/patches_for_paper/darcy
+@@ -1,12 +0,0 @@
+-diff --git a/src/alloc.c b/src/alloc.c
+-index 6faf956..076ea6c 100644
+---- a/src/alloc.c
+-+++ b/src/alloc.c
+-@@ -1499,7 +1499,6 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
+-         let prev_alloc_end = (u64)prev + Cn_chunk_hdr_size() + (u64)prev_chunk.alloc_size;
+- 
+-         chunk_alloc_end <= prev_old_mapped_size; // (iv)
+--        prev_alloc_end <= (u64) chunk;
+- 
+-     ensures
+-         take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
 diff --git a/src/alloc.c b/src/alloc.c
-index 6faf956..076ea6c 100644
+index 6faf956..f154d7e 100644
 --- a/src/alloc.c
 +++ b/src/alloc.c
 @@ -1499,7 +1499,6 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
@@ -10,3 +27,27 @@ index 6faf956..076ea6c 100644
  
      ensures
          take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
+@@ -1533,23 +1532,12 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
+ 
+ {
+         size_t prev_mapped_size;
+-#ifdef __CN_VERIFY
+-        LemmaCreateNewChunk(chunk, size, prev, allocator);
+-#endif
+         prev_mapped_size = prev->mapped_size;
+         prev->mapped_size = (unsigned long)chunk - (unsigned long)prev;
+ 
+         chunk->mapped_size = prev_mapped_size - prev->mapped_size;
+         chunk->alloc_size = size;
+ 
+-        /*@
+-        split_case(ptr_eq(
+-                member_shift<struct chunk_hdr>(prev, node)->next,
+-                member_shift<struct hyp_allocator>(allocator, chunks)));
+-        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
+-                member_shift<struct chunk_hdr>(prev, node), focus_pre.ha.last, Cn_hyp_allocator_core(focus_pre.ha));
+-        @*/
+-
+         chunk_list_insert(chunk, prev, allocator);
+ 
+         return 0;
