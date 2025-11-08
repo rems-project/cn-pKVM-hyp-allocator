@@ -1,4 +1,15 @@
+## `cut_out_chunk_install`
+
+Search for this function in alloc.c
+
+- Extracted the most important branch of `chunk_install` from the original.
+- Simplified and refactored its precondition for papers.
+- proved that this fragment with the spec that I provided is correct by CN proof.
+- replaced the branch in `chunk_install` with an appropriate function call to this function, and it has been proven correct by CN proof.
+
 ## Darcy patch
+
+Pitch: only Darcy can find this bug!
 
 ### Diff
 
@@ -17,7 +28,7 @@ State file: file:///var/folders/5_/bc8gln213hx04f4_d3p9p7dr0000gn/T/state__alloc
 ```
 
 
-This error message is not directly related to the specification error, which can be removed by adding proof annotations (which are in fact laborious) .
+This error message is not directly related to the specification error, which can be removed by adding proof annotations (which are in fact quite laborious).
 We want to know the spec error first, don't we?
 
 ### Bennet
@@ -108,6 +119,8 @@ cases: 1, passed: 0, failed: 1, errored: 0, skipped: 0
 
 ## Fulminate patch
 
+Pitch: Fulminate finds this easy spec error immediately, **even without specs for leaf functions**
+
 ### Diff
 
 - Changed the precondition (and postcondition) so that they only declare the ownership of `prev` chunk.
@@ -115,4 +128,40 @@ cases: 1, passed: 0, failed: 1, errored: 0, skipped: 0
 
 
 ### CN proof
+
+
+```
+[1/1]: cut_out_chunk_install -- fail
+src/alloc.c:1389:9: error: Missing resource for writing
+        chunk->mapped_size = prev_mapped_size - prev->mapped_size;
+        ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Resource needed: W<unsigned int>(&chunk->mapped_size)
+State file: file:///var/folders/5_/bc8gln213hx04f4_d3p9p7dr0000gn/T/state__alloc.c__cut_out_chunk_install.html
+make: *** [cn-verify] Error 1
+```
+
+### Fulminate
+
+```
+./main.exe || lldb -S lldb_config_for_fulminate.lldb
+Owned locations stack:
+                // HK: I think this assertion is not needed, if CN handles NULL 'properly'
+             ^main.pp.c:1182:14:
+==========================
+                // HK: I think this assertion is not needed, if CN handles NULL 'properly'
+             ^main.pp.c:1182:14:
+==========================
+                // HK: I think this assertion is not needed, if CN handles NULL 'properly'
+             ^main.pp.c:1182:14:
+==========================
+************************ Failed at *************************
+no source location found (try running with --exec-c-locs-mode enabled)Store failed.
+  ==> 0x1508081c0[0] (0x1508081c0) not owned at expected function call stack depth 4
+  ==> (owned at stack depth: 3)
+(lldb) command source -s 0 'lldb_config_for_fulminate.lldb'
+```
+
+Fulminate immediately can find the ownership error, in the leaf function, thanks to the fragmentary ownership. Furthermore, if we mark the remaining chunks as "wildcard", it is possible to ignore this error, and proceed with debugging further (even though there is no interface for that currently).
+
+(though printing error messages seems not working)
 
