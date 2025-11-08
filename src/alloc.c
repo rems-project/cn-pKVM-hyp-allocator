@@ -1551,6 +1551,110 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
         return 0;
 }
 
+// chunk: the new chunk to install
+// size: alloc size for chunk
+// prev: the previous chunk for `chunk`
+//   - this is never be allocator->chunks
+// invariant:
+//   - there is no chunk between prev and chunk
+//   - chunk is not owned by the allocator
+static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
+                         struct chunk_hdr *prev,
+                         struct hyp_allocator *allocator)
+/*@
+    requires
+        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
+        let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
+
+        let P_pre = HA_pre.lseg.chunk;
+        // order
+        // (i) prev <= prev_alloc_end
+        // (ii)      <= chunk
+        // (iii)     <= chunk_alloc_end
+        // (iv)      <= prev_old_mapped_size
+        // (v)       <= prev old_va_size
+        // (v)       <= prev old_va_size
+        // (vi)      <= allocator_end
+        let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size;
+        let chunk_alloc_end = (u64)chunk + size + Cn_chunk_hdr_size();
+        let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
+        let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
+        (u64)prev <= prev_alloc_end; // (i)
+        prev_alloc_end <= (u64)chunk; // (ii)
+        (u64)chunk < (u64)chunk + Cn_chunk_hdr_size(); // (iii')
+        (u64)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end; // (iii'')
+        chunk_alloc_end <= prev_old_mapped_size; // (iv)
+        prev_old_mapped_size <= prev_old_va_size; // (v)
+        prev_old_va_size <= allocator_end; // (vi)
+
+        // workaround for Bennet/Fulminate
+        (u64)chunk & 7u64 == 0u64;
+        size & 0x7u64 == 0u64;
+
+
+        let Pre = {ha: HA_pre.ha, lseg: HA_pre.lseg};
+
+        let prev_u = (u64)prev + (u64)Pre.lseg.chunk.mapped_size;
+        let prev_cd = (u64)prev + (u64)offsetof(chunk_hdr, data);
+        let cond = prev_u < (u64)chunk;
+        let cond2 = (u64)prev_cd + (u64)Pre.lseg.chunk.alloc_size > (u64)chunk;
+        !cond && !cond2;
+    ensures
+        take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
+        let ha = Pre.ha;
+        let lseg = Pre.lseg;
+        HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
+        HA_post.lseg.before == lseg.before;
+
+        !is_null(chunk);
+
+        let P_post = HA_post.lseg.chunk;
+
+        let prev_mapped_size = P_pre.mapped_size;
+        let prev_va_size = (u32)((u64)chunk - (u64)prev);
+        P_post == {
+                header_address: (u64)prev,
+                mapped_size: prev_va_size,
+                alloc_size: (u32)P_pre.alloc_size,
+                va_size: prev_va_size
+        };
+
+        let C_post = {
+                header_address: (u64)chunk,
+                mapped_size: prev_mapped_size - P_post.mapped_size,
+                alloc_size: (u32)size,
+                va_size: (u32)((u64)P_pre.va_size - (u64)P_post.va_size)
+        };
+        HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after};
+
+        take U = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size);
+@*/
+
+{
+        size_t prev_mapped_size;
+#ifdef __CN_VERIFY
+        LemmaCreateNewChunk(chunk, size, prev, allocator);
+#endif
+        prev_mapped_size = prev->mapped_size;
+        prev->mapped_size = (unsigned long)chunk - (unsigned long)prev;
+
+
+        chunk->mapped_size = prev_mapped_size - prev->mapped_size;
+        chunk->alloc_size = size;
+
+        /*@
+        split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(prev, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
+                member_shift<struct chunk_hdr>(prev, node), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
+        @*/
+
+        chunk_list_insert(chunk, prev, allocator);
+
+        return 0;
+}
+
 static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 /*@
 requires
