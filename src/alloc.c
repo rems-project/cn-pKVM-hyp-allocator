@@ -1563,10 +1563,8 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
 /*@
     requires
-        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
-        let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
-
-        let P_pre = HA_pre.lseg.chunk;
+        take focus_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
+        let prev_chunk = focus_pre.lseg.chunk;
         // order
         // (i) prev <= prev_alloc_end
         // (ii)      <= chunk
@@ -1575,32 +1573,30 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
         // (v)       <= prev old_va_size
         // (v)       <= prev old_va_size
         // (vi)      <= allocator_end
-        let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size;
-        let chunk_alloc_end = (u64)chunk + size + Cn_chunk_hdr_size();
 
         // unimportant
         // - some of them are for handing integer-overflow
-        // - some of them are verbose?
-        (u64)prev <= prev_alloc_end; // (i)
         (u64)chunk < (u64)chunk + Cn_chunk_hdr_size(); // (iii')
-        (u64)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end; // (iii'')
+        (u64)chunk + Cn_chunk_hdr_size() <= (u64)chunk + size + Cn_chunk_hdr_size(); // (iii'')
+        // - some of them are verbose?
+        (u64)prev + (u64)prev_chunk.mapped_size <= (u64)prev + (u64)prev_chunk.va_size; // (v)
+        (u64)prev <= (u64)prev + (u64)prev_chunk.alloc_size; // (i) <- do we need this?
         // - workaround for Bennet/Fulminate
         (u64)chunk & 7u64 == 0u64;
         size & 0x7u64 == 0u64;
 
         // important
-        let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
+        let prev_old_mapped_size = (u64)prev + (u64)prev_chunk.mapped_size;
+        let chunk_alloc_end = (u64)chunk + Cn_chunk_hdr_size() + size;
+        let prev_alloc_end = (u64)prev + Cn_chunk_hdr_size() + (u64)prev_chunk.alloc_size;
 
-        prev_alloc_end <= (u64)chunk; // (ii)
         chunk_alloc_end <= prev_old_mapped_size; // (iv)
-        prev_old_mapped_size <= (u64)prev + (u64)P_pre.va_size; // (v)
-        (u64)prev + Cn_chunk_hdr_size() + (u64)P_pre.alloc_size <= (u64) chunk;
+        prev_alloc_end <= (u64) chunk;
 
-        let Pre = {ha: HA_pre.ha, lseg: HA_pre.lseg};
     ensures
         take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
-        let ha = HA_pre.ha;
-        let lseg = HA_pre.lseg;
+        let ha = focus_pre.ha;
+        let lseg = focus_pre.lseg;
         HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
         HA_post.lseg.before == lseg.before;
 
@@ -1608,20 +1604,19 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
 
         let P_post = HA_post.lseg.chunk;
 
-        let prev_mapped_size = P_pre.mapped_size;
         let prev_va_size = (u32)((u64)chunk - (u64)prev);
         P_post == {
                 header_address: (u64)prev,
                 mapped_size: prev_va_size,
-                alloc_size: (u32)P_pre.alloc_size,
+                alloc_size: (u32)prev_chunk.alloc_size,
                 va_size: prev_va_size
         };
 
         let C_post = {
                 header_address: (u64)chunk,
-                mapped_size: prev_mapped_size - P_post.mapped_size,
+                mapped_size: prev_chunk.mapped_size - P_post.mapped_size,
                 alloc_size: (u32)size,
-                va_size: (u32)((u64)P_pre.va_size - (u64)P_post.va_size)
+                va_size: (u32)((u64)prev_chunk.va_size - (u64)P_post.va_size)
         };
         HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after};
 
@@ -1644,7 +1639,7 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
                 member_shift<struct chunk_hdr>(prev, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
-                member_shift<struct chunk_hdr>(prev, node), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
+                member_shift<struct chunk_hdr>(prev, node), focus_pre.ha.last, Cn_hyp_allocator_core(focus_pre.ha));
         @*/
 
         chunk_list_insert(chunk, prev, allocator);
