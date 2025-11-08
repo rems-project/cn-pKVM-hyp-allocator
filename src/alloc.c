@@ -1470,87 +1470,6 @@ ensures
 	/*@ unpack MaybeChunkHdr(...); @*/
 }
 #endif
-
-// chunk: the new chunk to install
-// size: alloc size for chunk
-// prev: the previous chunk for `chunk`
-//   - this is never be allocator->chunks
-// invariant:
-//   - there is no chunk between prev and chunk
-//   - chunk is not owned by the allocator
-static int chunk_install(struct chunk_hdr *chunk, size_t size,
-                         struct chunk_hdr *prev,
-                         struct hyp_allocator *allocator)
-/*@
-    requires
-        take Pre = ChunkInstallPre(chunk, size, prev, allocator);
-    ensures
-        take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre.ha, Pre.lseg, return);
-        // TODO: take alloc_size buffer
-@*/
-
-{
-        size_t prev_mapped_size;
-
-        /* First chunk, first allocation */
-        if (!prev) {
-	        /*@ unpack ChunkInstallPre(...); @*/
-	        /*@ unpack FirstAllocation(...); @*/
-#ifdef __CN_VERIFY
-                LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
-#endif
-                // Drop the garbage due to the lemma
-                /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
-                INIT_LIST_HEAD(&chunk->node);
-                // HK: non-rust ownership type part
-                // See the comments in chunk_list_insert
-                // HK: Currently we encounter the CN issue #148,
-                // so we cannot go further with the spec.
-                /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
-                @*/
-                list_add(&chunk->node, &allocator->chunks);
-                chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
-                chunk->alloc_size = size;
-
-                chunk_hash_update(chunk);
-
-		/*@ unpack MaybeChunkHdr(...); @*/
-		/*@ unpack CondListHead(...); @*/
-                return 0;
-        }
-	/*@ unpack ChunkInstallPre(...); @*/
-
-        if (chunk_unmapped_region(prev) < (unsigned long)chunk) {
-                return -EINVAL;
-        }
-        if ((unsigned long)chunk_data(prev) + prev->alloc_size > (unsigned long)chunk) {
-                return -EINVAL;
-        }
-#ifdef __CN_VERIFY
-        LemmaCreateNewChunk(chunk, size, prev, allocator);
-#endif
-        prev_mapped_size = prev->mapped_size;
-        prev->mapped_size = (unsigned long)chunk - (unsigned long)prev;
-
-
-        chunk->mapped_size = prev_mapped_size - prev->mapped_size;
-        chunk->alloc_size = size;
-
-        /*@
-                split_case(ptr_eq(
-                        member_shift<struct chunk_hdr>(prev, node)->next,
-                        member_shift<struct hyp_allocator>(allocator, chunks)));
-        @*/
-        /*@
-        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
-                member_shift<struct chunk_hdr>(prev, node), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
-        @*/
-
-        chunk_list_insert(chunk, prev, allocator);
-
-        return 0;
-}
-
 // chunk: the new chunk to install
 // size: alloc size for chunk
 // prev: the previous chunk for `chunk`
@@ -1559,8 +1478,8 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 //   - there is no chunk between prev and chunk
 //   - chunk is not owned by the allocator
 static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
-                         struct chunk_hdr *prev,
-                         struct hyp_allocator *allocator)
+                                 struct chunk_hdr *prev,
+                                 struct hyp_allocator *allocator)
 /*@
     requires
         take focus_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
@@ -1634,6 +1553,89 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
 
         return 0;
 }
+
+
+// chunk: the new chunk to install
+// size: alloc size for chunk
+// prev: the previous chunk for `chunk`
+//   - this is never be allocator->chunks
+// invariant:
+//   - there is no chunk between prev and chunk
+//   - chunk is not owned by the allocator
+static int chunk_install(struct chunk_hdr *chunk, size_t size,
+                         struct chunk_hdr *prev,
+                         struct hyp_allocator *allocator)
+/*@
+    requires
+        take Pre = ChunkInstallPre(chunk, size, prev, allocator);
+    ensures
+        take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre.ha, Pre.lseg, return);
+        // TODO: take alloc_size buffer
+@*/
+
+{
+        size_t prev_mapped_size;
+
+        /* First chunk, first allocation */
+        if (!prev) {
+	        /*@ unpack ChunkInstallPre(...); @*/
+	        /*@ unpack FirstAllocation(...); @*/
+#ifdef __CN_VERIFY
+                LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
+#endif
+                // Drop the garbage due to the lemma
+                /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
+                INIT_LIST_HEAD(&chunk->node);
+                // HK: non-rust ownership type part
+                // See the comments in chunk_list_insert
+                // HK: Currently we encounter the CN issue #148,
+                // so we cannot go further with the spec.
+                /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
+                @*/
+                list_add(&chunk->node, &allocator->chunks);
+                chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
+                chunk->alloc_size = size;
+
+                chunk_hash_update(chunk);
+
+		/*@ unpack MaybeChunkHdr(...); @*/
+		/*@ unpack CondListHead(...); @*/
+                return 0;
+        }
+	/*@ unpack ChunkInstallPre(...); @*/
+
+        if (chunk_unmapped_region(prev) < (unsigned long)chunk) {
+                return -EINVAL;
+        }
+        if ((unsigned long)chunk_data(prev) + prev->alloc_size > (unsigned long)chunk) {
+                return -EINVAL;
+        }
+        cut_out_chunk_install(chunk, size, prev, allocator);
+// #ifdef __CN_VERIFY
+//         LemmaCreateNewChunk(chunk, size, prev, allocator);
+// #endif
+//         prev_mapped_size = prev->mapped_size;
+//         prev->mapped_size = (unsigned long)chunk - (unsigned long)prev;
+//
+//
+//         chunk->mapped_size = prev_mapped_size - prev->mapped_size;
+//         chunk->alloc_size = size;
+//
+//         /*@
+//                 split_case(ptr_eq(
+//                         member_shift<struct chunk_hdr>(prev, node)->next,
+//                         member_shift<struct hyp_allocator>(allocator, chunks)));
+//         @*/
+//         /*@
+//         unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
+//                 member_shift<struct chunk_hdr>(prev, node), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
+//         @*/
+//
+//         chunk_list_insert(chunk, prev, allocator);
+
+        return 0;
+}
+
 
 static int chunk_merge(struct chunk_hdr *chunk, struct hyp_allocator *allocator)
 /*@
