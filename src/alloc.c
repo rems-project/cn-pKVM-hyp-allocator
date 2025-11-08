@@ -1484,7 +1484,8 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
     requires
         take focus_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
         let prev_chunk = focus_pre.lseg.chunk;
-        // unimportant
+
+        // unimportant condition (will be omitted in the paper)
         // - some of them are for handing integer-overflow
         (u64)chunk < (u64)chunk + Cn_chunk_hdr_size(); // (iii')
         (u64)chunk + Cn_chunk_hdr_size() <= (u64)chunk + size + Cn_chunk_hdr_size(); // (iii'')
