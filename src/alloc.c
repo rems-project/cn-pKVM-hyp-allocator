@@ -1565,27 +1565,15 @@ static int cut_out_chunk_install(struct chunk_hdr *chunk, size_t size,
     requires
         take focus_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
         let prev_chunk = focus_pre.lseg.chunk;
-        // order
-        // (i) prev <= prev_alloc_end
-        // (ii)      <= chunk
-        // (iii)     <= chunk_alloc_end
-        // (iv)      <= prev_old_mapped_size
-        // (v)       <= prev old_va_size
-        // (v)       <= prev old_va_size
-        // (vi)      <= allocator_end
-
         // unimportant
         // - some of them are for handing integer-overflow
         (u64)chunk < (u64)chunk + Cn_chunk_hdr_size(); // (iii')
         (u64)chunk + Cn_chunk_hdr_size() <= (u64)chunk + size + Cn_chunk_hdr_size(); // (iii'')
-        // - some of them are verbose?
-        (u64)prev + (u64)prev_chunk.mapped_size <= (u64)prev + (u64)prev_chunk.va_size; // (v)
-        (u64)prev <= (u64)prev + (u64)prev_chunk.alloc_size; // (i) <- do we need this?
         // - workaround for Bennet/Fulminate
         (u64)chunk & 7u64 == 0u64;
         size & 0x7u64 == 0u64;
 
-        // important
+        // important: check if chunk and size are appropriate to be a new chunk
         let prev_old_mapped_size = (u64)prev + (u64)prev_chunk.mapped_size;
         let chunk_alloc_end = (u64)chunk + Cn_chunk_hdr_size() + size;
         let prev_alloc_end = (u64)prev + Cn_chunk_hdr_size() + (u64)prev_chunk.alloc_size;
