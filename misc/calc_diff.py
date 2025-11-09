@@ -14,7 +14,8 @@ def preprocess(path):
     skip2 = 0
     nested = False  # workaround for the last lines
     for line in s.splitlines():
-        if line.startswith('#ifdef __CN_VERIFY'):
+        if (line.startswith('#ifdef __CN_VERIFY')
+                or line.startswith('#if defined(__CN_VERIFY)')):
             assert (not skip and skip2 == 0)
             skip = True
             continue

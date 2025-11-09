@@ -141,7 +141,7 @@ function (u64) MergeU32s(u32 x, u32 y)
 
 @*/
 
-#ifdef __CN_VERIFY
+#if defined(__CN_VERIFY) || defined(__CN_TEST)
 void LemmaTurnU32sToU64(unsigned *a, unsigned *b)
 /*@
 requires
@@ -692,7 +692,7 @@ function [rec] (cn_chunk_hdrs) SnocHdr(cn_chunk_hdrs hdrs, cn_chunk_hdr hdr)
 
 
 @*/
-#ifdef __CN_VERIFY
+#if defined(__CN_VERIFY) || defined(__CN_TEST)
 void LemmaNextChunk(struct chunk_hdr *chunk,
                     struct hyp_allocator *allocator)
 /*@
@@ -884,7 +884,7 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 	/*@ unpack MaybeChunkHdr(...); @*/
 }
 
-#ifdef __CN_VERIFY
+#if defined(__CN_VERIFY) || defined(__CN_TEST)
 void LemmaMergeArrays(
         char *p, unsigned long size1, unsigned long size2
 )
@@ -1043,7 +1043,7 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 
 static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
-#ifdef __CN_VERIFY
+#ifdef __CN_VERIFY // CANT_PBT
 /*@
         requires
                 take HA_pre = Cn_hyp_allocator_only(allocator);
@@ -1296,7 +1296,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
 }
 @*/
 
-#ifdef __CN_VERIFY
+#if defined(__CN_VERIFY) || defined(__CN_TEST)
 void LemmaSplitAndNewChunk(
         char *p, unsigned int size1, unsigned int size2
 )
@@ -2239,7 +2239,7 @@ predicate ({cn_hyp_allocator ha, cn_chunk_hdr best_chunk, struct list_head node}
 }
 @*/
 
-#ifdef __CN_VERIFY
+#if defined(__CN_VERIFY) || defined(__CN_TEST)
 void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *best_chunk)
 /*@
         requires
@@ -2660,7 +2660,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 	/*CN*/ return retv;
 }
 
-#ifdef __CN_VERIFY
+#if defined(__CN_VERIFY) || defined(__CN_TEST)
 /*@
 predicate (cn_hyp_allocator) LemmaLsegToChunkHdrsInv(pointer chunk, pointer allocator)
 {
@@ -3344,7 +3344,7 @@ predicate (void) MaybeHypAlloc(pointer p, boolean cond)
 // avoid type mismatch
 //int hyp_alloc_init(size_t size)
 int hyp_alloc_init(unsigned long size)
-#ifdef __CN_VERIFY
+#ifdef __CN_VERIFY // CANT_PBT
 /*@
         accesses __io_map_base;
         accesses __hyp_vmemmap;

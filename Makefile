@@ -54,11 +54,11 @@ cn-instrument: main.exe
 	./main.exe || lldb -S lldb_config_for_fulminate.lldb
 
 .PHONY: cn-test-random
-cn-test-random: src/alloc.c
+cn-test-random: src/alloc.c ./test-random.sh
 	./test-random.sh --cc=$(CC)
 
 .PHONY: cn-test-symbolic
-cn-test-symbolic: src/alloc.c
+cn-test-symbolic: src/alloc.c ./test-symbolic.sh
 	./test-symbolic.sh --cc=$(CC) \
 		--skip=hyp_alloc
 
