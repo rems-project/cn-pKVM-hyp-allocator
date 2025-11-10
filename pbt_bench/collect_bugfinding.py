@@ -7,6 +7,7 @@ Tests each patch from bug_finding.json to measure bug detection rates and timing
 import csv
 import json
 import math
+import re
 import subprocess
 import sys
 import time
@@ -118,7 +119,7 @@ def reset_files():
         sys.exit(1)
 
 
-def run_trial(function: str, trial_num: int) -> tuple[bool, float]:
+def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, int | None]:
     """
     Run a single trial of symbolic testing for a specific function.
 
@@ -127,11 +128,13 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float]:
         trial_num: Trial number (for logging)
 
     Returns:
-        Tuple of (bug_found: bool, elapsed_time: float)
-        - bug_found is True if exit code is non-zero
+        Tuple of (bug_found: bool, elapsed_time: float, num_runs: int | None, num_discards: int | None)
+        - bug_found is True if FAILED pattern is found in output
         - elapsed_time is in seconds
+        - num_runs is the number of runs reported (None if no bug found or not matched)
+        - num_discards is the number of discards reported (None if not present or no bug found)
 
-    If timeout occurs, returns (False, 60.0)
+    If timeout occurs, returns (False, elapsed_time, None, None)
     """
     start_time = time.time()
 
@@ -139,25 +142,41 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float]:
         result = subprocess.run(
             ['./test-symbolic.sh', f'--only={function}',
              '--no-replicas', '--no-replay', '--exit-fast',
-             '--num-samples=10000'],
+             '--num-samples=100000'],
             capture_output=True,
             text=True,
             timeout=600  # 10 minute timeout
         )
 
         elapsed = time.time() - start_time
-        bug_found = result.returncode != 0
 
-        return (bug_found, elapsed)
+        # Combine stdout and stderr for pattern matching
+        combined_output = result.stdout + result.stderr
+
+        # Pattern to match: Testing <function>: N runs[, M discards]\nFAILED
+        pattern = r'Testing\s+[^\n]+:\s*(\d+)\s+runs(?:,\s*(\d+)\s+discards)?[^\n]*\nFAILED'
+        match = re.search(pattern, combined_output)
+
+        bug_found = match is not None
+        num_runs = None
+        num_discards = None
+
+        if bug_found:
+            num_runs = int(match.group(1))
+            # Group 2 is the discards (may be None if not present)
+            if match.group(2):
+                num_discards = int(match.group(2))
+
+        return (bug_found, elapsed, num_runs, num_discards)
 
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start_time
         # Timeout means no bug found within time limit
-        return (False, elapsed)
+        return (False, elapsed, None, None)
     except Exception as e:
         print(f"\n  WARNING: Trial {trial_num} failed with exception: {e}")
         elapsed = time.time() - start_time
-        return (False, elapsed)
+        return (False, elapsed, None, None)
 
 
 def test_patch(patch_data: dict, num_trials: int = 10) -> dict:
@@ -180,14 +199,23 @@ def test_patch(patch_data: dict, num_trials: int = 10) -> dict:
     # Run trials with nested progress bar
     bug_found_count = 0
     times = []
+    runs_data = []  # List of runs for each successful detection
+    discards_data = []  # List of discards for each successful detection
 
     with tqdm(total=num_trials, desc="    Trials", unit="trial", leave=False) as trial_pbar:
         for trial in range(1, num_trials + 1):
-            bug_found, elapsed = run_trial(function, trial)
+            bug_found, elapsed, num_runs, num_discards = run_trial(
+                function, trial)
 
             if bug_found:
                 bug_found_count += 1
                 times.append(elapsed)
+
+                # Store runs and discards data
+                if num_runs is not None:
+                    runs_data.append(num_runs)
+                if num_discards is not None:
+                    discards_data.append(num_discards)
 
             trial_pbar.set_postfix({
                 "found": bug_found_count,
@@ -209,6 +237,26 @@ def test_patch(patch_data: dict, num_trials: int = 10) -> dict:
         min_time = math.nan
         max_time = math.nan
 
+    # Calculate runs statistics
+    if runs_data:
+        avg_runs = sum(runs_data) / len(runs_data)
+        min_runs = min(runs_data)
+        max_runs = max(runs_data)
+    else:
+        avg_runs = math.nan
+        min_runs = math.nan
+        max_runs = math.nan
+
+    # Calculate discards statistics
+    if discards_data:
+        avg_discards = sum(discards_data) / len(discards_data)
+        min_discards = min(discards_data)
+        max_discards = max(discards_data)
+    else:
+        avg_discards = math.nan
+        min_discards = math.nan
+        max_discards = math.nan
+
     return {
         'patch': patch_path,
         'function': function,
@@ -218,7 +266,17 @@ def test_patch(patch_data: dict, num_trials: int = 10) -> dict:
         'avg_time': avg_time,
         'min_time': min_time,
         'max_time': max_time,
-        'all_times': times
+        'all_times': times,
+        # Runs statistics
+        'avg_runs': avg_runs,
+        'min_runs': min_runs,
+        'max_runs': max_runs,
+        'all_runs': runs_data,
+        # Discards statistics
+        'avg_discards': avg_discards,
+        'min_discards': min_discards,
+        'max_discards': max_discards,
+        'all_discards': discards_data,
     }
 
 
@@ -291,7 +349,9 @@ def main():
     try:
         with open(csv_filename, 'w', newline='') as csvfile:
             fieldnames = ['patch', 'function', 'trials', 'bugs_found',
-                          'detection_rate', 'avg_time', 'min_time', 'max_time', 'all_times']
+                          'detection_rate', 'avg_time', 'min_time', 'max_time', 'all_times',
+                          'avg_runs', 'min_runs', 'max_runs', 'all_runs',
+                          'avg_discards', 'min_discards', 'max_discards', 'all_discards']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(results)

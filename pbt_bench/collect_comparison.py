@@ -89,6 +89,9 @@ def select_benchmarks(should_fail: set[str], might_fail: set[str]) -> list[str]:
         function_pattern = r'Testing\s+([^\n]+?):\s'
         functions = re.findall(function_pattern, output)
 
+        # Filter out non-function entries like "Summary"
+        functions = [f for f in functions if f != 'Summary']
+
         # Remove basename:: prefix and duplicates while preserving order
         all_functions = list(dict.fromkeys(
             [extract_function_name(f) for f in functions]))

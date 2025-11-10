@@ -90,11 +90,7 @@ cn-test-symbolic-lite: src/alloc.c
 
 .PHONY: collect-pbt-comparison
 collect-pbt-comparison:
-	./pbt_bench/collect_comparison.py \
-		--should-fail=shim_create_hyp_mapping \
-		--should-fail=hyp_allocator_map \
-		--might-fail=__pkvm_alloc_private_va_range \
-		--might-fail=hyp_alloc_init
+	./pbt_bench/collect_comparison.py
 
 .PHONY: collect-pbt-bug-finding
 collect-pbt-bug-finding:
