@@ -49,7 +49,7 @@
     },
     {
         "path": "patches/patch-16-9ea8103221f8f84fb7885ae3922aa6b699e9e156",
-        "fut": "chunk_hash_compute"
+        "fut": "chunk_hash_update"
     },
     {
         "path": "patches/patch-17-3413739244909ff7ab5cb0ec3abbff703b3ef5ac",

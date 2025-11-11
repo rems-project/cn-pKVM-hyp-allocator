@@ -1,8 +1,8 @@
 diff --git a/specs/spec.c b/specs/spec.c
-index 6ac46d8..8c29532 100644
+index 08a82c9..1ecec74 100644
 --- a/specs/spec.c
 +++ b/specs/spec.c
-@@ -200,24 +200,9 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
+@@ -202,26 +202,11 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
  
  /*@
  // Own_chunk just owns the chunk header and the mapped part of the chunk
@@ -15,6 +15,8 @@ index 6ac46d8..8c29532 100644
 -        take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
 -        assert((u64)node.next != 0u64);
 -        assert((u64)node.prev != 0u64);
+-        assert((u64)chunk & 0x7u64 == 0u64);
+-        assert((u64)alloc_size & 0x7u64 == 0u64);
 -        assert(!is_null(node.next));
 -        assert(!is_null(node.prev));
 -        take hash = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
@@ -26,11 +28,13 @@ index 6ac46d8..8c29532 100644
 -                hash: hash
 -        };
 +        take cn_hdr = RW<struct chunk_hdr_only>(header_address);
++        assert((u64)header_address & 0x7u64 == 0u64);
++        assert((u64)cn_hdr.alloc_size & 0x7u64 == 0u64);
          return cn_hdr;
  }
  
 diff --git a/src/alloc.c b/src/alloc.c
-index 4fcb302..8b1bfff 100644
+index 34436d7..6cbe0d3 100644
 --- a/src/alloc.c
 +++ b/src/alloc.c
 @@ -95,15 +95,9 @@ typedef unsigned char byte;
@@ -50,7 +54,7 @@ index 4fcb302..8b1bfff 100644
  }
  datatype chunk_hdr_u_option {
    ChunkHdr_u_none {},
-@@ -199,22 +193,10 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
+@@ -199,21 +193,10 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
  /*@
      requires
          !is_null(chunk);
@@ -70,13 +74,12 @@ index 4fcb302..8b1bfff 100644
 -        alloc_size_pre == alloc_size_post;
 -        mapped_size_pre == mapped_size_post;
 -        node_pre == node_post;
--
 +        take C_post = Own_chunk_hdr(chunk);
 +        C_pre == C_post;
+ 
  @*/
  {
- 
-@@ -240,33 +222,11 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
+@@ -240,33 +223,11 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
          // @*/
  
          BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
@@ -110,7 +113,7 @@ index 4fcb302..8b1bfff 100644
              hash ^= hash_64(*data, 32);
              len -= sizeof(u64);
              data++;
-@@ -1075,7 +1035,6 @@ predicate (datatype chunk_hdr_u_option) MaybeChunkHdrU(pointer chunk, boolean co
+@@ -1082,7 +1043,6 @@ predicate (datatype chunk_hdr_u_option) MaybeChunkHdrU(pointer chunk, boolean co
                  assert((u64)node.next != 0u64);
                  assert((u64)node.prev != 0u64);
                  take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
@@ -118,7 +121,7 @@ index 4fcb302..8b1bfff 100644
                  return ChunkHdr_u_some { alloc_size: alloc_size, mapped_size: mapped_size, node: node };
          }
          else
-@@ -1088,7 +1047,7 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
+@@ -1095,7 +1055,7 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
  {
          if (condition)
          {
@@ -127,7 +130,7 @@ index 4fcb302..8b1bfff 100644
                  return ChunkHdr_some { hdr: v };
          }
          else
-@@ -1257,13 +1216,8 @@ lemma CreateChunkHdr(pointer chunk_data)
+@@ -1272,13 +1232,8 @@ lemma CreateChunkHdr(pointer chunk_data)
          take U = each(u64 i; i < Cn_chunk_hdr_size()){
                  W<char>(array_shift<char>(chunk_data, i))
          };
