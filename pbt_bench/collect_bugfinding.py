@@ -6,7 +6,6 @@ Tests each patch from bug_finding.json to measure bug detection rates and timing
 
 import csv
 import json
-import math
 import re
 import subprocess
 import sys
@@ -90,7 +89,8 @@ def apply_patch(patch_path: str):
 
 def reset_files():
     """
-    Reset src/alloc.c and specs/spec.c to the base version (discard changes).
+    Reset src/alloc.c and specs/spec.c to the base version (discard changes),
+    then reapply the workaround patches.
 
     Exits with error if reset fails.
     """
@@ -117,6 +117,10 @@ def reset_files():
     except Exception as e:
         print(f"\nERROR: Failed to reset src/alloc.c and specs/spec.c: {e}")
         sys.exit(1)
+
+    # Reapply workaround patches after reset
+    apply_patch('patches/spec_workaround.patch')
+    apply_patch('patches/alloc_workaround.patch')
 
 
 def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, int | None]:
@@ -164,7 +168,8 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
         num_discards = None
 
         if bug_found:
-            num_runs = int(match.group(1))
+            if match.group(1):
+                num_runs = int(match.group(1))
             # Group 2 is the discards (may be None if not present)
             if match.group(2):
                 num_discards = int(match.group(2))
@@ -192,16 +197,18 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
         return (False, elapsed, None, None)
 
 
-def test_patch(patch_data: dict, num_trials: int = 10) -> dict:
+def test_patch(patch_data: dict, csv_writer, num_trials: int = 10) -> int:
     """
     Test a patch by applying it and running multiple trials.
+    Writes each trial result to CSV immediately.
 
     Args:
         patch_data: Dictionary with 'path' and 'fut' keys
+        csv_writer: CSV DictWriter to write results to
         num_trials: Number of trials to run (default: 10)
 
     Returns:
-        Dictionary with results including times, bug_found counts, etc.
+        Number of bugs found across all trials
     """
     patch_path = patch_data['path']
     function = patch_data['fut']
@@ -211,9 +218,6 @@ def test_patch(patch_data: dict, num_trials: int = 10) -> dict:
 
     # Run trials with nested progress bar
     bug_found_count = 0
-    times = []
-    runs_data = []  # List of runs for each successful detection
-    discards_data = []  # List of discards for each successful detection
 
     with tqdm(total=num_trials, desc="    Trials", unit="trial", leave=False) as trial_pbar:
         for trial in range(1, num_trials + 1):
@@ -222,13 +226,17 @@ def test_patch(patch_data: dict, num_trials: int = 10) -> dict:
 
             if bug_found:
                 bug_found_count += 1
-                times.append(elapsed)
 
-                # Store runs and discards data
-                if num_runs is not None:
-                    runs_data.append(num_runs)
-                if num_discards is not None:
-                    discards_data.append(num_discards)
+            # Write trial result immediately
+            csv_writer.writerow({
+                'patch': patch_path,
+                'function': function,
+                'trial_num': trial,
+                'bug_found': bug_found,
+                'elapsed_time': elapsed,
+                'num_runs': num_runs if num_runs is not None else '',
+                'num_discards': num_discards if num_discards is not None else ''
+            })
 
             trial_pbar.set_postfix({
                 "found": bug_found_count,
@@ -239,58 +247,7 @@ def test_patch(patch_data: dict, num_trials: int = 10) -> dict:
     # Reset files to base version
     reset_files()
 
-    # Calculate statistics (only for trials that found bugs)
-    if times:
-        avg_time = sum(times) / len(times)
-        min_time = min(times)
-        max_time = max(times)
-    else:
-        # No bugs found in any trial
-        avg_time = math.nan
-        min_time = math.nan
-        max_time = math.nan
-
-    # Calculate runs statistics
-    if runs_data:
-        avg_runs = sum(runs_data) / len(runs_data)
-        min_runs = min(runs_data)
-        max_runs = max(runs_data)
-    else:
-        avg_runs = math.nan
-        min_runs = math.nan
-        max_runs = math.nan
-
-    # Calculate discards statistics
-    if discards_data:
-        avg_discards = sum(discards_data) / len(discards_data)
-        min_discards = min(discards_data)
-        max_discards = max(discards_data)
-    else:
-        avg_discards = math.nan
-        min_discards = math.nan
-        max_discards = math.nan
-
-    return {
-        'patch': patch_path,
-        'function': function,
-        'trials': num_trials,
-        'bugs_found': bug_found_count,
-        'detection_rate': bug_found_count / num_trials if num_trials > 0 else 0.0,
-        'avg_time': avg_time,
-        'min_time': min_time,
-        'max_time': max_time,
-        'all_times': times,
-        # Runs statistics
-        'avg_runs': avg_runs,
-        'min_runs': min_runs,
-        'max_runs': max_runs,
-        'all_runs': runs_data,
-        # Discards statistics
-        'avg_discards': avg_discards,
-        'min_discards': min_discards,
-        'max_discards': max_discards,
-        'all_discards': discards_data,
-    }
+    return bug_found_count
 
 
 def load_bug_finding_data() -> list[dict]:
@@ -330,66 +287,72 @@ def main():
     print("Base versions checked out")
     print()
 
+    # Apply workaround patches
+    print("Applying workaround patches...")
+    apply_patch('patches/spec_workaround.patch')
+    apply_patch('patches/alloc_workaround.patch')
+    print("Workaround patches applied")
+    print()
+
     # Load patch data
     print("Loading bug_finding.json...")
     patches = load_bug_finding_data()
     print(f"Loaded {len(patches)} patches")
     print()
 
-    # Test each patch
-    results = []
-
-    print("Running bug finding trials...")
-    with tqdm(total=len(patches), desc="Patches", unit="patch") as patch_pbar:
-        for i, patch_data in enumerate(patches, 1):
-            function = patch_data['fut']
-
-            patch_pbar.set_description(f"Patch {i}/{len(patches)}: {function}")
-
-            result = test_patch(patch_data, num_trials=10)
-            results.append(result)
-
-            patch_pbar.set_postfix({
-                "found": f"{result['bugs_found']}/10",
-                "avg": f"{result['avg_time']:.2f}s"
-            })
-            patch_pbar.update(1)
-
-    print()
-
-    # Save to CSV
+    # Initialize CSV file
     csv_filename = 'pbt_bug_finding_data.csv'
     try:
-        with open(csv_filename, 'w', newline='') as csvfile:
-            fieldnames = ['patch', 'function', 'trials', 'bugs_found',
-                          'detection_rate', 'avg_time', 'min_time', 'max_time', 'all_times',
-                          'avg_runs', 'min_runs', 'max_runs', 'all_runs',
-                          'avg_discards', 'min_discards', 'max_discards', 'all_discards']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(results)
+        csvfile = open(csv_filename, 'w', newline='')
+        fieldnames = ['patch', 'function', 'trial_num', 'bug_found',
+                      'elapsed_time', 'num_runs', 'num_discards']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        csvfile.flush()  # Ensure header is written immediately
+        print(f"Writing results to: {csv_filename}")
+        print()
+    except Exception as e:
+        print(f"\nERROR: Failed to create CSV file: {e}")
+        sys.exit(1)
 
-        print("Data collection complete!")
-        print(f"Results saved to: {csv_filename}")
-        print(f"Total patches tested: {len(results)}")
+    # Test each patch
+    total_bugs_found = 0
+    total_trials = 0
 
-        # Summary statistics
-        total_bugs_found = sum(r['bugs_found'] for r in results)
-        total_trials = sum(r['trials'] for r in results)
-        overall_detection_rate = total_bugs_found / \
-            total_trials if total_trials > 0 else 0.0
+    try:
+        print("Running bug finding trials...")
+        with tqdm(total=len(patches), desc="Patches", unit="patch") as patch_pbar:
+            for i, patch_data in enumerate(patches, 1):
+                function = patch_data['fut']
+
+                patch_pbar.set_description(f"Patch {i}/{len(patches)}: {function}")
+
+                num_trials = 10
+                bugs_found = test_patch(patch_data, writer, num_trials=num_trials)
+                csvfile.flush()  # Ensure results are written to disk immediately
+
+                total_bugs_found += bugs_found
+                total_trials += num_trials
+
+                patch_pbar.set_postfix({
+                    "found": f"{bugs_found}/{num_trials}"
+                })
+                patch_pbar.update(1)
 
         print()
-        print("="*60)
-        print("Summary Statistics")
-        print("="*60)
+        print("Data collection complete!")
+        print(f"Results saved to: {csv_filename}")
+        print(f"Total patches tested: {len(patches)}")
         print(f"Total trials: {total_trials}")
         print(f"Total bugs found: {total_bugs_found}")
-        print(f"Overall detection rate: {overall_detection_rate:.2%}")
+        print()
+        print("Run analyze_bugfinding.py for detailed statistics")
 
     except Exception as e:
-        print(f"\nERROR: Failed to save CSV file: {e}")
-        sys.exit(1)
+        print(f"\nERROR during data collection: {e}")
+        raise
+    finally:
+        csvfile.close()
 
 
 if __name__ == '__main__':
