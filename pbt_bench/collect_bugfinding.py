@@ -22,7 +22,7 @@ except ImportError:
 
 def checkout_base_version():
     """
-    Checkout the base version of src/alloc.c and specs/spec.c at commit b391f721fe71b8682a7e1752375c5c1bef936491.
+    Checkout the base version of src/alloc.c, src/shim.c and specs/spec.c at commit b391f721fe71b8682a7e1752375c5c1bef936491.
 
     Exits with error if checkout fails.
     """
@@ -142,7 +142,9 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
         result = subprocess.run(
             ['./test-symbolic.sh', f'--only={function}',
              '--no-replicas', '--no-replay', '--exit-fast',
-             '--num-samples=100000'],
+             '--num-samples=100000',
+             '--max-array-length=20',
+             '--max-generator-size=5'],
             capture_output=True,
             text=True,
             timeout=600  # 10 minute timeout
@@ -166,6 +168,20 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
             # Group 2 is the discards (may be None if not present)
             if match.group(2):
                 num_discards = int(match.group(2))
+
+        # Validate: non-zero exit code MUST match bug finding pattern
+        if result.returncode != 0 and not bug_found:
+            print(f"\n  ERROR: test-symbolic.sh exited with code {result.returncode} but output did not match bug finding pattern")
+            print(f"  Function: {function}, Trial: {trial_num}")
+            print(f"  Expected pattern: {pattern}")
+            print("\n  === STDOUT ===")
+            print(result.stdout)
+            print("\n  === STDERR ===")
+            print(result.stderr)
+            raise RuntimeError(
+                f"test-symbolic.sh returned non-zero exit code ({result.returncode}) "
+                f"without matching bug finding pattern for {function} trial {trial_num}"
+            )
 
         return (bug_found, elapsed, num_runs, num_discards)
 
