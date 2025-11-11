@@ -1,0 +1,70 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb302..34436d7 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -373,6 +373,9 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
+                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+                 take A_pre = RW<struct hyp_allocator>(allocator);
+                 !is_null(node.next);
++                // Workaround for https://github.com/rems-project/cn/issues/369
++                let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node)); !is_null(next_chunk);
++
+                 (u64)node.next & 0x7u64 == 0u64;
+         ensures
+                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+@@ -784,6 +787,9 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
+         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
+         take X = Cn_char_array(start, owned_by_ha);
+ 
++        // workaround for Bennet/Fulminate
++        (u64)chunk & 0x7u64 == 0u64;
++        (u64)alloc_size & 0x7u64 == 0u64;
+         let new_last = lseg_pre.after == Chunk_nil{} ? member_shift<struct chunk_hdr>(chunk, node) : HA_pre.ha.last;
+ 
+     ensures
+@@ -1072,6 +1078,7 @@ predicate (datatype chunk_hdr_u_option) MaybeChunkHdrU(pointer chunk, boolean co
+                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
++                assert((u64)alloc_size & 0x7u64 == 0u64);
+                 assert((u64)node.next != 0u64);
+                 assert((u64)node.prev != 0u64);
+                 take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+@@ -1115,6 +1122,10 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
+                 assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
+                 assert(ha.start == (u64)chunk);
+ 
++                // workaround for Bennet/Fulminate
++                assert((u64)chunk & 7u64 == 0u64);
++                assert(size & 0x7u64 == 0u64);
++
+                 let dummy = {
+                         header_address: 0u64,
+                         mapped_size: 0u32,
+@@ -1151,6 +1162,10 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
+                 assert(prev_old_mapped_size <= prev_old_va_size); // (v)
+                 assert(prev_old_va_size <= allocator_end); // (vi)
+ 
++                // workaround for Bennet/Fulminate
++                assert((u64)chunk & 7u64 == 0u64);
++                assert(size & 0x7u64 == 0u64);
++
+                 return {ha: HA_pre.ha, lseg: HA_pre.lseg};
+         }
+ }
+@@ -1979,6 +1994,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
+         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+         let C_pre = HA_pre.lseg.chunk;
+         size > 0u64 && size < (u64)HA_pre.ha.size;
++        size & 0x7u64 == 0u64;
+         C_pre.alloc_size == 0u32;
+ 
+         // suffix '_' is to avoid the name conflict due to Fulminate
+@@ -2197,6 +2213,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
+     ptr_eq(a_in.ha.head, a_in.ha.first);
+     size >= MIN_ALLOC();
+     PAGE_ALIGN(Cn_chunk_size(size)) >= size; // no overflow
++    size & 0x7u64 == 0u64;
+     ensures
+     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
+     PAGE_ALIGN(Cn_chunk_size(size)) > (u64)a_in.ha.size implies return != 0i32;

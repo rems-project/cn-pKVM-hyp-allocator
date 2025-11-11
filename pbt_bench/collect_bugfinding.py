@@ -29,7 +29,7 @@ def checkout_base_version():
     try:
         result = subprocess.run(
             ['git', 'checkout', 'b391f721fe71b8682a7e1752375c5c1bef936491',
-                '--', 'src/alloc.c', 'specs/spec.c'],
+                '--', 'src/alloc.c', 'src/shim.c', 'specs/spec.c'],
             capture_output=True,
             text=True,
             timeout=30

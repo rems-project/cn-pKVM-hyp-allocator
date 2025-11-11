@@ -1,0 +1,22 @@
+diff --git a/specs/spec.c b/specs/spec.c
+index 6ac46d8..08a82c9 100644
+--- a/specs/spec.c
++++ b/specs/spec.c
+@@ -194,6 +194,8 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
+         assert(!is_null(cn_hyp.last));
+         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
+         assert(ha.start > 0u64);
++        assert((u64)ha.start & 0x7u64 == 0u64);
++
+         return cn_hyp;
+ }
+ @*/
+@@ -208,6 +210,8 @@ predicate (cn_chunk_hdr_raw) Own_chunk_hdr(pointer chunk)
+         take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+         assert((u64)node.next != 0u64);
+         assert((u64)node.prev != 0u64);
++        assert((u64)chunk & 0x7u64 == 0u64);
++        assert((u64)alloc_size & 0x7u64 == 0u64);
+         assert(!is_null(node.next));
+         assert(!is_null(node.prev));
+         take hash = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
