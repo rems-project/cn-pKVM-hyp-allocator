@@ -118,9 +118,8 @@ def reset_files():
         print(f"\nERROR: Failed to reset src/alloc.c and specs/spec.c: {e}")
         sys.exit(1)
 
-    # Reapply workaround patches after reset
-    apply_patch('patches/spec_workaround.patch')
-    apply_patch('patches/alloc_workaround.patch')
+    # Reapply workaround patch after reset
+    apply_patch('patches/workaround.patch')
 
 
 def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, int | None]:
