@@ -36,10 +36,6 @@
         "fut": "chunk_merge"
     },
     {
-        "path": "patches/patch-12-729a674386f12801e71c5ef2ac4c65851bf9db28",
-        "fut": "hyp_free"
-    },
-    {
         "path": "patches/patch-13-729a674386f12801e71c5ef2ac4c65851bf9db28",
         "fut": "chunk_recycle"
     },
