@@ -156,7 +156,7 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
         combined_output = result.stdout + result.stderr
 
         # Pattern to match: Testing <function>: N runs[, M discards]\nFAILED
-        pattern = r'Testing\s+[^\n]+:\s*(\d+)\s+runs(?:,\s*(\d+)\s+discards)?[^\n]*\nFAILED'
+        pattern = r'Testing\s+[^\n]+:(?:\s*(\d+)\s+runs(?:,\s*(\d+)\s+discards)?)?[^\n]*\nFAILED'
         match = re.search(pattern, combined_output)
 
         bug_found = match is not None
@@ -171,7 +171,8 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
 
         # Validate: non-zero exit code MUST match bug finding pattern
         if result.returncode != 0 and not bug_found:
-            print(f"\n  ERROR: test-symbolic.sh exited with code {result.returncode} but output did not match bug finding pattern")
+            print(
+                f"\n  ERROR: test-symbolic.sh exited with code {result.returncode} but output did not match bug finding pattern")
             print(f"  Function: {function}, Trial: {trial_num}")
             print(f"  Expected pattern: {pattern}")
             print("\n  === STDOUT ===")
@@ -188,10 +189,6 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start_time
         # Timeout means no bug found within time limit
-        return (False, elapsed, None, None)
-    except Exception as e:
-        print(f"\n  WARNING: Trial {trial_num} failed with exception: {e}")
-        elapsed = time.time() - start_time
         return (False, elapsed, None, None)
 
 
