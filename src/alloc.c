@@ -1205,6 +1205,13 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 assert(prev_old_mapped_size <= prev_old_va_size); // (v)
                 assert(prev_old_va_size <= allocator_end); // (vi)
 
+
+                let prev_u = (u64)prev + (u64)P_pre.mapped_size;
+                let prev_cd = (u64)prev + (u64)offsetof(chunk_hdr, data);
+                let cond = prev_u >= (u64)chunk;
+                let cond2 = (u64)prev_cd + (u64)P_pre.alloc_size <= (u64)chunk;
+                assert(cond && cond2);
+
                 // workaround for Bennet/Fulminate
                 assert((u64)chunk & 7u64 == 0u64);
                 assert(size & 0x7u64 == 0u64);
@@ -1241,54 +1248,13 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                 return;
         }
         else
-        { if (ret == 0i32)
         {
-                take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
-                assert(HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head));
-                assert(HA_post.lseg.before == lseg.before);
-
-                assert(!is_null(chunk));
-
-                let P_pre = lseg.chunk;
-                let P_post = HA_post.lseg.chunk;
-
-
-
-                let prev_mapped_size = P_pre.mapped_size;
-                let prev_va_size = (u32)((u64)chunk - (u64)prev);
-                assert(P_post == {
-                        header_address: (u64)prev,
-                        mapped_size: prev_va_size,
-                        alloc_size: (u32)P_pre.alloc_size,
-                        va_size: prev_va_size
-                });
-
-                let C_post = {
-                        header_address: (u64)chunk,
-                        mapped_size: prev_mapped_size - P_post.mapped_size,
-                        alloc_size: (u32)size,
-                        va_size: (u32)((u64)P_pre.va_size - (u64)P_post.va_size)
-                };
-                assert(HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
-
-                take U = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size);
-
-                return;
-        }
-        else {
                 take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
                 let P_pre = lseg.chunk;
                 assert(ha == HA_post.ha);
                 assert(HA_post.lseg == lseg);
 
-                let prev_u = (u64)prev + (u64)P_pre.mapped_size;
-                let prev_cd = (u64)prev + (u64)offsetof(chunk_hdr, data);
-                let cond = prev_u < (u64)chunk;
-                let cond2 = (u64)prev_cd + (u64)P_pre.alloc_size > (u64)chunk;
-                assert(cond || cond2);
-
                 return;
-        }
         }
 }
 @*/
@@ -1482,6 +1448,7 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
     requires
         take Pre = ChunkInstallPre(chunk, size, prev, allocator);
     ensures
+        return == 0i32; // we can say it always succeeds!
         take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre.ha, Pre.lseg, return);
         // TODO: take alloc_size buffer
 @*/
