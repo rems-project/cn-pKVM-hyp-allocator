@@ -1250,9 +1250,34 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
         else
         {
                 take HA_post =Cn_hyp_allocator_focusing_on(allocator, prev);
+                assert(HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head));
+                assert(HA_post.lseg.before == lseg.before);
+
+                assert(!is_null(chunk));
+
                 let P_pre = lseg.chunk;
-                assert(ha == HA_post.ha);
-                assert(HA_post.lseg == lseg);
+                let P_post = HA_post.lseg.chunk;
+
+
+
+                let prev_mapped_size = P_pre.mapped_size;
+                let prev_va_size = (u32)((u64)chunk - (u64)prev);
+                assert(P_post == {
+                        header_address: (u64)prev,
+                        mapped_size: prev_va_size,
+                        alloc_size: (u32)P_pre.alloc_size,
+                        va_size: prev_va_size
+                });
+
+                let C_post = {
+                        header_address: (u64)chunk,
+                        mapped_size: prev_mapped_size - P_post.mapped_size,
+                        alloc_size: (u32)size,
+                        va_size: (u32)((u64)P_pre.va_size - (u64)P_post.va_size)
+                };
+                assert(HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
+
+                take U = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size);
 
                 return;
         }
