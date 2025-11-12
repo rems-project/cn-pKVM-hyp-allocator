@@ -1,0 +1,5 @@
+target create "./_test_symbolic/tests.out"
+settings set target.disable-aslr true
+command script import lldb_lib.py
+process launch -- --trap --input-timeout 0 --seed 0 --smt-pruning-at-runtime
+bt
