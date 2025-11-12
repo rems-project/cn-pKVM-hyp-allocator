@@ -145,6 +145,7 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
         result = subprocess.run(
             ['./test-symbolic.sh', f'--only={function}',
              '--no-replicas', '--no-replay', '--exit-fast',
+             '--until-timeout=60',
              '--num-samples=100000',
              '--max-array-length=20',
              '--max-generator-size=5'],
