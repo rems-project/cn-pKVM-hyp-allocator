@@ -59,6 +59,7 @@ targets=(
   hyp_alloc_missing_donations
   chunk_destroyable
   chunk_reclaimable
+  hyp_alloc_size
 )
 
 OPT="${OPT:-"-p 20"}"
