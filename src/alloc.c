@@ -3004,8 +3004,17 @@ end_unlocked:
         return ret ? NULL : chunk_data(chunk);
 }
 
-#ifndef STANDALONE
 static size_t hyp_alloc_size(void *addr)
+/*@
+requires
+        !is_null(addr);
+        let header_address = array_shift<byte>(addr, - Cn_chunk_hdr_size());
+        take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator,header_address);
+        let C = HA_pre.lseg.chunk;
+ensures
+        return == (u64)C.alloc_size;
+        take HA_post = Cn_hyp_allocator_focusing_on(&hyp_allocator,header_address);
+@*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
         char *chunk_data = (char *)addr;
@@ -3014,12 +3023,14 @@ static size_t hyp_alloc_size(void *addr)
 
         hyp_spin_lock(&allocator->lock);
         chunk = chunk_get(container_of(chunk_data, struct chunk_hdr, data));
+        /*@ unpack MaybeChunkHdr(...); @*/
         size = chunk->alloc_size;
         hyp_spin_unlock(&allocator->lock);
 
         return size;
 }
 
+#ifndef STANDALONE
 void *hyp_alloc_account(size_t size, struct kvm *host_kvm)
 {
         void *addr = hyp_alloc(size);
