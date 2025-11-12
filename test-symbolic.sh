@@ -16,4 +16,4 @@ cn test --no-run \
     --symbolic \
     "$@"
 
-CPPFLAGS="-include ../fulminate2.h -O3" ./_test_symbolic/run_tests.sh
+CPPFLAGS="-include ../fulminate2.h -fbracket-depth=512" ./_test_symbolic/run_tests.sh || lldb -S lldb_config_for_darcy.lldb
