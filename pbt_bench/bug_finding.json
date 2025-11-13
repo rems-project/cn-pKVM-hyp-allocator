@@ -89,7 +89,7 @@
     },
     {
         "path": "patches/patch-27-c00c975a4820011831f205916eb8a6f05ff9f7e0",
-        "fut": "setup_first_chunk"
+        "fut": "chunk_install"
     },
     {
         "path": "patches/patch-28-8cd201c36d81ae49c55b765c85be42ee105ba017",
