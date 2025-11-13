@@ -15,18 +15,12 @@ As you can see in the code, the full precondition and postcondition become more 
 We have also renamed some predicate names and variables for presentation in the paper.
 The following table shows the correspondence between the names used in the paper and those in the actual specification.
 
-| paper  | code          |
-| ------ | ------------- |
-| barray | Cn_char_array |
-| Maybe_barray | MaybeCn_char_array |
-| hyp_allocator | Cn_hyp_allocator |
-|
-
-
-
-
-
-
-
-
-
+| paper                    | code                           |
+| ------------------------ | ------------------------------ |
+| barray                   | Cn_char_array                  |
+| barray_with_offset       | Cn_char_array_with_offset      |
+| Maybe_barray             | MaybeCn_char_array             |
+| Maybe_barray_with_offset | MaybeCn_char_array_with_offset |
+| hyp_allocator            | Cn_hyp_allocator               |
+| ALIGN                    | cn_ALIGN                       |
+| hdr_size                 | Cn_chunk_hdr_size              |
