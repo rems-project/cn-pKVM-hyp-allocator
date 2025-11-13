@@ -66,7 +66,6 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 		ptr_eq(L_post.prev, list);
 @*/
 {
-	// HK(patch)
 	// WRITE_ONCE(list->next, list);
 	// WRITE_ONCE(list->prev, list);
 	list->next = list;
@@ -169,9 +168,6 @@ static inline int list_is_last(const struct list_head *list, const struct list_h
 	* This is only for internal list manipulation where we know
 	* the prev/next entries already!
 	*/
-// HK: we have to handle the case for the first allocation where
-// head == allocator->chunks and head->next == allocator->chunks
-// That's why we need the pattern matching.
 static inline void __list_add(struct list_head *new,
 								struct list_head *prev,
 								struct list_head *next)
@@ -206,7 +202,6 @@ static inline void __list_add(struct list_head *new,
 	next->prev = new;
 	new->next = next;
 	new->prev = prev;
-	// HK: removed WRITE_ONCE
 	// WRITE_ONCE(prev->next, new);
 	prev->next = new;
 }
@@ -286,7 +281,6 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
 @*/
 {
 	next->prev = prev;
-	// TODO: Recover WRITE_ONCE
 	//WRITE_ONCE(prev->next, next);
 	prev->next = next;
 }

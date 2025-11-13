@@ -5,16 +5,11 @@ CC = clang-19
 # includes adapted from _build/compile_commands.json
 INCLUDES= -Isrc -Iinclude
 
-# KM version
 INCLUDES= -I$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Isrc -Iinclude
 CPP=$(CC) -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__
 
-# Fulminate
 RUNTIME_PREFIX = $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
 RUNTIME_LIB = $(RUNTIME_PREFIX)
-# RUNTIME_INCLUDES= -Isrc -Iinclude
-# RUNTIME_CPP = $(CC) -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__x86_64__ -D__GNUC__="5" -D__cerb__ 
-# RUNTIME_CPP = $(CC) -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__ 
 RUNTIME_CPP = $(CC) -std=gnu11 -E -P -CC -isystem$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Werror -Wno-builtin-macro-redefined -D__cerb__  -undef -fkeep-system-includes  -Isrc -Iinclude  -DSTANDALONE -DNO_STATEMENT_EXPRS
 
 tmp-alloc.c: src/alloc.c
@@ -87,22 +82,6 @@ cn-test-symbolic-lite: src/alloc.c
 		--skip=brain_exploding_calculation \
 		--skip=hyp_alloc \
 		--skip=hyp_free
-
-.PHONY: collect-pbt-comparison
-collect-pbt-comparison:
-	./pbt_bench/collect_comparison.py \
-		--should-fail=shim_create_hyp_mapping \
-		--should-fail=hyp_allocator_map \
-		--might-fail=__pkvm_alloc_private_va_range \
-		--might-fail=hyp_alloc_init
-
-.PHONY: collect-pbt-bug-finding
-collect-pbt-bug-finding:
-	./pbt_bench/collect_bugfinding.py
-
-.PHONY: analyze-pbt-comparison
-analyze-pbt-comparison:
-	./pbt_bench/analyze_comparison.py
 
 .PHONY: clean
 clean:

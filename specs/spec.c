@@ -13,7 +13,7 @@ type_synonym cn_chunk_hdr = {
   va header_address, // the VA of the start of the chunk_hdr
   u32 alloc_size, // exactly as in the C
   u32 mapped_size,  // exactly as in the C
-  u32 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
+  u32 va_size      // implicit in the C: the total va space size of this chunk
   // no node, no hash, no data, no ownership here
 }
 
