@@ -61,8 +61,8 @@ The size of `chunk_hdr` up to (but not including) `data` is 4 + 4 + 8 + 8 + 4 =
 total size to 32 bytes. As a result, if you directly use `struct chunk_hdr_only`,
 there will be a 4-byte overlap between the header and the data.
 
-That’s why I added 4 bytes of explicit padding to the struct.
-I’m not sure if this is the best solution, but it works for now.
+That's why I added 4 bytes of explicit padding to the struct.
+I'm not sure if this is the best solution, but it works for now.
 */
 struct chunk_hdr {
         u32                     alloc_size;
@@ -275,12 +275,10 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         (u64)X2 == (u64)node_pre.next;
         take X3 = RW<unsigned long long>(member_shift<struct list_head>(node, prev));
         (u64)X3 == (u64)node_pre.prev;
-        //take L = each(u64 i; i < 3u64) { RW<unsigned long long>(array_shift<unsigned long long>(alloc_size, i))};
     @*/
     {
             /*@ split_case(ptr_eq(alloc_size, data));@*/
             /*@ split_case(ptr_eq(member_shift<struct list_head>(node, next), data));@*/
-            ///*@ split_case(ptr_eq(alloc_size, data));@*/
             hash ^= hash_64(*data, 32);
             len -= sizeof(u64);
             data++;
@@ -355,12 +353,9 @@ function (u64) Cn_chunk_hdr_size ()
 {
         (u64) offsetof(chunk_hdr, data)
 }
-// HK: size_t cast is removed. Macro requires cast because it does not know what the
-// argument type is.
 function (u64) Cn_chunk_size (u64 size)
 {
         Cn_chunk_hdr_size() + (size > MIN_ALLOC() ? size : MIN_ALLOC())
-        //(u64) member_shift<struct chunk_hdr>(NULL, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
 }
 function (pointer) Cn_chunk_data (struct chunk_hdr chunk)
 {
@@ -388,7 +383,6 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(node.next);
-                // Workaround for https://github.com/rems-project/cn/issues/369
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node)); !is_null(next_chunk);
 
                 (u64)node.next & 0x7u64 == 0u64;
@@ -410,7 +404,6 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 };
 @*/
 {
-        //*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         return list_is_last(&(chunk)->node, &(allocator)->chunks) ?
                 NULL : list_next_entry(chunk, node);
 }
@@ -426,7 +419,6 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 !is_null(node.prev);
-                // Workaround for https://github.com/rems-project/cn/issues/369
                 let prev_chunk = array_shift<char>(node.prev, -offsetof(chunk_hdr, node)); !is_null(prev_chunk);
                 (u64)node.prev & 0x7u64 == 0u64;
         ensures
@@ -767,11 +759,6 @@ void LemmaPrevChunk(struct chunk_hdr *chunk,
 #endif
 
 
-// This function takes
-//   - a chunk *not in the chunk list*
-//   - a chunk *in the chunk list*, which will be the previous chunk of the new chunk
-//   - the allocator
-// and inserts the new chunk into the chunk list after the previous chunk.
 static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct chunk_hdr *prev,
                                      struct hyp_allocator *allocator)
@@ -945,9 +932,6 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     (u64)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)prev_hdr.Hdr.va_size;
     (u64)prev_hdr.Hdr.va_size <= (u64)cn_hdr.Hdr.va_size + (u64)prev_hdr.Hdr.va_size;
 
-    // let chunk_end = prev_hdr.Hdr.header_address + (u64) prev_hdr.Hdr.mapped_size;
-    // chunk_end <= end;
-    // chunk_end >= prev_hdr.Hdr.header_address;
     let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
     ptr_eq(prev_hdr.Node.next, chunk_node);
 
@@ -1027,8 +1011,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
 @*/
 #endif
-// HK: Hyp_allocator_map mines a new memory from memcache and maps it.
-// This means that it returns an ownership of this mined memory out of thin air.
 {
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
         unsigned long va_end = va + size;
@@ -1304,7 +1286,6 @@ void LemmaCreateChunkHdr(char *chunk_data)
         take Y = W<struct chunk_hdr_only>(p);
 @*/
 {
-        //LemmaSplitAndNewChunk(chunk_data, sizeof(unsigned), cur_size);
         /*@ unpack Cn_char_array(chunk_data, Cn_chunk_hdr_size()); @*/
         /*@
         from_bytes W<struct chunk_hdr_only>(chunk_data);
@@ -1418,7 +1399,6 @@ ensures
                         member_shift<struct chunk_hdr>(prev, node)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)));
         @*/
-        // maybe? for chunk_unmapped_size
         /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
                 member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
         @*/
@@ -1431,10 +1411,6 @@ ensures
 }
 #endif
 
-// chunk: the new chunk to install
-// size: alloc size for chunk
-// prev: the previous chunk for `chunk`
-//   - this is never be allocator->chunks
 static int chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct chunk_hdr *prev,
                          struct hyp_allocator *allocator)
@@ -1456,7 +1432,6 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
 #ifdef __CN_VERIFY
                 LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
 #endif
-                // Drop the garbage due to the lemma
                 /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
@@ -1591,7 +1566,6 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
                 return == Cn_chunk_needs_mapping((u64)C_post.mapped_size, size);
 @*/
 {
-        // size_t mapping_missing, mapping_needs = chunk_size(size);
         unsigned long mapping_missing, mapping_needs = chunk_size(size);
 
         if (mapping_needs <= chunk->mapped_size)
@@ -1686,7 +1660,6 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
 {
         int ret;
 
-        // HK: we need this because of `chunk_hash_validate` in get_next_chunk...
         /*@
         split_case(ptr_eq(
                     member_shift<struct chunk_hdr>(chunk, node)->next,
@@ -1694,15 +1667,6 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
         @*/
-        //if (chunk->node.next != &allocator->chunks) {
-        //        /*@
-        //        split_case(ptr_eq(
-        //                (member_shift<struct chunk_hdr>(chunk, node)->next)->next,
-        //                member_shift<struct hyp_allocator>(allocator, chunks)));
-        //        unpack Cn_chunk_hdrs((member_shift<struct chunk_hdr>(chunk, node)->next)->next,
-        //        (member_shift<struct chunk_hdr>(chunk, node)->next), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
-        //        @*/
-        //}
         if (chunk_unmapped_size(chunk, allocator) < map_size) {
 	        /*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 return -EINVAL;
@@ -1773,11 +1737,6 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 function (u64) Cn_chunk_addr_fixup(u64 addr)
 {
 
-        // let min_chunk_size = Cn_chunk_size(0u64);
-        // let page = PAGE_ALIGN_DOWN(addr);
-        // let delta = addr - page;
-        // let res = delta == 0u64 ? addr :
-        //         (delta < min_chunk_size ? (page + min_chunk_size) : addr);
         (addr - PAGE_ALIGN_DOWN(addr)) == 0u64 ? addr :
                 ((addr - PAGE_ALIGN_DOWN(addr)) < Cn_chunk_size(0u64) ? (PAGE_ALIGN_DOWN(addr) + Cn_chunk_size(0u64)) : addr)
 }
@@ -1824,14 +1783,6 @@ function (boolean) Cn_chunk_can_split(cn_lseg lseg, u64 addr)
 static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
                             struct hyp_allocator *allocator)
 
-/*
-   required_size
-   |-------------|-------------|
-   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-           va_size
-   => |---------|    |-----------|
-        |--------------^
-*/
 /*@
         requires
                 !is_null(chunk);
@@ -1944,14 +1895,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         new_chunk_addr = chunk_addr_fixup(new_chunk_addr);
         if (chunk_can_split(chunk, new_chunk_addr, allocator)) {
                 new_chunk = (struct chunk_hdr *)new_chunk_addr;
-                // HK: when we can split the chunk,
-                // the va addresses of the header of the new chunk have to be mapped.
-                // HK: :exploding_head:
-                //   new_chunk_addr == chunk + chunk_hdr_size() + size + Δ;
-                //   chunk_data(chunk) == chunk + chunk_hdr_size();
-                // so,
-                //   expected_mapping == size + chunk_hdr_size() + Δ
-                // where Δ < 32, right?
                 expected_mapping = new_chunk_addr + chunk_hdr_size() -
                                         (unsigned long)chunk_data(chunk);
         }
@@ -1973,17 +1916,10 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         chunk_hash_update(chunk);
 
         if (new_chunk) {
-                // /*@
-                // apply SplitAndNewChunk(original_cn_char_array, (u32)size_1, (u32)size_2, (u32)size_3);
-                // @*/
-                //(u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size)
-                // chunk must be non null
 		/*@ assert(!is_null(chunk)); @*/
 	        /*@ unpack MaybeChunkHdr(...); @*/
-		/* CN DIFF */
-		/* HK: capturing the return value is needed to unfold `ChunkInstallPost` */
-		    int ret = chunk_install(new_chunk, 0, chunk, allocator);
-                    WARN_ON(ret);
+		/* CN */ int ret = chunk_install(new_chunk, 0, chunk, allocator);
+                /* CN */ WARN_ON(ret);
                 /*@ split_case(is_null(chunk)); @*/
                 /*@ split_case(ret == 0i32); @*/
 		/*@ unpack ChunkInstallPost(...); @*/
@@ -2056,16 +1992,6 @@ unmap:
         return unmapped;
 }
 /*@
-// function (boolean) SetupFirstChunk_ex1(cn_chunk_hdrs after)
-// {
-//         match (after) {
-//             Chunk_nil {} => { false }
-//             Chunk_cons { hd: next_chunk, tl: tl } => {
-//                     tl == Chunk_nil {}
-//             }
-//         }
-//
-// }
 predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, size_t size, i32 ret)
 {
     if (ret == 0i32) {
@@ -2143,8 +2069,6 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev_alt(pointer p, pointe
                 let header_address = array_shift<char>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.next, next));
-                // HK: I think this assertion is not needed, if CN handles NULL "properly"
-                // c.f. https://github.com/rems-project/cn/issues/135
                 assert(!is_null(cn_hdr.Node.next));
                 assert(!is_null(cn_hdr.Node.prev));
                 take tl = Cn_chunk_hdrs_rev_alt(cn_hdr.Node.prev, p, first_chunk_node, ha, head);
@@ -2229,7 +2153,6 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                 BestChunk.Node == Inv.node;
         @*/
         {
-                ///*@ assert(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct chunk_hdr>(best_chunk, node))); @*/
                 /*@
 		unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(...);
                 split_case(
@@ -2475,10 +2398,6 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
 @*/
 
 static struct chunk_hdr *get_free_chunk(struct hyp_allocator *allocator, size_t size)
-// should the spec of this characterise "best", or just ensure that this returns a legit chunk?  We guess the latter is sufficient for functional correctness and we'll do that
-// should the spec of this pull out the ownership of that chunk, or just identify the chunk?  We guess the context will sometimes have to mess with neighbouring chunks, so we'll do the pulling out there, not here
-// what variable name to use for the result of Cn_hyp_allocator?
-// (should CN support enforced per-type naming conventions?)
 /*@
 requires
         take HA_in = Cn_hyp_allocator(allocator);
@@ -2488,31 +2407,13 @@ requires
         size <= Cn_chunk_size(size); // no overflow
 ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
-// is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
 @*/
 
 {
         /*CN*/ struct chunk_hdr * retv = NULL;
-        /* CN DIFF */
-        // version: e6f1cbbab1843a62714bf19329cbabf43adbd297
         struct chunk_hdr *chunk, *best_chunk = NULL;
         size_t best_available_size = SIZE_MAX;
 
-        // HK: O(n) search for the best chunk
-        // Several thoughts:
-        // 1. Doesn't care about the mapped_size, which may involve a lot of
-        // mappings and unmappings. No?
-        // 2. the invariant should be a bit complicated
-        //  | 1 | -> | 2 | ... -> |best_chunk| -> ... -> |cur| -> ... -> |last|
-        // a possible strategy for ownerships when best_chunk is not null
-        //   - ListSeg Fst      ; first part until best_chunk
-        //   - Chunk_hdr Best   ; best_chunk
-        //   - ListSeg Discarded; from next of best_chunk to cur
-        //   - Chunk_hdr Cur    ; cur
-        //   - List Remaining   ; from next of cur to last
-        // where ListSeg is a reversed list
-
-        // HK: Unfolding GetFreeChunkInv for the loop entry
 	/*@ unpack FirstAllocation(...); @*/
         /*@ unpack Cn_chunk_hdrs(ha.first, ha_full.head, ha_full.last, Cn_hyp_allocator_core(ha_full)); @*/
 
@@ -2557,18 +2458,6 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                         @*/
                 }
 #endif
-                // if (best_chunk) {
-                        // /*@
-                        // split_case(ptr_eq(member_shift<struct chunk_hdr>(best_chunk, node)->next,
-                        //         member_shift<struct hyp_allocator>(allocator, chunks)
-                        // ));
-                        // unpack Cn_chunk_hdrs(
-                        //         member_shift<struct chunk_hdr>(best_chunk, node)->next,
-                        //         member_shift<struct chunk_hdr>(best_chunk, node), ha_full.last,
-                        //         Cn_hyp_allocator_core(ha_full)
-                        // );
-                        // @*/
-                //}
                 size_t available_size = chunk->mapped_size +
 					chunk_unmapped_size(chunk, allocator);
 		/*@ unpack MaybeChunkHdr(...); @*/
