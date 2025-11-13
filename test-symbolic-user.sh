@@ -2,7 +2,7 @@
 set -e
 
 cn test --no-run \
-    --output-dir=_test_random/ \
+    --output-dir=_test_symbolic/ \
     --output-tyche=results.jsonl \
     src/alloc.c \
     -Isrc -Iinclude \
@@ -12,7 +12,9 @@ cn test --no-run \
     --input-timeout=0 \
     --smt-pruning-before-absint=fast \
     --smt-pruning-keep-redundant-assertions \
-    --trap \
+    --smt-pruning-at-runtime \
+    --max-array-length=400 \
+    --symbolic \
     "$@"
 
-CPPFLAGS="-include ../fulminate2.h" ./_test_random/run_tests.sh
+CPPFLAGS="-include ../fulminate2.h -fbracket-depth=512" ./_test_symbolic/run_tests.sh || lldb -S lldb_config_for_darcy.lldb

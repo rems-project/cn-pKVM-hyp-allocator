@@ -15,4 +15,4 @@ cn test --no-run \
     --trap \
     "$@"
 
-CPPFLAGS="-include ../fulminate2.h" ./_test_random/run_tests.sh
+CPPFLAGS="-include ../fulminate2.h" ./_test_random/run_tests.sh || lldb -S lldb_config_for_darcy.lldb
