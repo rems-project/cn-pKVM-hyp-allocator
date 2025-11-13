@@ -1,6 +1,6 @@
 # attempts to run CN frontend on alloc.c, via an explicit cpp and direct
 
-CC = clang-19
+CC = clang
 
 # includes adapted from _build/compile_commands.json
 INCLUDES= -Isrc -Iinclude
@@ -41,7 +41,7 @@ main.pp.c: src/main.c src/alloc.c specs/spec.c
 
 main.pp.exec.c: main.pp.c
 	cn --version | sed -n 's/^git-\([0-9a-f]\{9\}\).*/\1/p' > .cn_version
-	cn instrument $<
+	cn instrument --insert-curly-braces $<
 
 main.pp.exec.o: main.pp.exec.c
 	$(CC) -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h $<
