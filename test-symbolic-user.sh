@@ -13,8 +13,7 @@ cn test --no-run \
     --smt-pruning-before-absint=fast \
     --smt-pruning-keep-redundant-assertions \
     --smt-pruning-at-runtime \
-    --max-array-length=400 \
     --symbolic \
     "$@"
 
-CPPFLAGS="-include ../fulminate2.h -fbracket-depth=512" ./_test_symbolic/run_tests.sh || lldb -S lldb_config_for_darcy.lldb
+CPPFLAGS="-include ../fulminate2.h" ./_test_symbolic/run_tests.sh || lldb -S lldb_config_for_darcy.lldb
