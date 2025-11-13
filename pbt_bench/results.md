@@ -1,3 +1,11 @@
+# Bennet Results
+
+### Instant
+
+1. patch-16
+2. patch-25
+3. patch-28
+
 # Darcy Results
 
 ## Automatically found

@@ -12,7 +12,6 @@ cn test --no-run \
     --input-timeout=0 \
     --smt-pruning-before-absint=fast \
     --smt-pruning-keep-redundant-assertions \
-    --trap \
     "$@"
 
 CPPFLAGS="-include ../fulminate2.h" ./_test_random/run_tests.sh
