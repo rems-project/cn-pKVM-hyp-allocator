@@ -23,6 +23,7 @@ for f in $FILES; do
     mkdir -p "$TMPDIR/$(dirname "$f")"
     cp "$f" "$TMPDIR/$f"
 done
+cp SUPPLEMENTARY_MATERIAL_README.md "$TMPDIR/README.md"
 
 tar czvf supplementary_material.tar.gz -C "$TMPDIR" .
 
