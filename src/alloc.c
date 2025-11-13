@@ -42,7 +42,7 @@ static struct hyp_allocator {
         hyp_spinlock_t          lock;
 } hyp_allocator;
 
-/* HK: Why "explicit padding"?
+/* Why "explicit padding"?
 
 First, the original `chunk_hdr`'s data access is a bit unusual: the `data` field
 is located at the end of the struct and is only one byte in size.
@@ -62,7 +62,7 @@ total size to 32 bytes. As a result, if you directly use `struct chunk_hdr_only`
 there will be a 4-byte overlap between the header and the data.
 
 That's why I added 4 bytes of explicit padding to the struct.
-I'm not sure if this is the best solution, but it works for now.
+I’m not sure if this is the best solution, but it works for now.
 */
 struct chunk_hdr {
         u32                     alloc_size;
@@ -72,7 +72,7 @@ struct chunk_hdr {
         /*CN*/ u32              explicit_padding;
         char                    data __aligned(8);
 };
-// HK: having char data at the end of the struct is very annoying
+// having char data at the end of the struct is very annoying
 // If we write RW<struct chunk_hdr>, a single byte of the data is going to be owned
 // unintentionally.
 struct chunk_hdr_only {
@@ -243,7 +243,6 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 {
 
         size_t len = offsetof(struct chunk_hdr, hash);
-        // HK: How do I handle this cast while having the ownership to chunk??
         u64 *data = (u64 *)chunk;
 
         u32 hash = 0;
@@ -329,7 +328,7 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 #define chunk_is_used(chunk) \
         (!!(chunk)->alloc_size)
 
-// HK: eliminate the cast to unsigned long
+// /*CN*/ eliminate the cast to unsigned long
 #define chunk_hdr_size() \
         ((unsigned long)offsetof(struct chunk_hdr, data))
 // #define chunk_hdr_size() \
@@ -337,7 +336,7 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 
 #ifdef NO_STATEMENT_EXPRS
 /* CN DIFF */
-// HK: replace unsigned long with size_t
+// /*CN*/ replace unsigned long with size_t
 #define chunk_size(size) \
         (chunk_hdr_size() + max_u64((unsigned long)(size), MIN_ALLOC))
 //#define chunk_size(size) \
@@ -2425,8 +2424,6 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 !is_null(chunk);
         @*/
         {
-                // needs to split the following:
-                // https://github.com/rems-project/cn/issues/245
                 /*@ split_case(is_null(best_chunk)); @*/
                 /*@
 		unpack GetFreeChunkInv(allocator, chunk, best_chunk, best_available_size, size);
@@ -2691,7 +2688,7 @@ void my_memset(char *s, char c, size_t n)
 }
 
 
-// HK: To avoid "mismatched types" error
+// /*CN*/: To avoid "mismatched types" error
 //void *hyp_alloc(size_t size)
 void *hyp_alloc(unsigned long size)
 /*@
@@ -2729,8 +2726,6 @@ void *hyp_alloc(unsigned long size)
         /*CN*/ size = ALIGN(size ? size : MIN_ALLOC, MIN_ALLOC);
 
         hyp_spin_lock(&allocator->lock);
-        //PS: ownership from lock invariant
-        //PS: hyp_spin_lock returns Cn_hyp_allocator(&allocator)
         /* CN DIFF */
         // this variable is used to split the case later in this function.
         cn_flag = list_empty(&hyp_allocator.chunks);
@@ -2765,7 +2760,6 @@ void *hyp_alloc(unsigned long size)
                 ret = chunk_recycle(chunk, size, allocator);
                 goto end;
         }
-        // HK: when there is no free chunk, we divide the last chunk
 #ifdef __CN_VERIFY
         no_free_chunk = 1;
 	/*@ unpack GetFreeChunk(...); @*/
@@ -2923,7 +2917,6 @@ void hyp_free(void *addr)
         unpack Cn_chunk_hdrs(...); @*/
         next_chunk = chunk_get_next(chunk, allocator);
 
-        // HK: free is easy :) except for merging
 #ifdef __CN_VERIFY
         /*@ unpack Cn_char_array(...); @*/
         LemmaMergeArrays(chunk_data, chunk->alloc_size, chunk->mapped_size + chunk_unmapped_size(chunk, allocator) - chunk_hdr_size() - chunk->alloc_size);
@@ -2944,14 +2937,12 @@ void hyp_free(void *addr)
         if (prev_chunk && !chunk_is_used(prev_chunk)) {
                 WARN_ON(chunk_merge(chunk, allocator));
 
-                // HK: not sure why it's needed
                 /*@ unpack MaybeChunkHdr(...); @*/
 #ifdef __CN_VERIFY
                 LemmaLsegToChunkHdrs(allocator, prev_chunk);
 #endif
         }
         /* CN DIFF */ else {
-                // HK: not sure why it's needed
                 /*@ unpack MaybeChunkHdr(...); @*/
 #ifdef __CN_VERIFY
                 LemmaLsegToChunkHdrs(allocator, chunk);
@@ -3072,8 +3063,6 @@ ensures
         return end - start;
 }
 
-// HK: counts the number of unused but mapped pages.
-// This includes the pages that are in the memcache.
 int hyp_alloc_reclaimable(void)
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -3102,7 +3091,6 @@ int hyp_alloc_reclaimable(void)
         return reclaimable;
 }
 
-// Hk: another interesting target
 void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 {
         struct hyp_allocator *allocator = &hyp_allocator;

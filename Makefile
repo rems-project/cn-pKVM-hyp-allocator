@@ -5,16 +5,11 @@ CC = clang
 # includes adapted from _build/compile_commands.json
 INCLUDES= -Isrc -Iinclude
 
-# KM version
 INCLUDES= -I$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Isrc -Iinclude
 CPP=$(CC) -std=c11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__
 
-# Fulminate
 RUNTIME_PREFIX = $(OPAM_SWITCH_PREFIX)/lib/cn/runtime
 RUNTIME_LIB = $(RUNTIME_PREFIX)
-# RUNTIME_INCLUDES= -Isrc -Iinclude
-# RUNTIME_CPP = $(CC) -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -undef -D__x86_64__ -D__GNUC__="5" -D__cerb__ 
-# RUNTIME_CPP = $(CC) -std=gnu11 -E -P -CC -Werror -Wno-builtin-macro-redefined -nostdinc -undef -D__cerb__ 
 RUNTIME_CPP = $(CC) -std=gnu11 -E -P -CC -isystem$(OPAM_SWITCH_PREFIX)/lib/cerberus-lib/runtime/libc/include/ -Werror -Wno-builtin-macro-redefined -D__cerb__  -undef -fkeep-system-includes  -Isrc -Iinclude  -DSTANDALONE -DNO_STATEMENT_EXPRS
 
 tmp-alloc.c: src/alloc.c

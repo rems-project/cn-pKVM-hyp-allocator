@@ -1,5 +1,5 @@
 /*
- * TODO(doc): this header contains cutdowns of headers from linux
+ * this header contains cutdowns of headers from linux
  * which is under GPLv2
  */
 #ifndef _PRELUDE_H
@@ -26,7 +26,6 @@ typedef u64		phys_addr_t;
 
 
 #ifdef __cerb__
-// TODO
 #define __aligned(x)
 #define __attribute__(x)
 #else
@@ -34,7 +33,6 @@ typedef u64		phys_addr_t;
 #endif
 
 #ifdef __cerb__
-// TODO
 #define BUILD_BUG_ON(cond)
 #define WARN_ON(condition)	(!!(condition))
 #else
@@ -77,11 +75,6 @@ do {									\
 #define	EBUSY		16	/* Device or resource busy */
 #define	EINVAL		22	/* Invalid argument */
 
-// /*@ function (i32) EINVAL() @*/
-// static int c_EINVAL() /*@ cn_function EINVAL; @*/
-// {
-// 	return EINVAL;
-// }
 /*@
 function (i32) EINVAL() {
 	22i32
@@ -95,24 +88,19 @@ function (u64) cn_ALIGN(u64 x, u64 a) {
 #include <linux/minmax.h>
 #include <linux/list.h>
 
-// TODO: spinlock
 typedef u64		hyp_spinlock_t;
 /* CN DIFF */
-// HK: dummy init
 #define hyp_spin_lock_init(X) { *X = 0; }
 void hyp_spin_lock(hyp_spinlock_t *lock);
 void hyp_spin_unlock(hyp_spinlock_t *lock);
 
-// TODO: we probably don't care about this for CN
 #define kvm_flush_dcache_to_poc(X,Y)
 
-// TODO: per-cpu stuff (for now fixing to only one CPU)
 #define DEFINE_PER_CPU(TY, X)	TY X
 #define this_cpu_ptr(X)		(X)
 #define per_cpu_ptr(ptr, cpu)	(ptr)
 
 
-// TODO: this is hardcoding 4K pages
 #define PAGE_SHIFT		12
 #define PAGE_SIZE		(1UL << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
@@ -129,19 +117,12 @@ function (boolean) cn_IS_ALIGNED(u64 addr) {
 
 @*/
 
-// HK: we cannot define c_PAGE_ALIGN_DOWN until here because PAGE_SIZE is defined just above.
-// /*@ function (u64) PAGE_ALIGN_DOWN(u64 addr) @*/
 static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr)
 // /*@ cn_function PAGE_ALIGN_DOWN; @*/
 {
 	return PAGE_ALIGN_DOWN(addr);
 }
 
-// /*@ function (u64) PAGE_ALIGN(u64 addr) @*/
-// static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function PAGE_ALIGN; @*/
-// {
-// 	return PAGE_ALIGN(addr);
-// }
 
 /*@
 function (u64) PAGE_ALIGN_DOWN(u64 addr) {

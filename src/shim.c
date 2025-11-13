@@ -1,4 +1,3 @@
-// TODO(doc): there is some code copied from pKVM (add licence notice)
 // #include <stdio.h>
 
 #include <prelude.h>
@@ -6,7 +5,6 @@
 void* cn_aligned_alloc(size_t align, size_t size);
 
 #ifdef __cerb__
-// TODO
 #define __func__	"__func__"
 #endif
 
@@ -29,16 +27,6 @@ unsigned long hyp_nr_cpus = 1;
 
 phys_addr_t __pkvm_private_range_pa(void *va)
 {
-	// kvm_pte_t pte;
-	// s8 level;
-
-	// hyp_spin_lock(&pkvm_pgd_lock);
-	// WARN_ON(kvm_pgtable_get_leaf(&pkvm_pgtable, (u64)va, &pte, &level));
-	// hyp_spin_unlock(&pkvm_pgd_lock);
-
-	// BUG_ON(!kvm_pte_valid(pte));
-
-	// return kvm_pte_to_phys(pte) + offset_in_page(va);
 	return (phys_addr_t)va;
 }
 
@@ -75,8 +63,6 @@ static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size
 #endif
 {
 	unsigned long cur;
-
-	//TODO: hyp_assert_lock_held(&pkvm_pgd_lock);
 
 	if (!start || start < __io_map_base)
 		return -EINVAL;
@@ -134,22 +120,17 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 
 void pkvm_remove_mappings(void *from, void *to)
 {
-	// log_function_args("from: %p, to: %p", from, to);
-	// printf("\x1b[31mTODO\x1b[0m\n");
 }
 
 
 int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 {
-	// log_function_args("<TODO>pfn: %"PRIx64", nr_pages: %"PRIu64, pfn, nr_pages);
-	return 0; // TODO
+	return 0;
 }
 
 int __hyp_allocator_map(unsigned long start, phys_addr_t phys)
 {
-	// log_function_args("start: %lx, phys: %"PRIx64, start, phys);
-	// printf("\x1b[31mTODO\x1b[0m\n");
-	return 0; // TODO
+	return 0;
 }
 
 
@@ -188,15 +169,11 @@ void hyp_spin_unlock(hyp_spinlock_t *lock)
 
 u32 hash_32(u32 val, unsigned int bits)
 {
-	// log_function();
-	// printf("\x1b[31mTODO\x1b[0m\n");
-	return 0; //TODO
+	return 0;
 }
 u32 hash_64(u64 val, unsigned int bits)
 {
-	// log_function();
-	// printf("\x1b[31mTODO\x1b[0m\n");
-	return 0; //TODO
+	return 0;
 }
 
 
