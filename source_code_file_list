@@ -1,0 +1,9 @@
+./src/shim.c
+./src/alloc.c
+./include/fulminate.h
+./include/alloc.h
+./include/prelude.h
+./include/linux/minmax.h
+./include/linux/container_of.h
+./include/linux/list.h
+./include/linux/bitfield.h
