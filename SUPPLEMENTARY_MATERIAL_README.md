@@ -24,3 +24,6 @@ The following table shows the correspondence between the names used in the paper
 | hyp_allocator            | Cn_hyp_allocator               |
 | ALIGN                    | cn_ALIGN                       |
 | hdr_size                 | Cn_chunk_hdr_size              |
+| cn_hdr                   | cn_chunk_hdr                   |
+| cn_hdrs                  | cn_chunk_hdrs                  |
+| Cn_hdrs                  | Cn_chunk_hdrs                  |
