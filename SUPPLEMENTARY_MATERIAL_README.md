@@ -9,6 +9,11 @@ As you can see in the code, the full precondition and postcondition become more 
 
 - `src/alloc.c`: the hyp allocator along with the specification, lemmas, and proofs
 - `specs/spec.c`: the fundamental predicates used to specify the functions
+- `include/linux/list.h`: list-related low-level functions with specs
+- `src/shim.c`: minimal mock/stub implementations of hypervisor-level functions for local execution and verification
+- `include/alloc.c`: header that defines the public API of the allocator
+- `include/prelude.h`, `include/linux/container_of.h`, `include/linux/bitfield.h`, `include/linux/minmax.h`: minor macros and definitions
+- `include/fulminate.h`: definitions for fulminate
 
 ## Renaming
 
