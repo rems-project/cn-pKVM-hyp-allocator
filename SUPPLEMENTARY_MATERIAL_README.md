@@ -1,11 +1,16 @@
-## structure
+# Supplementary material for Code-Specify-Test-Prove: Flexibly Integrating Separation Logic Specification into Conventional Workflows
 
-The following two files contain the implementation of the hyp allocator, specification, predicates for expressing global invariants, and proofs.
+This gives the code, specification, and CN proof of the stand-alone version of the pKVM hypervisor hyp allocator.
+
+## Structure
+
+The first two files below contain the implementation of the hyp allocator, specification, predicates for expressing global invariants, and proofs.
+
 The example function `chunk_install` shown in the paper corresponds to lines 1410–1476 in `src/alloc.c`.
+
 Its precondition and postcondition are defined by `ChunkInstallPre` and `ChunkInstallPost`, respectively.
-As mentioned in the paper, the version of `chunk_install` presented there is simplified: it includes only the `else` branch of the first `if` statement in the original function.
-In other words, the paper's version handles only the case where `prev` is not `NULL`.
-As you can see in the code, the full precondition and postcondition become more complex once the other cases are included.
+As mentioned in the paper, the version of `chunk_install` presented there is simplified: it includes only the `else` branch of the first `if` statement in the original function - it handles only the case where `prev` is not `NULL`.
+As one can see in the code here, the full precondition and postcondition become more complex once the other cases are included.
 
 - `src/alloc.c`: the hyp allocator along with the specification, lemmas, and proofs
 - `specs/spec.c`: the fundamental predicates used to specify the functions
@@ -17,7 +22,7 @@ As you can see in the code, the full precondition and postcondition become more 
 
 ## Renaming
 
-We have also renamed some predicate names and variables for presentation in the paper.
+We have renamed some predicate names and variables for presentation in the paper.
 The following table shows the correspondence between the names used in the paper and those in the actual specification.
 
 | paper                    | code                           |
