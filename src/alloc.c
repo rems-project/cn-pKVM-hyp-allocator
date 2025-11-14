@@ -3030,6 +3030,7 @@ void hyp_free(void *addr)
 /*@
         requires cn_ghost u64 size;
                 take HA_pre = ValidAllocatorAndAddr(&hyp_allocator, addr);
+                size <= (u64)HA_pre.lseg.chunk.alloc_size;
                 take U = Cn_char_array(addr, (u64)size);
                 take V = Cn_char_array_with_offset(addr, (u64)HA_pre.lseg.chunk.alloc_size - size, size);
         ensures
