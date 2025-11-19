@@ -80,6 +80,12 @@ jobs:
             /var/lib/apt/lists
           key: ${{ runner.os }}-cn-${{ matrix.ocaml }}-${{ hashFiles('cn/cn.opam') }}-${{ env.CN_COMMIT }}
 
+      - name: Install system deps (opam + tools)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential libgmp-dev pkg-config z3 opam git make wget unzip
+
       - name: Verify ${{ matrix.targets }}
         shell: bash
         run: |
@@ -88,4 +94,3 @@ jobs:
           echo "=== Testing: ${{ matrix.targets }} ==="
           make ONLY=${{ matrix.targets }} cn-verify | tee verify-${{ matrix.targets }}.log
           grep -q "\[1/1\]: ${{ matrix.targets }} -- pass" verify-${{ matrix.targets }}.log
-
