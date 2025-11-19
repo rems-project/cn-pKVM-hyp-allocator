@@ -1,6 +1,4 @@
 name: CN verify check
-env:
-  CN_COMMIT: e23d1ff964b924476ea00375cee3770fc19408ae
 
 on:
   pull_request:
@@ -20,7 +18,7 @@ jobs:
       matrix:
         ocaml: [5.2.0]
     env:
-      CN_COMMIT: ${{ env.CN_COMMIT }}
+      CN_COMMIT: 384f4f3bf1d404c54ee57ae389f309c280c315c0
     steps:
       - name: Checkout main repository
         uses: actions/checkout@v4
