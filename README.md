@@ -25,6 +25,29 @@ Then to build:
 This produces a test executable at `_build/src/main`.
 
 
+## Verification
+
+### Install CN
+
+Install CN (commit=384f4f3bf1d404c54ee57ae389f309c280c315c0) as follows:
+
+```
+git clone https://github.com/rems-project/cn
+cd cn
+git checkout 384f4f3bf1d404c54ee57ae389f309c280c315c0
+opam install ./cn.opam
+make install
+```
+
+For more details, follow the instructions provided in the CN repository.
+
+### Verify pKVM hyp allocator
+
+Run `make cn-verify-par`.
+This will automatically use as many cores as your system has.
+If you prefer a more moderate load, run `./verify.sh <num of processes>` instead.
+
+
 ## Specification/Implementation Bugs found by Fulminate
 
 Commit messages that start with `[fulminate]` indicate that the issue fixed by the patch was discovered by **Fulminate**.
