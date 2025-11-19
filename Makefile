@@ -40,7 +40,6 @@ main.pp.c: src/main.c src/alloc.c specs/spec.c
 	$(RUNTIME_CPP) $< > $@
 
 main.pp.exec.c: main.pp.c
-	cn --version | sed -n 's/^git-\([0-9a-f]\{9\}\).*/\1/p' > .cn_version
 	cn instrument --insert-curly-braces $<
 
 main.pp.exec.o: main.pp.exec.c
