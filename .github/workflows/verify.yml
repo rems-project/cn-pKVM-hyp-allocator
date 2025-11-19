@@ -4,10 +4,11 @@ env:
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
-      - ci
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -85,6 +86,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential libgmp-dev pkg-config z3 opam git make wget unzip
+
+      - name: Initialise opam
+        run: |
+          opam init --reinit --disable-sandboxing --yes --compiler=${{ matrix.ocaml }}
 
       - name: Verify ${{ matrix.targets }}
         shell: bash
