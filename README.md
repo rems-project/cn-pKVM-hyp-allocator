@@ -28,9 +28,6 @@ This produces a test executable at `_build/src/main`.
 ## Fulminate reproduction notes
 
 Commit messages that start with `[fulminate]` indicate that the issue fixed by the patch was discovered by **Fulminate**.
-I'm currently working on the CN specified in .cn_version.
-There may be a better way to handle this, but since this workaround is simple, I'm going with it for now
-(even if it feels a bit awkward).
 
 
 ## Benchmark for Performance Comparison
