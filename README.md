@@ -25,16 +25,9 @@ Then to build:
 This produces a test executable at `_build/src/main`.
 
 
-## Fulminate reproduction notes
+## Specification/Implementation Bugs found by Fulminate
 
 Commit messages that start with `[fulminate]` indicate that the issue fixed by the patch was discovered by **Fulminate**.
-
-
-## Benchmark for Performance Comparison
-
-The branch `fulminate-exp-base` serves as the base for the complete specification of `hyp_alloc`.
-In the `efficiency-experiments/` directory, there are patch files for this branch that introduce some specification bugs discovered during spec-writing.
-Additionally, there is a note about the benchmark in `efficiency-experiments/benchmark.txt`.
 
 
 ## Property-Based Testing Benchmark
