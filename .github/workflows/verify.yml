@@ -15,11 +15,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup-cn:
+  verify:
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         ocaml: [5.2.0]
+        targets:
+          - chunk_unmapped_size
+          - setup_first_chunk
+          - chunk_inc_map
+          - chunk_install
     steps:
       - name: Checkout main repository
         uses: actions/checkout@v4
@@ -40,7 +46,7 @@ jobs:
             ~/.cache/opam
             /var/cache/apt/archives
             /var/lib/apt/lists
-          key: ${{ runner.os }}-cn-${{ matrix.ocaml }}-${{ hashFiles('cn/cn.opam') }}-${{ env.CN_COMMIT }}
+          key: ${{ runner.os }}-cn-${{ matrix.ocaml }}-${{ env.CN_COMMIT }}
 
       - name: Install system deps & build CN (on cache miss)
         if: steps.cache-deps.outputs.cache-hit != 'true'
@@ -54,42 +60,6 @@ jobs:
           cd cn
           opam install --yes --deps-only ./cn.opam ocamlformat.0.27.0
           make install
-
-  verify:
-    needs: setup-cn
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        ocaml: [5.2.0]
-        targets:
-          - chunk_unmapped_size
-          - setup_first_chunk
-          - chunk_inc_map
-          - chunk_install
-    steps:
-      - name: Checkout main repository
-        uses: actions/checkout@v4
-
-      - name: Restore dependencies cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.opam
-            ~/.cache/opam
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-cn-${{ matrix.ocaml }}-${{ hashFiles('cn/cn.opam') }}-${{ env.CN_COMMIT }}
-
-      - name: Install system deps (opam + tools)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential libgmp-dev pkg-config z3 opam git make wget unzip
-
-      - name: Initialise opam
-        run: |
-          opam init --reinit --disable-sandboxing --yes --compiler=${{ matrix.ocaml }}
 
       - name: Verify ${{ matrix.targets }}
         shell: bash
