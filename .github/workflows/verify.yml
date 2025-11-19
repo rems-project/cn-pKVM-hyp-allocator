@@ -67,6 +67,7 @@ jobs:
           - chunk_unmapped_size
           - setup_first_chunk
           - chunk_inc_map
+          - chunk_install
     env:
       CN_COMMIT: ${{ env.CN_COMMIT }}
     steps:
