@@ -1,5 +1,62 @@
+name: CN verify check
+env:
+  CN_COMMIT: 384f4f3bf1d404c54ee57ae389f309c280c315c0
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  setup-cn:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        ocaml: [5.2.0]
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Checkout CN repository at fixed commit
+        uses: actions/checkout@v4
+        with:
+          repository: rems-project/cn
+          path: cn
+          ref: ${{ env.CN_COMMIT }}
+
+      - name: Restore dependencies cache
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.opam
+            ~/.cache/opam
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-cn-${{ matrix.ocaml }}-${{ hashFiles('cn/cn.opam') }}-${{ env.CN_COMMIT }}
+
+      - name: Install system deps & build CN (on cache miss)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential libgmp-dev pkg-config z3 opam git make wget unzip
+          opam init --yes --compiler=${{ matrix.ocaml }}
+          eval $(opam env)
+          cd cn
+          opam install --yes --deps-only ./cn.opam ocamlformat.0.27.0
+          make install
+
   verify:
+    needs: setup-cn
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -11,14 +68,8 @@ jobs:
           - chunk_inc_map
           - chunk_install
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Checkout CN repository at fixed commit
+      - name: Checkout main repository
         uses: actions/checkout@v4
-        with:
-          repository: rems-project/cn
-          path: cn
-          ref: ${{ env.CN_COMMIT }}
 
       - name: Restore dependencies cache
         uses: actions/cache@v4
@@ -28,28 +79,23 @@ jobs:
             ~/.cache/opam
             /var/cache/apt/archives
             /var/lib/apt/lists
-          key: ${{ runner.os }}-cn-${{ matrix.ocaml }}-${{ env.CN_COMMIT }}
+          key: ${{ runner.os }}-cn-${{ matrix.ocaml }}-${{ hashFiles('cn/cn.opam') }}-${{ env.CN_COMMIT }}
 
-      - name: Install system deps & build CN (on cache miss)
-        if: steps.cache-deps.outputs.cache-hit != 'true'
+      - name: Install system deps (opam + tools)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential libgmp-dev pkg-config z3 opam git make wget unzip
-          opam init --yes --compiler=${{ matrix.ocaml }}
-          eval $(opam env)
-          cd cn
-          opam install --yes --deps-only ./cn.opam ocamlformat.0.27.0
-          make install
 
-      - name: Initialise opam (on cache hit)
-        if: steps.cache-deps.outputs.cache-hit == 'true'
+      - name: Initialise opam
         run: |
           opam init --reinit --disable-sandboxing --yes --compiler=${{ matrix.ocaml }}
 
       - name: Verify ${{ matrix.targets }}
+        shell: bash
         run: |
           opam switch "${{ matrix.ocaml }}"
           eval $(opam env)
-          make ONLY=${{ matrix.targets }} cn-verify
-
+          echo "=== Testing: ${{ matrix.targets }} ==="
+          make ONLY=${{ matrix.targets }} cn-verify | tee verify-${{ matrix.targets }}.log
+          grep -q "\[1/1\]: ${{ matrix.targets }} -- pass" verify-${{ matrix.targets }}.log
