@@ -2850,24 +2850,12 @@ void *hyp_alloc(unsigned long size)
         accesses hyp_allocator_errno, hyp_allocator_mc;
         requires
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
-
-                // The following check is done in memcache functions,
-                // which we ignore in this verification.
-                // So, we explicitly state the following.
-                // More precicely, only the first allocation requires
-                // `PAGE_ALIGN(Cn_chunk_size(actual_size))`. For the other allocations,
-                // we can allocate Cn_chunk_size(actual_size).
-                // However, for simplicity, we require this for all allocations.
-                // size <= PAGE_ALIGN(Cn_chunk_size(actual_size)); // no overflow
-                // PAGE_ALIGN(Cn_chunk_size(actual_size)) <= (u64)HA_pre.ha.size;
-                let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
+                take U = MaybeCn_char_array(return, size);
 
-                take U = MaybeCn_char_array(return, actual_size);
-                // HA_post.ha.size == HA_pre.ha.size;
-                // HA_post.ha.start == HA_pre.ha.start;
-                // HA_post.ha.head == HA_pre.ha.head;
+                let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
+                take V = MaybeCn_char_array_with_offset(return, actual_size - size, size);
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
@@ -2885,6 +2873,7 @@ void *hyp_alloc(unsigned long size)
 
 #ifdef __CN_VERIFY
         /* CN */ int no_free_chunk = 0;
+        unsigned long original_size = size;
 #endif
 
         // size = ALIGN(size ?: MIN_ALLOC, MIN_ALLOC);
@@ -2998,6 +2987,7 @@ end_unlocked:
                 // How do I write the spec to memset?
                 my_memset(chunk_data(chunk), 0, size);
                 // memset(chunk_data(chunk), 0, size);
+                /*@ unpack Cn_char_array(...); @*/
         }
 	/*@ unpack SetupFirstChunk(...); @*/
 	/*@ unpack Conditional_Cn_char_array(...); @*/
@@ -3042,14 +3032,22 @@ void *hyp_alloc_account(size_t size, struct kvm *host_kvm)
 }
 #endif /* STANDALONE */
 
+/*@
+predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ValidAllocatorAndAddr(pointer ha, pointer addr) {
+        assert(!is_null(addr));
+        let header_address = array_shift<byte>(addr, - Cn_chunk_hdr_size());
+        take HA_pre = Cn_hyp_allocator_focusing_on(ha, header_address);
+        return HA_pre;
+}
+@*/
+
 void hyp_free(void *addr)
 /*@
-        requires
-                !is_null(addr);
-                let header_address = array_shift<byte>(addr, - Cn_chunk_hdr_size());
-                take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator,header_address);
-                let C = HA_pre.lseg.chunk;
-                take U = Cn_char_array(addr, (u64)C.alloc_size);
+        requires cn_ghost u64 size;
+                take HA_pre = ValidAllocatorAndAddr(&hyp_allocator, addr);
+                size <= (u64)HA_pre.lseg.chunk.alloc_size;
+                take U = Cn_char_array(addr, (u64)size);
+                take V = Cn_char_array_with_offset(addr, (u64)HA_pre.lseg.chunk.alloc_size - size, size);
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
@@ -3060,7 +3058,10 @@ void hyp_free(void *addr)
 
         hyp_spin_lock(&allocator->lock);
 
+        // Merge the remaining part into the current chunk
+
         chunk = chunk_get(container_of(chunk_data, struct chunk_hdr, data));
+        /*@ unpack Cn_char_array(...); @*/
         /*@ unpack MaybeChunkHdr(...); @*/
         /*@
         split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
@@ -3076,6 +3077,7 @@ void hyp_free(void *addr)
 
         // HK: free is easy :) except for merging
 #ifdef __CN_VERIFY
+        /*@ unpack Cn_char_array(...); @*/
         LemmaMergeArrays(chunk_data, chunk->alloc_size, chunk->mapped_size + chunk_unmapped_size(chunk, allocator) - chunk_hdr_size() - chunk->alloc_size);
 #endif
         chunk->alloc_size = 0;

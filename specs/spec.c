@@ -161,6 +161,16 @@ predicate void MaybeCn_char_array(pointer p, u64 size)
         }
 }
 
+predicate void MaybeCn_char_array_with_offset(pointer p, u64 size, u64 offset)
+{
+        if (ptr_eq(p, NULL)) {
+                return;
+        } else {
+                take U = Cn_char_array_with_offset(p, size, offset);
+                return;
+        }
+}
+
 
 @*/
 
