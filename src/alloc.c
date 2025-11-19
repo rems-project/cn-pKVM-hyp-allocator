@@ -75,7 +75,6 @@ struct chunk_hdr {
 // HK: having char data at the end of the struct is very annoying
 // If we write RW<struct chunk_hdr>, a single byte of the data is going to be owned
 // unintentionally.
-// TODO: rewrite the spec to use chunk_hdr_only instead of chunk_hdr
 struct chunk_hdr_only {
         u32                     alloc_size;
         u32                     mapped_size;
@@ -220,8 +219,6 @@ ensures
 }
 #endif
 
-// HK: This requires CN to have a normal conjunction in addition to the
-// separating conjunction.
 static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     requires
@@ -564,8 +561,6 @@ function (u64) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
 @*/
 
 
-// TODO(HK): C_pre should replaced with cn_chunk_hdr_option to handle the
-// last chunk case
 static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                                                 struct hyp_allocator *allocator)
 /*@
@@ -777,12 +772,6 @@ void LemmaPrevChunk(struct chunk_hdr *chunk,
 //   - a chunk *in the chunk list*, which will be the previous chunk of the new chunk
 //   - the allocator
 // and inserts the new chunk into the chunk list after the previous chunk.
-
-// HK: This is the point where raw pointer manipulations and beautiful list
-// specifications meet, which is one of the most difficult parts of the whole
-// spec writing.
-// Currently, I "believe" that the spec I wrote is correct, but it is not
-// automatically verified by CN.
 static inline void chunk_list_insert(struct chunk_hdr *chunk,
                                      struct chunk_hdr *prev,
                                      struct hyp_allocator *allocator)
@@ -842,23 +831,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         lseg_pre.chunk == Prev_post;
 @*/
 {
-        // HK: non-rust ownership type part
-        // This is also why we cannot directly apply the idea of
-        // [Hermes&Krebbers ITP 2024] to this program.
-        // In p9, the specification for inserting a node into a list is
-        // defined as:
-        // { DCycle c L ∗ l ↦ [ _, _ ] } insert c l { DCycle c (l :: L) }
-        // but we cannot give up the ownership of l just after the insertion.
-
-        // HK: Proof for the ownership of RW<struct list_head*>(&(&prev->node)->next)
-        //  - If prev->node is the last node, then prev->node.next == allocator->chunks,
-        //    which is in H_pre.ha
-        //  - If prev->node is not the last node, then prev->node.next is in Next_Chunk.
-
-        // HK: Proof for the ownership of prev
-        //   - prev must be in the chunk list from the precondition
-        //   - that implies we have the ownership of prev
-
         /*@ split_case(ptr_eq(
                 member_shift<struct chunk_hdr>(prev, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
@@ -1463,9 +1435,6 @@ ensures
 // size: alloc size for chunk
 // prev: the previous chunk for `chunk`
 //   - this is never be allocator->chunks
-// invariant:
-//   - there is no chunk between prev and chunk
-//   - chunk is not owned by the allocator
 static int chunk_install(struct chunk_hdr *chunk, size_t size,
                          struct chunk_hdr *prev,
                          struct hyp_allocator *allocator)
@@ -1475,7 +1444,6 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
     ensures
         return == 0i32; // we can say it always succeeds!
         take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre.ha, Pre.lseg, return);
-        // TODO: take alloc_size buffer
 @*/
 
 {
@@ -1491,10 +1459,6 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 // Drop the garbage due to the lemma
                 /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
                 INIT_LIST_HEAD(&chunk->node);
-                // HK: non-rust ownership type part
-                // See the comments in chunk_list_insert
-                // HK: Currently we encounter the CN issue #148,
-                // so we cannot go further with the spec.
                 /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
                 @*/
                 list_add(&chunk->node, &allocator->chunks);
@@ -1627,8 +1591,6 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
                 return == Cn_chunk_needs_mapping((u64)C_post.mapped_size, size);
 @*/
 {
-        // TODO: fix this. Due to the Cerberus elaboration bug, we cannot use
-        // size_t here currently.
         // size_t mapping_missing, mapping_needs = chunk_size(size);
         unsigned long mapping_missing, mapping_needs = chunk_size(size);
 
@@ -1693,9 +1655,6 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
         return 0;
 }
 
-// TODO(HK): fix this after the elaboration bug is fixed
-//static int chunk_inc_map(struct chunk_hdr *chunk, size_t map_size,
-// HK: It takes a lot of time to prove this spec (more than 8 minutes on my machine)
 static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                          struct hyp_allocator *allocator)
 /*@
@@ -3081,7 +3040,6 @@ void hyp_free(void *addr)
         LemmaMergeArrays(chunk_data, chunk->alloc_size, chunk->mapped_size + chunk_unmapped_size(chunk, allocator) - chunk_hdr_size() - chunk->alloc_size);
 #endif
         chunk->alloc_size = 0;
-        // TODO: merge buffer
         chunk_hash_update(chunk);
 
         /*@ unpack MaybeChunkHdr(...); @*/

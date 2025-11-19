@@ -7,42 +7,6 @@ chunk:
 **/
 
 
-/* TP: perhaps there's an invariant that the last chunk is the only one that can be _partially_ used */
-
-/*PS: `chunk_is_used` suggests that chunks can be unused, iff size=0.  But probably only transiently?  No, probably not - see the chunk_try_destroy comment.*/
-
-/*PS: what are the hashes used for?  AIUI, to fail fast if the chunk header got stomped on by bad user code.  They cover the next/prev pointers so have to be updated whenever the list structure changes.  So not stable, so presumably not exposed to clients. Could be removed if the clients were persistently verified to be memory safe */
-
-/*PS: in addition to our first sketch, the spec should constrain what is actually mapped - by making the underlying __hyp_allocator_map and pkvm_remove_mappings in shim.c have specs that record that as finite maps (and fail if something tries to map illegally).  And we need to spec the memcache operations. */
-
-/*
-[Note: Approach to Verifying `hyp_alloc` (HK) 16 May 2025]
-
-In short, I'm taking both a top-down and bottom-up approach to verification.
-
-Bottom-Up Approach:
-   At first, I've proven most of the list-related functions in `list.h`, as well as leaf functions like `__chunk_next` by using raw pointer specifications.
-   This approach works well for leaf functions. However, when verifying higher-level functions like `chunk_install` and ultimately `hyp_alloc`, it becomes clear that we need inductive predicates—without them, writing accurate specifications becomes difficult. (of course :))
-
-Issues with `lookup`:
-   The use of the predicate `lookup` is somewhat ugly and introduces a need for extra lemmas. These should be unnecessary if we define an appropriate inductive predicate.
-
-Introducing List Segments:
-   To address this, I introduced the concept of a **list segment** to model the allocator's chunk list—an idea commonly used in separation logic.
-   I defined a predicate, `cn_hyp_allocator_focusing_on(allocator, chunk)`, which uses a list segment predicate (`cn_lseg`).
-   This predicate captures ownerships of both the allocator's management region and the list segment up to a given chunk.
-
-Top-Down Specification Effort:
-   I'm now writing the specification for `hyp_alloc` in a **top-down** manner, starting from `hyp_alloc`, then moving to `chunk_install`, `chunk_list_insert`, and so on.
-   However, I'm currently distracted by some CN-related bugs, so I'm currently working on fixing those.
-   As a result, the specification in its current state is incomplete and should not be fully trusted.
-
-The boundary Between Top-Down and Bottom-Up:
-   The boundary between the top-down and bottom-up part should be the place where lemmas are needed.
-   For this,  I think it's worth reconsidering the work by Hermes & Krebbers (ITP 2024).
-   Previously, I thought their approach wouldn't apply to this program. However, that might have been because I wasn't yet familiar enough with CN and separation logic at the time.
-   (see the comment in `chunk_list_insert` for more details)
-*/
 
 #if 0
 #include <inttypes.h>
@@ -85,7 +49,7 @@ type_synonym cn_chunk_hdr = {
   va header_address, // the VA of the start of the chunk_hdr
   u32 alloc_size, // exactly as in the C
   u32 mapped_size,  // exactly as in the C
-  u32 va_size      // implicit in the C: the total va space size of this chunk (TODO: update the other defns to match)
+  u32 va_size      // implicit in the C: the total va space size of this chunk
   // no node, no hash, no data, no ownership here
 }
 
@@ -387,21 +351,6 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
         }
 }
 
-// this kind of predicate makes CN buggy, so we avoid this
-// see: https://github.com/rems-project/cn/issues/115
-// predicate (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer prev, cn_hyp_allocator ha,  pointer last, datatype cn_chunk_hdrs accum)
-// {
-//         if (ptr_eq(p,last)) {
-//                 return accum;
-//         } else {
-//                 let header_address = array_shift<char>(p, -(offsetof(chunk_hdr, node)));
-//                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
-//                 assert(ptr_eq(cn_hdr.Node.prev, prev));
-//                 let c = Chunk_cons { hd: cn_hdr.Hdr, tl: accum };
-//                 take res = Cn_chunk_hdrs_rev(cn_hdr.Node.next, p, ha, last, c);
-//                 return res;
-//         }
-// }
 
 type_synonym cn_lseg = {
         cn_chunk_hdrs before,
@@ -531,7 +480,7 @@ function (boolean) is_free_chunk(cn_chunk_hdr hdr, u64 size)
 {
            hdr.alloc_size == 0u32 // i.e., unused
         && (u64) hdr.va_size // the code's available_size
-        >= Cn_chunk_size(size) // TODO: where chunk_size is a CN copy of their macro
+        >= Cn_chunk_size(size)
         // we ignore the hash check of the chunk_get macro - even though to
         // prove safety of the actual code we would need to check the hash
         // checks succeed.
