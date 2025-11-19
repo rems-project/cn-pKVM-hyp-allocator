@@ -37,7 +37,7 @@ cn-verify: src/alloc.c
 	cn verify --incremental-solving=false --disable-multiclause-predicate-unfolding --no-vip $(if $(OPT), $(OPT)) $(if $(ONLY),--only=$(ONLY)) -DSTANDALONE -DNO_STATEMENT_EXPRS $(INCLUDES) src/alloc.c
 
 cn-verify-par: src/alloc.c
-	./verify.sh "$(nproc)"
+	./verify.sh "$(shell nproc)"
 
 main.pp.c: src/main.c src/alloc.c specs/spec.c
 	$(RUNTIME_CPP) $< > $@
