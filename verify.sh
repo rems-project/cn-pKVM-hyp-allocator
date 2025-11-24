@@ -97,7 +97,7 @@ run_test() {
 date
 git log -1 --format="%H"
 cn --version
-echo "option: $OPT"
+echo "option: --incremental-solving=false --disable-multiclause-predicate-unfolding --no-vip $OPT"
 
 export -f run_test
 
