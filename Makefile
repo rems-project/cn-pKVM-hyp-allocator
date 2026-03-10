@@ -46,7 +46,6 @@ main.pp.exec.c: main.pp.c
 	cn instrument --insert-curly-braces $<
 
 main.pp.exec.o: main.pp.exec.c
-	sed -i 's/^\[\[ cerb::hidden \]\] __cerbty_uint64_t __builtin_bswap64 (__cerbty_uint64_t x);/\/\/&/' main.pp.exec.c
 	$(CC) -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h $<
 
 main.exe: main.pp.exec.o $(RUNTIME_LIB)/libcn_exec.a
