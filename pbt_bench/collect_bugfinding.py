@@ -4,6 +4,7 @@ Bug finding data collection script for property-based testing benchmark.
 Tests each patch from bug_finding.json to measure bug detection rates and timing.
 """
 
+import argparse
 import csv
 import json
 import re
@@ -122,13 +123,14 @@ def reset_files():
     apply_patch('patches/workaround.patch')
 
 
-def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, int | None]:
+def run_trial(function: str, trial_num: int, extra_args: list[str] | None = None) -> tuple[bool, float, int | None, int | None]:
     """
     Run a single trial of symbolic testing for a specific function.
 
     Args:
         function: Function name to test
         trial_num: Trial number (for logging)
+        extra_args: Optional additional arguments to pass to test-symbolic.sh
 
     Returns:
         Tuple of (bug_found: bool, elapsed_time: float, num_runs: int | None, num_discards: int | None)
@@ -142,16 +144,19 @@ def run_trial(function: str, trial_num: int) -> tuple[bool, float, int | None, i
     start_time = time.time()
 
     try:
+        cmd = ['./test-symbolic.sh', f'--only={function}',
+               '--no-replicas', '--no-replay', '--exit-fast',
+               '--until-timeout=120',
+               '--num-samples=100000']
+
+        if extra_args:
+            cmd.extend(extra_args)
+
         result = subprocess.run(
-            ['./test-symbolic.sh', f'--only={function}',
-             '--no-replicas', '--no-replay', '--exit-fast',
-             '--until-timeout=60',
-             '--num-samples=100000',
-             '--max-array-length=20',
-             '--max-generator-size=5'],
+            cmd,
             capture_output=True,
             text=True,
-            timeout=600  # 10 minute timeout
+            timeout=120  # 2 minute timeout
         )
 
         elapsed = time.time() - start_time
@@ -203,7 +208,7 @@ def test_patch(patch_data: dict, csv_writer, num_trials: int = 10) -> int:
     Writes each trial result to CSV immediately.
 
     Args:
-        patch_data: Dictionary with 'path' and 'fut' keys
+        patch_data: Dictionary with 'path', 'fut', and optionally 'args' keys
         csv_writer: CSV DictWriter to write results to
         num_trials: Number of trials to run (default: 10)
 
@@ -212,6 +217,7 @@ def test_patch(patch_data: dict, csv_writer, num_trials: int = 10) -> int:
     """
     patch_path = patch_data['path']
     function = patch_data['fut']
+    extra_args = patch_data.get('args', None)
 
     # Apply the patch
     apply_patch(patch_path)
@@ -222,7 +228,7 @@ def test_patch(patch_data: dict, csv_writer, num_trials: int = 10) -> int:
     with tqdm(total=num_trials, desc="    Trials", unit="trial", leave=False) as trial_pbar:
         for trial in range(1, num_trials + 1):
             bug_found, elapsed, num_runs, num_discards = run_trial(
-                function, trial)
+                function, trial, extra_args)
 
             if bug_found:
                 bug_found_count += 1
@@ -250,18 +256,25 @@ def test_patch(patch_data: dict, csv_writer, num_trials: int = 10) -> int:
     return bug_found_count
 
 
-def load_bug_finding_data() -> list[dict]:
+def load_bug_finding_data(only_buggy: bool = False) -> list[dict]:
     """
     Load the bug_finding.json file.
 
+    Args:
+        only_buggy: If True, only return patches where 'found' is True
+
     Returns:
-        List of dictionaries with 'path' and 'fut' keys
+        List of dictionaries with 'path', 'fut', and optionally 'args' keys
 
     Exits with error if file cannot be loaded.
     """
     try:
         with open('pbt_bench/bug_finding.json', 'r') as f:
             data = json.load(f)
+
+        if only_buggy:
+            data = [patch for patch in data if patch.get('found', False)]
+
         return data
     except FileNotFoundError:
         print("ERROR: pbt_bench/bug_finding.json not found")
@@ -276,6 +289,14 @@ def load_bug_finding_data() -> list[dict]:
 
 def main():
     """Main entry point for bug finding data collection."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description='Bug finding data collection script for property-based testing benchmark.'
+    )
+    parser.add_argument('--only-buggy', action='store_true',
+                        help='Only test patches where found=true in bug_finding.json')
+    args = parser.parse_args()
+
     print("="*60)
     print("Property-Based Testing: Bug Finding Data Collection")
     print("="*60)
@@ -289,15 +310,17 @@ def main():
 
     # Apply workaround patches
     print("Applying workaround patches...")
-    apply_patch('patches/spec_workaround.patch')
-    apply_patch('patches/alloc_workaround.patch')
+    apply_patch('patches/workaround.patch')
     print("Workaround patches applied")
     print()
 
     # Load patch data
     print("Loading bug_finding.json...")
-    patches = load_bug_finding_data()
-    print(f"Loaded {len(patches)} patches")
+    patches = load_bug_finding_data(only_buggy=args.only_buggy)
+    if args.only_buggy:
+        print(f"Loaded {len(patches)} patches (filtered to only buggy patches)")
+    else:
+        print(f"Loaded {len(patches)} patches")
     print()
 
     # Initialize CSV file

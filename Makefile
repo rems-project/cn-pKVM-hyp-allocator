@@ -98,6 +98,10 @@ collect-pbt-comparison:
 collect-pbt-bug-finding:
 	./pbt_bench/collect_bugfinding.py
 
+.PHONY: collect-pbt-bug-finding-buggy
+collect-pbt-bug-finding-buggy:
+	./pbt_bench/collect_bugfinding.py --only-buggy
+
 .PHONY: analyze-pbt-comparison
 analyze-pbt-comparison:
 	./pbt_bench/analyze_comparison.py
