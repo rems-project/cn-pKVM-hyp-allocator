@@ -43,7 +43,7 @@ main.pp.c: src/main.c src/alloc.c specs/spec.c
 	$(RUNTIME_CPP) $< > $@
 
 main.pp.exec.c: main.pp.c
-	cn instrument --insert-curly-braces $<
+	cn instrument --exec-c-locs-mode --insert-curly-braces $<
 
 main.pp.exec.o: main.pp.exec.c
 	$(CC) -g -c -O0 -std=gnu11 -I$(RUNTIME_PREFIX)/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h $<
