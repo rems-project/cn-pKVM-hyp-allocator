@@ -145,7 +145,7 @@ def run_trial(function: str, trial_num: int, extra_args: list[str] | None = None
 
     try:
         cmd = ['./test-symbolic.sh', f'--only={function}',
-               '--no-replicas', '--no-replay', '--exit-fast',
+               '--no-replicas', '--no-replays', '--exit-fast',
                '--until-timeout=120',
                '--num-samples=100000']
 
