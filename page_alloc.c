@@ -49,7 +49,9 @@ void *memset(void *b, int cc, unsigned long len);
 /*@ spec memset(pointer b, i32 cc, u64 len);
     requires let b_i = (u64) b;
              let c = (u8) cc;
+             // FULM_OPT: Fulm never generates
              take B = each (u64 i; b_i <= i && i < b_i+len){Byte(array_shift<char>(NULL, i))};
+             // FULM_OPT: Fulm never generates
     ensures take BR = each (u64 i; b_i <= i && i < b_i+len){ByteV(array_shift<char>(NULL,i), c)}; @*/
 
 
@@ -138,9 +140,13 @@ static struct hyp_page *__find_buddy_avail(struct hyp_pool *pool,
   let p_i = cn_hyp_page_to_pfn(__hyp_vmemmap, p); 
   order_aligned(p_i, order); 
   order < (*pool).max_order; 
+  // FULM_OPT: V needed for postcondition map equality check - cannot be optimised
+  // FULM_OPT: contiguous Owned, can be optimised
   take V = each (u64 i; start_i <= i && i < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, i)) }; 
  ensures take OR = Owned(pool); 
   hyp_pool_wf(pool, *pool, __hyp_vmemmap, hyp_physvirt_offset); 
+  // FULM_OPT: V2 needed for postcondition map equality check - cannot be optimised
+  // FULM_OPT: contiguous Owned, can be optimised
   take V2 = each (u64 i; start_i <= i && i < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, i)) }; 
   V2 == V; 
   {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; 
@@ -403,7 +409,8 @@ static void __hyp_attach_page(struct hyp_pool *pool,
   take P = Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, p_i), true, i_order); 
  ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; 
   take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); 
-  {free_area: H2.pool.free_area, ..H.pool} == H2.pool; 
+  {free_area: H2.pool.free_area, ..H.pool} == H2.pool;
+  // FULM_OPT: logical conj, cannot be optimised 
   each (u64 i; p_i < i && i < end_i){(H.vmemmap[i].refcount == 0u16) || (H2.vmemmap[i] == H.vmemmap[i])}; @*/
 {
     /*CN*//*@instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap,p);@*/
@@ -438,6 +445,7 @@ static void __hyp_attach_page(struct hyp_pool *pool,
           take H_I = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); 
           let p_page = H_I.vmemmap[p_i2]; 
          // for page_group_ok 
+         // FULM_OPT: logical conj, cannot be optimised 
           each (u64 i; (start_i <= i) && (i < end_i))
             {vmemmap_wf (i, (H_I.vmemmap)[p_i2: {order: order, ..p_page}], pool, H_I.pool)}; 
 
@@ -446,6 +454,7 @@ static void __hyp_attach_page(struct hyp_pool *pool,
           p_page.refcount == 0u16; p_page.order == hyp_no_order (); 
           order_aligned(p_i2,order); 
           (p_i2 * page_size()) + (page_size_of_order(order)) <= (H_I.pool).range_end; 
+          // FULM_OPT: logical conj, cannot be optimised 
           each (u64 i; p_i < i && i < end_i)
             {(H.vmemmap[i].refcount == 0u16) || (H_I.vmemmap[i] == H.vmemmap[i])}; 
           {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; {pool} unchanged; 
@@ -571,6 +580,7 @@ static void __hyp_put_page(struct hyp_pool *pool, struct hyp_page *p)
  ensures take H2 = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); 
   {hyp_physvirt_offset} unchanged; {__hyp_vmemmap} unchanged; 
   H2.pool == {free_area:H2.pool.free_area, .. H.pool}; 
+  // FULM_OPT: logical conj, cannot be optimised 
   each (u64 i; p_i < i && i < end_i){(H.vmemmap[i].refcount == 0u16) || (H2.vmemmap[i] == H.vmemmap[i])}; @*/
 {
     /*CN*//*@ instantiate vmemmap_wf, cn_hyp_page_to_pfn(__hyp_vmemmap, p); @*/
@@ -711,8 +721,12 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
 // end, and others to have sensible values.
   let poolv = {range_start: start, range_end: end, max_order: 11u8, ..*pool}; 
   hyp_pool_wf(pool, poolv, __hyp_vmemmap, hyp_physvirt_offset); 
+  // FULM_OPT: contiguous Owned, can be optimised 
+  // FULM_OPT: V map never used, can be optimised
   take V = each (u64 i; start_i <= i && i < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, i)) }; 
   let ptr_phys_0 = cn__hyp_va(cn_virt_ptr, hyp_physvirt_offset, 0u64); 
+  // FULM_OPT: (evaluates to) contiguous Owned, can be optimised 
+  // FULM_OPT: P map never used, can be optimised
   take P = each (u64 i; start_i + ((u64) reserved_pages) <= i && i < end_i)
   { Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, i), true, 0u8) }; 
  ensures {__hyp_vmemmap} unchanged; {hyp_physvirt_offset} unchanged; 
@@ -731,9 +745,15 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
     assert(pool->max_order <= 11);
     for (i = 0; i < pool->max_order; i++)
     /*@ inv take OI = Owned(pool); 
+      // FULM_OPT: contiguous Owned, can be optimised 
+      // FULM_OPT: V2 map never used, can be optimised
       take V2 = each (u64 j; start_i <= j && j < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, j))}; 
+      // FULM_OPT: (evaluates to) contiguous Owned, can be optimised 
+      // FULM_OPT: PI map never used, can be optimised
       take PI = each (u64 j; start_i + ((u64) reserved_pages) <= j && j < end_i){ Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, j), true, 0u8) }; 
+      // FULM_OPT: logical conj, cannot be optimised
       each(u64 j; j < (u64) i){((*pool).free_area[j]).prev == array_shift<struct list_head>(pool, j) }; 
+      // FULM_OPT: logical conj, cannot be optimised
       each(u64 j; j < (u64) i){((*pool).free_area[j]).next == array_shift<struct list_head>(pool, j) }; 
       {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; 
       0i32 <= i; i <= (i32) (*pool).max_order; (*pool).max_order > 0u8; (*pool).max_order <= 11u8; 
@@ -751,10 +771,17 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
     p = hyp_phys_to_page(phys);
     for (i = 0; i < nr_pages; i++)
     /*@ inv take OI2 = Owned(pool); 
+      // FULM_OPT: contiguous Owned, can be optimised 
+      // FULM_OPT: V3 map never used, can be optimised
       take V3 = each (u64 j; start_i <= j && j < end_i){Owned(array_shift<struct hyp_page>(__hyp_vmemmap, j)) }; 
+      // FULM_OPT: (evaluates to) contiguous Owned, can be optimised 
+      // FULM_OPT: PI2 map never used, can be optimised
       take PI2 = each (u64 j; start_i + ((u64) reserved_pages) <= j && j < end_i){ Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, j), true, 0u8) }; 
+      // FULM_OPT: logical conj, cannot be optimised
       each(u8 j; j < (*pool).max_order){((*pool).free_area[(u64) j]).prev == array_shift<struct list_head>(pool, j)}; 
+      // FULM_OPT: logical conj, cannot be optimised
       each(u8 j; j < ((*pool).max_order)){((*pool).free_area[(u64) j]).next == array_shift<struct list_head>(pool, j)}; 
+      // FULM_OPT: logical conj, cannot be optimised
       each (u64 j; start_i <= j && j < start_i + (u64) i){init_vmemmap_page(j, V3, pool, *pool)}; 
       0i32 <= i; (u32) i <= nr_pages; 
       {__hyp_vmemmap} unchanged; {pool} unchanged; {hyp_physvirt_offset} unchanged; {pfn} unchanged; {nr_pages} unchanged; {reserved_pages} unchanged; 
@@ -782,8 +809,12 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
     for (i = reserved_pages; i < nr_pages; i++)
     /*@ inv take H = Hyp_pool(pool, __hyp_vmemmap, cn_virt_ptr, hyp_physvirt_offset); 
       i >= 0i32; 
+      // FULM_OPT: (evaluates to) contiguous Owned, can be optimised 
+      // FULM_OPT: PI3 map never used, can be optimised
       take PI3 = each(u64 j; start_i + ((u64) i) <= j && j < end_i){ Page(array_shift<PAGE_SIZE_t>(ptr_phys_0, j), true, 0u8) }; 
+      // FULM_OPT: logical conj, cannot be optimised
       each(u64 j; start_i + (u64) i <= j && j < end_i){H.vmemmap[j].order == 0u8}; 
+      // FULM_OPT: logical conj, cannot be optimised
       each(u64 j; start_i + (u64) i <= j && j < end_i){H.vmemmap[j].refcount == 1u16}; 
       (H.pool).range_start == start; 
       (H.pool).range_end == end; 
