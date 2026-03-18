@@ -306,6 +306,7 @@ predicate void Page (pointer vbase, boolean guard, u8 order)
   else {
     let length = page_size_of_order(order);
     let vbaseI = (u64) vbase;
+    // FULM_OPT
     take Bytes = each (u64 i; (vbaseI <= i) && (i < (vbaseI + length)))
          {Byte(array_shift<char>(NULL, i))};
     return;
@@ -320,6 +321,7 @@ predicate void ZeroPage (pointer vbase, boolean guard, u8 order)
   else {
     let length = page_size_of_order(order);
     let vbaseI = ((u64) vbase);
+    // FULM_OPT
     take Bytes = each (u64 i; (vbaseI <= i) && (i < (vbaseI + length)))
          {ByteV(array_shift<char>(NULL, i), 0u8)};
     return;
@@ -331,6 +333,7 @@ predicate void AllocatorPageZeroPart (pointer zero_start, u8 order)
   let start = (u64) zero_start;
   let region_length = page_size_of_order(order);
   let length = region_length - sizeof<struct list_head>;
+  // FULM_OPT
   take Bytes = each (u64 i; (start <= i) && (i < (start + length)))
        {ByteV(array_shift<char>(NULL, i), 0u8)};
   return;
@@ -373,6 +376,7 @@ Hyp_pool_ex1 (
   let start_i = pool.range_start / page_size();
   let end_i = pool.range_end / page_size();
   assert (hyp_pool_wf (pool_l, pool, vmemmap_l, physvirt_offset));
+  // FULM_OPT
   take V = each(u64 i; (start_i <= i) && (i < end_i))
                {Owned(array_shift<struct hyp_page>(vmemmap_l, i))};
   let ptr_phys_0 = cn__hyp_va(virt_ptr, physvirt_offset, 0u64);
@@ -412,6 +416,7 @@ Hyp_pool_ex2 (
   let start_i = pool.range_start / page_size();
   let end_i = pool.range_end / page_size();
   assert (hyp_pool_wf (pool_l, pool, vmemmap_l, physvirt_offset));
+  // FULM_OPT
   take V = each(u64 i; (start_i <= i) && (i < end_i))
               {Owned(array_shift<struct hyp_page>(vmemmap_l,  i))};
   let ptr_phys_0 = cn__hyp_va(virt_ptr, physvirt_offset, 0u64);
@@ -448,6 +453,7 @@ Hyp_pool (
   take P = Owned<struct hyp_pool>(pool_l);
   let start_i = P.range_start / page_size();
   let end_i = P.range_end / page_size();
+  // FULM_OPT
   take V = each(u64 i; (start_i <= i) && (i < end_i))
               {Owned(array_shift<struct hyp_page>(vmemmap_l, i))};
   assert (hyp_pool_wf (pool_l, P, vmemmap_l, physvirt_offset));
