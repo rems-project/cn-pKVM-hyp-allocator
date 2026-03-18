@@ -4,7 +4,7 @@ CC=${CC:-clang}
 mkdir -p build
 
 $CC -E -P -CC driver.c > driver.pp.c
-cn instrument ./driver.pp.c --output=driver.pp.exec.c --output-dir=build --without-lemma-checks --exec-c-locs-mode
+cn instrument ./driver.pp.c --output=driver.pp.exec.c --output-dir=build --without-lemma-checks --without-loop-invariants --exec-c-locs-mode
 echo "Compiling..."
 $CC -g -c -O0 -std=gnu11 -I$OPAM_SWITCH_PREFIX/lib/cn/runtime/include build/driver.pp.exec.c
 echo "Linking..."
