@@ -232,7 +232,7 @@ def cn_print_command(debugger, command, result, internal_dict):
         # Currently, we use the suffix '_record' to identify Cn structs.
         # Obviously, there can be false positives and false negatives,
         # and we should have a better logistics for this.
-        if not base.endswith('_record'):
+        if not base.endswith('_record') and not base.endswith('_cn'):
             return val.GetValue()
 
         out = ['{']
