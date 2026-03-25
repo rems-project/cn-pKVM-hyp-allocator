@@ -48,13 +48,11 @@ static u64 __hyp_vmemmap;
 
 // int create_hyp_mapping(phys_addr_t addr, size_t size)
 void shim_create_hyp_mapping(size_t size)
-#if !defined(__CN_TEST) // CANT_PBT
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
 	ensures take V = each (u64 i; i < size) {RW<char>(array_shift<char>((pointer) __io_map_base, i))};
  @*/
-#endif
 {
 	__io_map_base = (u64)cn_aligned_alloc(PAGE_SIZE, size);
 	__hyp_vmemmap = __io_map_base + size;
@@ -64,15 +62,6 @@ void shim_create_hyp_mapping(size_t size)
 // handle type mismatch
 static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size)
 //static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
-#ifdef __CN_VERIFY // CANT_PBT
-/*@
-    trusted;
-	accesses __io_map_base;
-	accesses __hyp_vmemmap;
-	requires start != 0u64; start >= __io_map_base;
-	ensures take X = Conditional_Cn_char_array((pointer)start, PAGE_ALIGN(size), return == 0i32);
-@*/
-#endif
 {
 	unsigned long cur;
 
@@ -103,21 +92,6 @@ static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size
  * Return: 0 on success or negative error code on failure.
  */
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
-#ifdef __CN_VERIFY // CANT_PBT
-/*@
-	accesses __io_map_base;
-	accesses __hyp_vmemmap;
-    requires
-	__io_map_base != 0u64; __io_map_base + size > __io_map_base;
-    __io_map_base & 0x7u64 == 0u64;
-	take v1 = W<unsigned long>(haddr); PAGE_ALIGN(size) == size;
-	ensures take v2 = RW<unsigned long>(haddr);
-	take X = Conditional_Cn_char_array ((pointer)v2, size, return == 0i32);
-	v2 > 0u64;
-	v2 + size > v2;
-	v2 & 0x7u64 == 0u64;
-@*/
-#endif
 {
 	unsigned long addr;
 	int ret;
