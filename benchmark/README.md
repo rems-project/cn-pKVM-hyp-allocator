@@ -1,11 +1,9 @@
 # Benchmark Suite
 
-This directory contains the scripts to use our benchmark sets for the hyp allocator:
-- partial specifications
-- buggy specifications
+This directory contains the scripts to use our benchmark sets (paritla specification benchmark and buggy specification benchmark) for the hyp allocator:
 
-Each specification is created by modifying the complete specification, we just recorded the diffs in the `patches` directory, without duplicating the source files.
-So what you need to do is to check out the base commit, and apply the changes in the directory.
+Since each specification is created by modifying the complete specification, we just recorded the diffs in the `patches` directory, without duplicating the source files.
+What you need to do is to check out the base commit, and apply the changes in the directory.
 The scripts in this directory make it easy for you to switch between specifications.
 
 ## Usage
