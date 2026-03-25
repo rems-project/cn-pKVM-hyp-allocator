@@ -1,8 +1,12 @@
 # Benchmark Suite
 
-This directory defines the benchmark suite of patched CN specifications for the
-pKVM hypervisor allocator. Each benchmark corresponds to a mutant patch that
-introduces a deliberate bug into the specification (`src/alloc.c` / `specs/spec.c`).
+This directory contains the scripts to use our benchmark sets for the hyp allocator:
+- partial specifications
+- buggy specifications
+
+Each specification is created by modifying the complete specification, we just recorded the diffs in the `patches` directory, without duplicating the source files.
+So what you need to do is to check out the base commit, and apply the changes in the directory.
+The scripts in this directory make it easy for you to switch between specifications.
 
 ## Usage
 
@@ -26,8 +30,9 @@ Example:
 
 ## Benchmark Table
 
-The source of truth is `pbt_bench/bug_finding.json`. Benchmark numbers are
-1-indexed and match the order of entries in that file.
+### Buggy Specification Benchmark
+
+The specification bugs are collected from the previous commits in this repository. The following table summarizes which function is considered to be buggy. 
 
 | # | Patch | Function under test |
 |---|-------|---------------------|
@@ -55,8 +60,6 @@ The source of truth is `pbt_bench/bug_finding.json`. Benchmark numbers are
 | 22 | patch-26 | `setup_first_chunk` |
 | 23 | patch-27 | `chunk_install` |
 | 24 | patch-28 | `chunk_hash_update` |
-
-**Note:** Patch numbers follow the original naming scheme; there are gaps (02, 04, 12, 21) because those patches were excluded from the benchmark.
 
 ## Base commit
 
