@@ -91,7 +91,7 @@ datatype option_u64 {
 
 predicate [nounfold] void Cn_char_array(pointer p, u64 size)
 {
-        take U = each(u64 i; i < size){
+        take U = each(u64 i; 0u64 <= i && i < size){
                 W<byte>(array_shift<byte>(p, i))
         };
         return;
