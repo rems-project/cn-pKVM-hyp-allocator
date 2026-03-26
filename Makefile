@@ -106,6 +106,10 @@ collect-pbt-bug-finding-buggy:
 analyze-pbt-comparison:
 	./pbt_bench/analyze_comparison.py
 
+.PHONY: fulm-bench
+fulm-bench:
+	./fulm_bench/fulm_bench.py
+
 .PHONY: clean
 clean:
 	rm -f tmp-alloc.c
