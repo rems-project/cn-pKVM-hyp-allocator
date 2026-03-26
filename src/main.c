@@ -112,7 +112,7 @@ void test3(void)
 	// printf("==> %d\n", n);
 }
 
-#define N_ALLOC 100
+#define N_ALLOC 256
 // Specialized for hyp_alloc
 void test4(void)
 {
@@ -148,7 +148,7 @@ void test4(void)
 
 void shim_create_hyp_mapping(size_t size);
 
-#define NR_PAGES	32
+#define NR_PAGES	256
 int main(void)
 /*@
 	accesses host_mc;
@@ -156,7 +156,7 @@ int main(void)
 {
 	int ret;
 	// SHIM INIT
-	shim_create_hyp_mapping(64 << PAGE_SHIFT);
+	shim_create_hyp_mapping(256 << PAGE_SHIFT);
 
 	// printf("HYP_ALLOC_INIT\n");
 	ret = hyp_alloc_init(NR_PAGES*PAGE_SIZE);
