@@ -1,0 +1,23 @@
+[
+    {
+        "path": "patches/patch-28-no-loop-invariant"
+    },
+    {
+        "path": "patches/patch-29-no-hyp-alloc"
+    },
+    {
+        "path": "patches/patch-30-no-chunk-list-insert"
+    },
+    {
+        "path": "patches/patch-31-no-list-specs"
+    },
+    {
+        "path": "patches/patch-32-missing-proof-annotations-in-hyp-alloc"
+    },
+    {
+        "path": "patches/patch-33-missing-lemmas-in-hyp-alloc"
+    },
+    {
+        "path": "patches/patch-34-weak-postcondition"
+    }
+]
