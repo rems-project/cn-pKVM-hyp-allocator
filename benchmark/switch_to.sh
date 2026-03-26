@@ -23,6 +23,6 @@ print(e['path'])
 
 PATCH_PATH=$(echo "$ENTRY")
 
-git checkout "$BASE_COMMIT" -- src/alloc.c src/shim.c specs/spec.c include/linux/list.h
+git checkout "$BASE_COMMIT" -- src/alloc.c src/main.c src/shim.c specs/spec.c include/linux/list.h
 git apply "$WORKAROUND_PATCH"
 git apply "$PATCH_PATH"

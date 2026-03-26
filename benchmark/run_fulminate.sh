@@ -3,7 +3,7 @@
 
 make main.exe > /dev/null 2>&1 && ./main.exe > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-    echo "Benchmark $1: OK"
+    echo "Benchmark $1: No bug found"
 else
-    echo "Benchmark $1: NG"
+    echo "Benchmark $1: Bug found"
 fi
