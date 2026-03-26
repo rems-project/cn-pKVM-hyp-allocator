@@ -2,8 +2,8 @@
 
 set -eu
 
-FILES="specs/spec.c src/alloc.c include/linux/list.h include/prelude.h include/linux/container_of.h include/linux/bitfield.h include/linux/minmax.h include/fulminate.h include/alloc.h src/shim.c"
-BANWORDS="HK PS KM RB TODO workaround Hiro peter Peter hiro"
+FILES="specs/spec.c src/alloc.c include/linux/list.h include/prelude.h include/linux/container_of.h include/linux/bitfield.h include/linux/minmax.h include/fulminate.h include/alloc.h src/shim.c benchmark/partial_spec.json  benchmark/README.md benchmark/run_bug_bench.sh  benchmark/run_correct_partial_spec.sh  benchmark/run_fulminate.sh  benchmark/switch_to.sh pbt_bench/bug_finding.json"
+BANWORDS="HK PS KM RB TODO Hiro peter Peter hiro"
 
 TMPDIR=$(mktemp -d)
 
