@@ -112,7 +112,7 @@ void test3(void)
 	// printf("==> %d\n", n);
 }
 
-#define N_ALLOC 40
+#define N_ALLOC 100
 // Specialized for hyp_alloc
 void test4(void)
 {
@@ -136,6 +136,9 @@ void test4(void)
     void *ps[N_ALLOC];
     for (i = 0; i < N_ALLOC; i++) {
         ps[i] = hyp_alloc(10 * i + 1);
+        if (ps[i] == NULL) {
+            fatal("hyp_alloc failed!", -1);
+        }
     }
     for (i = 0; i < N_ALLOC; i++) {
         hyp_free(ps[i] /*@ (u64)i * 10u64 + 1u64 @*/);
@@ -145,7 +148,7 @@ void test4(void)
 
 void shim_create_hyp_mapping(size_t size);
 
-#define NR_PAGES	16
+#define NR_PAGES	32
 int main(void)
 /*@
 	accesses host_mc;
