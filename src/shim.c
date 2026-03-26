@@ -52,7 +52,7 @@ void shim_create_hyp_mapping(size_t size)
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
-	ensures take V = each (u64 i; i < size) {RW<char>(array_shift<char>((pointer) __io_map_base, i))};
+	ensures take V = each (u64 i; 0u64 <= i && i < size) {RW<char>(array_shift<char>((pointer) __io_map_base, i))};
  @*/
 #endif
 {
