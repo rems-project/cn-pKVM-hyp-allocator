@@ -108,27 +108,67 @@ void test3(void)
 }
 
 
+#define N_ALLOC 256
+// Specialized for hyp_alloc
+void test4(void)
+{
+	int i;
+	// dump_chunks();
+	// //assert(hyp_alloc(sizeof(int)));
+	// dump_chunks();
+	//int *p = hyp_alloc(8 + PAGE_SIZE);
+	//assert(p);
+
+	srand(2);
+	int *p = hyp_alloc(400);
+	assert(p);
+	int *q = hyp_alloc(400);
+	assert(q);
+	hyp_free(p /*@ 400u64 @*/ );
+	// should use chunk_recycle
+	int *r = hyp_alloc(300);
+	assert(p == r);
+	hyp_alloc(80);
+    void *ps[N_ALLOC];
+    for (i = 0; i < N_ALLOC; i++) {
+        ps[i] = hyp_alloc(16 * (i + 1));
+        if (ps[i] == NULL) {
+            fatal("hyp_alloc failed!", -1);
+        }
+    }
+    for (i = 0; i < N_ALLOC; i++) {
+        hyp_free(ps[i] /*@ 16u64 * ((u64)i + 1u64) @*/);
+    }
+}
+
+
 void shim_create_hyp_mapping(size_t size);
 
-#define NR_PAGES	8
+#define NR_PAGES	256
 int main(void)
+/*@
+	accesses host_mc;
+@*/
 {
 	int ret;
 	// SHIM INIT
-	shim_create_hyp_mapping(64 << PAGE_SHIFT);
+	shim_create_hyp_mapping(256 << PAGE_SHIFT);
 
 	// printf("HYP_ALLOC_INIT\n");
 	ret = hyp_alloc_init(NR_PAGES*PAGE_SIZE);
-	if(ret)
+	if(ret) {
 		fatal("hyp_alloc_init() failed", ret);
+	}
 
-	
+
 	ret = dummy_memcache(&host_mc, NR_PAGES);
-	if (ret)
+	if (ret) {
 		fatal("dummy_memcache() failed", ret);
+	}
 
 	// printf("HYP_ALLOC_REFILL\n");
 	hyp_alloc_refill(&host_mc);
 
-	test3();
+	test4();
+
 }
