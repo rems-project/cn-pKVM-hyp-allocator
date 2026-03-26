@@ -135,13 +135,13 @@ void test4(void)
 	hyp_alloc(80);
     void *ps[N_ALLOC];
     for (i = 0; i < N_ALLOC; i++) {
-        ps[i] = hyp_alloc(10 * i + 1);
+        ps[i] = hyp_alloc(16 * (i + 1));
         if (ps[i] == NULL) {
             fatal("hyp_alloc failed!", -1);
         }
     }
     for (i = 0; i < N_ALLOC; i++) {
-        hyp_free(ps[i] /*@ (u64)i * 10u64 + 1u64 @*/);
+        hyp_free(ps[i] /*@ 16u64 * ((u64)i + 1u64) @*/);
     }
 }
 
