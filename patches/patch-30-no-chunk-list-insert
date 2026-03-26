@@ -1,5 +1,5 @@
 diff --git a/src/alloc.c b/src/alloc.c
-index 34436d7eb..7775ff59b 100644
+index 34436d7eb..69581a483 100644
 --- a/src/alloc.c
 +++ b/src/alloc.c
 @@ -757,57 +757,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
@@ -60,3 +60,32 @@ index 34436d7eb..7775ff59b 100644
  {
          // HK: non-rust ownership type part
          // This is also why we cannot directly apply the idea of
+@@ -826,28 +775,10 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
+         //   - prev must be in the chunk list from the precondition
+         //   - that implies we have the ownership of prev
+ 
+-        /*@ split_case(ptr_eq(
+-                member_shift<struct chunk_hdr>(prev, node)->next,
+-                member_shift<struct hyp_allocator>(allocator, chunks)));
+-        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
+-                member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
+-        split_case(ptr_eq(
+-                member_shift<struct chunk_hdr>(prev, node)->prev,
+-                member_shift<struct hyp_allocator>(allocator, chunks)));
+-        unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(prev, node)->prev,
+-                member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.first, Cn_hyp_allocator_core(HA_pre.ha));
+-        @*/
+         list_add(&chunk->node, &prev->node);
+-        /*@ unpack CondListHead(...); @*/
+-
+-        /*@ split_case(ptr_eq(
+-                member_shift<struct chunk_hdr>(chunk, node)->next,
+-                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+         chunk_hash_update(prev);
+-	/*@ unpack MaybeChunkHdr(prev, !is_null(prev)); @*/
+         chunk_hash_update(__chunk_next(chunk, allocator));
+         chunk_hash_update(chunk);
+-	/*@ unpack MaybeChunkHdr(...); @*/
+ }
+ 
+ void LemmaMergeArrays(
