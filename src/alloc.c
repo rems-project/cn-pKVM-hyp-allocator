@@ -796,7 +796,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
         take X = Cn_char_array(start, owned_by_ha);
 
-        // workaround for Bennet/Fulminate
         (u64)chunk & 0x7u64 == 0u64;
         (u64)alloc_size & 0x7u64 == 0u64;
 
@@ -1120,7 +1119,6 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
                 assert(ha.start == (u64)chunk);
 
-                // workaround for Bennet/Fulminate
                 assert((u64)chunk & 7u64 == 0u64);
                 assert(size & 0x7u64 == 0u64);
 
@@ -1165,7 +1163,6 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 let cond2 = (u64)prev_cd + (u64)P_pre.alloc_size <= (u64)chunk;
                 assert(cond && cond2);
 
-                // workaround for Bennet/Fulminate
                 assert((u64)chunk & 7u64 == 0u64);
                 assert(size & 0x7u64 == 0u64);
 
