@@ -19,7 +19,7 @@ As one can see in the code here, the full precondition and postcondition become 
 - `include/alloc.c`: header that defines the public API of the allocator
 - `include/prelude.h`, `include/linux/container_of.h`, `include/linux/bitfield.h`, `include/linux/minmax.h`: minor macros and definitions
 - `include/fulminate.h`: definitions for fulminate
-- `benchmark/`: benchmark sets for partial specifications and buggy specifications mentioned in the paper
+- `benchmark/`: benchmark sets for partial specifications (`partial` directory) and buggy (`buggy` directory) specifications mentioned in the paper
 
 ## Renaming
 

@@ -2,7 +2,7 @@
 
 set -eu
 
-FILES="specs/spec.c src/alloc.c include/linux/list.h include/prelude.h include/linux/container_of.h include/linux/bitfield.h include/linux/minmax.h include/fulminate.h include/alloc.h src/shim.c benchmark/README.md"
+FILES="specs/spec.c src/alloc.c include/linux/list.h include/prelude.h include/linux/container_of.h include/linux/bitfield.h include/linux/minmax.h include/fulminate.h include/alloc.h src/shim.c"
 BANWORDS="Hiro peter Peter hiro"
 
 TMPDIR=$(mktemp -d)
