@@ -281,10 +281,6 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
         }
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 9b7b51db4 (Remove todo/outdated/misc comments)
 type_synonym cn_lseg = {
         cn_chunk_hdrs before,
         cn_chunk_hdr chunk,
@@ -369,11 +365,5 @@ function (boolean) is_free_chunk(cn_chunk_hdr hdr, u64 size)
            hdr.alloc_size == 0u32 // i.e., unused
         && (u64) hdr.va_size // the code's available_size
         >= Cn_chunk_size(size)
-<<<<<<< HEAD
-        // we ignore the hash check of the chunk_get macro - even though to
-        // prove safety of the actual code we would need to check the hash
-        // checks succeed.
-=======
->>>>>>> 9b7b51db4 (Remove todo/outdated/misc comments)
 }
 @*/
