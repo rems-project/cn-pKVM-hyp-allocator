@@ -44,63 +44,63 @@ void test1(void)
 {
 	int *p = hyp_alloc(4*sizeof(int));
 	assert(p);
-	dump_chunks();
+	
 	int *q = hyp_alloc(PAGE_SIZE + 128);
 	assert(q);
-	dump_chunks();
+	
 	hyp_free(p);
-	dump_chunks();
+	
 	hyp_free(q);
-	dump_chunks();
+	
 	p = hyp_alloc(sizeof(int));
 	assert(p);
-	dump_chunks();
+	
 }
 
 void test2(void)
 {
-	dump_chunks();
+	
 	int *p = hyp_alloc(4*sizeof(int));
 	assert(p);
-	dump_chunks();
+	
 	int *q = hyp_alloc(PAGE_SIZE + 128);
 	assert(q);
-	dump_chunks();
+	
 	int *r = hyp_alloc(sizeof(int));
 	assert(r);
-	dump_chunks();
+	
 	hyp_free(r);
-	dump_chunks();
+	
 	hyp_free(q);
-	dump_chunks();
+	
 	r = hyp_alloc(PAGE_SIZE);
 	assert(r);
-	dump_chunks();
+	
 	q = hyp_alloc(sizeof(int));
 	assert(q);
-	dump_chunks();
-	printf("==> %d\n", hyp_alloc_reclaimable());
+	
+	// printf("==> %d\n", hyp_alloc_reclaimable());
 	hyp_free(r);
-	dump_chunks();
+	
 	hyp_alloc_reclaim(&host_mc, 14);
-	dump_chunks();
-	printf("==> %d\n", hyp_alloc_reclaimable());
+	
+	// printf("==> %d\n", hyp_alloc_reclaimable());
 }
 
 void test3(void)
 {
-	dump_chunks();
+	
 	assert(hyp_alloc(sizeof(int)));
-	dump_chunks();
+	
 	int *p = hyp_alloc(8 + PAGE_SIZE);
 	assert(p);
-	dump_chunks();
+	
 	hyp_free(p);
-	dump_chunks();
+	
 	int n = hyp_alloc_reclaimable();
-	dump_chunks();
-	printf("==> %d\n", n);
-	printf("errno: %d\n", hyp_alloc_errno());
+	
+	// printf("==> %d\n", n);
+	// printf("errno: %d\n", hyp_alloc_errno());
 
 	hyp_alloc_reclaim(&host_mc, n);
 	// n = hyp_alloc_reclaimable();
@@ -110,7 +110,7 @@ void test3(void)
 
 void shim_create_hyp_mapping(size_t size);
 
-#define NR_PAGES	16
+#define NR_PAGES	8
 int main(void)
 {
 	int ret;

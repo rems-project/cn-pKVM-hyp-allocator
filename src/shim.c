@@ -11,16 +11,16 @@ const char *__func__ = "__func__";
 unsigned long hyp_nr_cpus = 1;
 
 #define log_function()							\
-	({								\
-		fprintf(stderr, "\x1b[31mCALLED: %s\x1b[0m\n",		\
-			__func__);					\
-	})
+	({	})							\
+	// 	// fprintf(stderr, "\x1b[31mCALLED: %s\x1b[0m\n",		\
+	// 	// 	__func__);					\
+	// })
 
 #define log_function_args(ARGS_STR, ...)				\
-	({								\
-		fprintf(stderr, "\x1b[31mCALLED: %s(" ARGS_STR		\
-			")\x1b[0m\n", __func__, __VA_ARGS__);		\
-	})
+	({		})						\
+	// 	fprintf(stderr, "\x1b[31mCALLED: %s(" ARGS_STR		\
+	// 		")\x1b[0m\n", __func__, __VA_ARGS__);		\
+	// })
 
 
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
@@ -99,7 +99,7 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 void pkvm_remove_mappings(void *from, void *to)
 {
 	log_function_args("from: %p, to: %p", from, to);
-	printf("\x1b[31mTODO\x1b[0m\n");
+	// printf("\x1b[31mTODO\x1b[0m\n");
 }
 
 
