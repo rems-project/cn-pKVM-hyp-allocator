@@ -112,6 +112,7 @@ void test3(void)
 	// printf("==> %d\n", n);
 }
 
+#define N_ALLOC 40
 // Specialized for hyp_alloc
 void test4(void)
 {
@@ -132,6 +133,13 @@ void test4(void)
 	int *r = hyp_alloc(300);
 	assert(p == r);
 	hyp_alloc(80);
+    void *ps[N_ALLOC];
+    for (i = 0; i < N_ALLOC; i++) {
+        ps[i] = hyp_alloc(10 * i + 1);
+    }
+    for (i = 0; i < N_ALLOC; i++) {
+        hyp_free(ps[i] /*@ (u64)i * 10u64 + 1u64 @*/);
+    }
 }
 
 
