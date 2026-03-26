@@ -5,6 +5,8 @@
 
 #include "alloc.c"
 
+void cn_print_nr_owned_predicates(void);
+
 void* cn_unsafe_aligned_alloc(size_t align, size_t size);
 
 phys_addr_t ident_to_pa(void *addr)
@@ -161,4 +163,6 @@ int main(void)
 	hyp_alloc_refill(&host_mc);
 
 	test4();
+
+	cn_print_nr_owned_predicates();
 }

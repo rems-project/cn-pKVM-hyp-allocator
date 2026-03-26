@@ -36,7 +36,7 @@ def fulminate(filename):
     run_cmd(fulm + filename)
 
 def compile(filename):
-    compile = cc + " -g -c -O0 -std=gnu11 -I" + runtime_prefix + "/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h "
+    compile = cc + " -g -c -std=gnu11 -I" + runtime_prefix + "/include -Isrc -Iinclude -Wno-builtin-macro-redefined -Wno-unused-value -D__cerb__ -DSTANDALONE -DNO_STATEMENT_EXPRS -include fulminate2.h "
     run_cmd(compile + filename)
 
 def link(filename, instrumented):
