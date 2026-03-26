@@ -1,0 +1,27 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb30274..131bfa69f 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -1995,22 +1995,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
+ 
+         let C_post = HA_post.lseg.chunk;
+         let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_);
+-        (return == 0i32 && can_split) implies
+-                C_post == {
+-                        header_address: C_pre.header_address,
+-                        mapped_size: (u32)chunk_va_size_post,
+-                        alloc_size: (u32)size,
+-                        va_size: (u32)chunk_va_size_post
+-                };
+ 
+         let tmp_mapped_size = (u64)C_pre.mapped_size + Cn_chunk_needs_mapping((u64)C_pre.mapped_size, size);
+-        (return == 0i32 && !can_split) implies
+-                C_post == {
+-                        header_address: C_pre.header_address,
+-                        mapped_size: (u32)tmp_mapped_size,
+-                        alloc_size: (u32)size,
+-                        va_size: C_pre.va_size
+-                };
+         take U = Conditional_Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size, return == 0i32);
+ 
+ @*/

@@ -1,0 +1,88 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb30274..f4cfe9e7d 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -754,54 +754,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
+ 
+ */
+ 
+-/*@
+-    requires
+-        !is_null(chunk);
+-        !is_null(prev);
+-        take HA_pre = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_none{}, true);
+-        let lseg_pre = HA_pre.lseg;
+-        let Prev_pre = lseg_pre.chunk;
+-
+-        // chunk is not constructed yet
+-        take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
+-        take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
+-        take node = W<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
+-        take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
+-        take explicit_padding = W<unsigned>(member_shift<struct chunk_hdr>(chunk, explicit_padding));
+-        (u64)alloc_size + Cn_chunk_hdr_size() <= (u64)mapped_size;
+-        (u64)mapped_size <= HA_pre.va_size;
+-
+-        //  [prev]    [+alloc_size]             [chunk]     [+(old)va_size]
+-        //    ------- ------------------------- ----------- -------------
+-        (u64)HA_pre.ha.start <= (u64)prev;
+-        (u64)prev < (u64)chunk;
+-        (u64)prev + Cn_chunk_hdr_size() +  (u64)Prev_pre.alloc_size <= (u64)chunk;
+-        (u64)chunk <= (u64)chunk + Cn_chunk_hdr_size();
+-        (u64)chunk + Cn_chunk_hdr_size() <= (u64)alloc_size + (u64)chunk + Cn_chunk_hdr_size();
+-        (u64)chunk + Cn_chunk_hdr_size() + (u64)alloc_size <= (u64)chunk + (u64)HA_pre.va_size;
+-        (u64)chunk + (u64)HA_pre.va_size <= (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
+-        let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size);
+-        let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
+-        take X = Cn_char_array(start, owned_by_ha);
+-
+-        let new_last = lseg_pre.after == Chunk_nil{} ? member_shift<struct chunk_hdr>(chunk, node) : HA_pre.ha.last;
+-
+-    ensures
+-        take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
+-        let lseg_post = HA_post.lseg;
+-        let Prev_post = lseg_post.chunk;
+-        let ha = HA_pre.ha;
+-        HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
+-        lseg_pre.before == lseg_post.before;
+-        let Chunk = {
+-                header_address: (u64)chunk,
+-                va_size: (u32)HA_pre.va_size,
+-                alloc_size: alloc_size,
+-                mapped_size: mapped_size
+-        };
+-        lseg_post.after == Chunk_cons {hd: Chunk, tl: HA_pre.lseg.after};
+-        lseg_pre.chunk == Prev_post;
+-@*/
+ {
+         // HK: non-rust ownership type part
+         // This is also why we cannot directly apply the idea of
+@@ -820,28 +772,10 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
+         //   - prev must be in the chunk list from the precondition
+         //   - that implies we have the ownership of prev
+ 
+-        /*@ split_case(ptr_eq(
+-                member_shift<struct chunk_hdr>(prev, node)->next,
+-                member_shift<struct hyp_allocator>(allocator, chunks)));
+-        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
+-                member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
+-        split_case(ptr_eq(
+-                member_shift<struct chunk_hdr>(prev, node)->prev,
+-                member_shift<struct hyp_allocator>(allocator, chunks)));
+-        unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(prev, node)->prev,
+-                member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.first, Cn_hyp_allocator_core(HA_pre.ha));
+-        @*/
+         list_add(&chunk->node, &prev->node);
+-        /*@ unpack CondListHead(...); @*/
+-
+-        /*@ split_case(ptr_eq(
+-                member_shift<struct chunk_hdr>(chunk, node)->next,
+-                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+         chunk_hash_update(prev);
+-	/*@ unpack MaybeChunkHdr(prev, !is_null(prev)); @*/
+         chunk_hash_update(__chunk_next(chunk, allocator));
+         chunk_hash_update(chunk);
+-	/*@ unpack MaybeChunkHdr(...); @*/
+ }
+ 
+ void LemmaMergeArrays(

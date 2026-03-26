@@ -1,0 +1,17 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb30274..af86fcb03 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -2511,12 +2511,6 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
+         /*@ unpack Cn_chunk_hdrs(ha.first, ha_full.head, ha_full.last, Cn_hyp_allocator_core(ha_full)); @*/
+ 
+         list_for_each_entry(chunk, &allocator->chunks, node)
+-        /*@ inv {allocator} unchanged;
+-                {size} unchanged;
+-                take I = GetFreeChunkInv(allocator, chunk, best_chunk, best_available_size, size);
+-                I == ha_full;
+-                !is_null(chunk);
+-        @*/
+         {
+                 // needs to split the following:
+                 // https://github.com/rems-project/cn/issues/245

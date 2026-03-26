@@ -1,0 +1,37 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index 4fcb30274..de43caaf6 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -2771,7 +2771,6 @@ void *hyp_alloc(unsigned long size)
+         // HK: when there is no free chunk, we divide the last chunk
+         no_free_chunk = 1;
+ 	/*@ unpack GetFreeChunk(...); @*/
+-        LemmaGetLastChunk(allocator);
+ 
+ 
+         last_chunk = chunk_get(list_last_entry(&allocator->chunks, struct chunk_hdr, node));
+@@ -2798,7 +2797,6 @@ void *hyp_alloc(unsigned long size)
+         if (missing_map) {
+                 ret = chunk_inc_map(last_chunk, missing_map, allocator);
+                 if (ret){
+-                        LemmaLsegToChunkHdrs(allocator, last_chunk);
+                         goto end;
+                 }
+         }
+@@ -2810,16 +2808,11 @@ void *hyp_alloc(unsigned long size)
+         /*@ split_case(is_null(chunk)); @*/
+         /*@ split_case(res_chunk_install == 0i32); @*/
+ 	/*@ unpack ChunkInstallPost(...); @*/
+-        LemmaLsegToChunkHdrs(allocator, last_chunk);
+ end:
+         hyp_spin_unlock(&allocator->lock);
+ 
+         *(this_cpu_ptr(&hyp_allocator_errno)) = ret;
+ 
+-        /* CN DIFF for proof */
+-        if ((!ret || !cn_flag) && !no_free_chunk) {
+-                LemmaLsegToChunkHdrs(allocator, chunk);
+-        }
+ 
+         /* Enforce zeroing allocated memory */
+         if (!ret)

@@ -1,0 +1,192 @@
+diff --git a/include/linux/list.h b/include/linux/list.h
+index 28bf1cf45..ccc424f35 100644
+--- a/include/linux/list.h
++++ b/include/linux/list.h
+@@ -37,14 +37,6 @@ predicate(datatype list_head_option) CondListHead(pointer p, boolean condition)
+  * @head: the list to test.
+  */
+ static inline int list_empty(const struct list_head *head)
+-/*@
+-	requires
+-		take H_pre = RW<struct list_head>(head);
+-	ensures
+-		take H_post = RW<struct list_head>(head);
+-		H_pre == H_post;
+-		return == (ptr_eq(H_post.next, head) ? 1i32 : 0i32);
+-@*/
+ {
+ 	return READ_ONCE(head->next) == head;
+ }
+@@ -57,14 +49,6 @@ static inline int list_empty(const struct list_head *head)
+  * the result is an empty list.
+  */
+ static inline void INIT_LIST_HEAD(struct list_head *list)
+-/*@
+-	requires
+-		take L_pre = W<struct list_head>(list);
+-	ensures
+-		take L_post = RW<struct list_head>(list);
+-		ptr_eq(L_post.next, list);
+-		ptr_eq(L_post.prev, list);
+-@*/
+ {
+ 	// HK(patch)
+ 	// WRITE_ONCE(list->next, list);
+@@ -137,27 +121,11 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
+  * @head: the head of the list
+  */
+ static inline int list_is_first(const struct list_head *list, const struct list_head *head)
+-/*@
+-	requires
+-		take L_pre = RW<struct list_head>(list);
+-	ensures
+-		take L_post = RW<struct list_head>(list);
+-		L_pre == L_post;
+-		return == (ptr_eq(L_pre.prev, head) ? 1i32 : 0i32);
+-@*/
+ {
+ 	return list->prev == head;
+ }
+ 
+ static inline int list_is_last(const struct list_head *list, const struct list_head *head)
+-/*@
+-	requires
+-		take L_pre = RW<struct list_head>(list);
+-	ensures
+-		take L_post = RW<struct list_head>(list);
+-		L_pre == L_post;
+-	return == (ptr_eq(L_pre.next, head) ? 1i32 : 0i32);
+-@*/
+ {
+ 	return list->next == head;
+ }
+@@ -175,34 +143,11 @@ static inline int list_is_last(const struct list_head *list, const struct list_h
+ static inline void __list_add(struct list_head *new,
+ 								struct list_head *prev,
+ 								struct list_head *next)
+-/*@
+-	requires
+-		let head = prev;
+-		take New_pre = W<struct list_head>(new);
+-		take Head_pre = RW<struct list_head>(head);
+-		!ptr_eq(new, next);
+-		let p = !ptr_eq(head, next);
+-		take Next_pre_opt = CondListHead(next, p);
+-	ensures
+-		take New_post = RW<struct list_head>(new);
+-		take Head_post = RW<struct list_head>(head);
+-		take Next_post_opt = CondListHead(next, !ptr_eq(head, next));
+-		match Next_post_opt {
+-			List_Head_None {} => {
+-				list_add_aux(Head_post, New_post, Head_post, new, next, head, Next_pre_opt, New_pre, Head_pre)
+-			}
+-			List_Head_Some { L: Next_post } => {
+-				list_add_aux(Next_post, New_post, Head_post, new, next, head, Next_pre_opt, New_pre, Head_pre)
+-			}
+-		};
+-@*/
+ {
+ #if 0
+ 	if (!__list_add_valid(new, prev, next))
+ 		return;
+ #endif
+-	/*@ split_case(!ptr_eq(head, next)); @*/
+-	/*@ unpack CondListHead(next,p); @*/
+ 	next->prev = new;
+ 	new->next = next;
+ 	new->prev = prev;
+@@ -239,27 +184,6 @@ function (boolean) list_add_aux(struct list_head Next_post, struct list_head New
+ 
+ // Spec is almost the copy of __list_add.
+ static inline void list_add(struct list_head *new, struct list_head *head)
+-/*@
+-	requires
+-		take New_pre = W<struct list_head>(new);
+-		take Head_pre = RW<struct list_head>(head);
+-		let next = Head_pre.next;
+-		!ptr_eq(new, next);
+-		let p = !ptr_eq(head, next);
+-		take Next_pre_opt = CondListHead(next, p);
+-	ensures
+-		take New_post = RW<struct list_head>(new);
+-		take Head_post = RW<struct list_head>(head);
+-		take Next_post_opt = CondListHead(next, !ptr_eq(head, next));
+-		match Next_post_opt {
+-			List_Head_None {} => {
+-				list_add_aux(Head_post, New_post, Head_post, new, next, head, Next_pre_opt, New_pre, Head_pre)
+-			}
+-			List_Head_Some { L: Next_post } => {
+-				list_add_aux(Next_post, New_post, Head_post, new, next, head, Next_pre_opt, New_pre, Head_pre)
+-			}
+-		};
+-@*/
+ {
+ 	__list_add(new, head, head->next);
+ }
+@@ -272,18 +196,6 @@ static inline void list_add(struct list_head *new, struct list_head *head)
+  * the prev/next entries already!
+  */
+ static inline void __list_del(struct list_head * prev, struct list_head * next)
+-/*@
+-	requires
+-		take Next_pre = RW<struct list_head>(next);
+-		take Prev_pre = RW<struct list_head>(prev);
+-	ensures
+-		take Next_post = RW<struct list_head>(next);
+-		take Prev_post = RW<struct list_head>(prev);
+-		ptr_eq(Prev_post.next, next);
+-		ptr_eq(Next_post.prev, prev);
+-		ptr_eq(Prev_post.prev, Prev_pre.prev);
+-		ptr_eq(Next_post.next, Next_pre.next);
+-@*/
+ {
+ 	next->prev = prev;
+ 	// TODO: Recover WRITE_ONCE
+@@ -292,23 +204,6 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
+ }
+ 
+ static inline void __list_del_entry(struct list_head *entry)
+-/*@
+-	requires
+-		take Entry_pre = RW<struct list_head>(entry);
+-		let next = Entry_pre.next;
+-		let prev = Entry_pre.prev;
+-		take Next_pre = RW<struct list_head>(next);
+-		take Prev_pre = RW<struct list_head>(prev);
+-	ensures
+-		take Entry_post = RW<struct list_head>(entry);
+-		take Next_post = RW<struct list_head>(next);
+-		take Prev_post = RW<struct list_head>(prev);
+-		ptr_eq(Prev_post.next, next);
+-		ptr_eq(Next_post.prev, prev);
+-		ptr_eq(Prev_post.prev, Prev_pre.prev);
+-		ptr_eq(Next_post.next, Next_pre.next);
+-		Entry_pre == Entry_post;
+-@*/
+ {
+ #if 0
+ 	if (!__list_del_entry_valid(entry))
+@@ -320,23 +215,6 @@ static inline void __list_del_entry(struct list_head *entry)
+ 
+ // Spec is the copy of __list_del_entry.
+ static inline void list_del(struct list_head *entry)
+-/*@
+-	requires
+-		take Entry_pre = RW<struct list_head>(entry);
+-		let next = Entry_pre.next;
+-		let prev = Entry_pre.prev;
+-		take Next_pre = RW<struct list_head>(next);
+-		take Prev_pre = RW<struct list_head>(prev);
+-	ensures
+-		take Entry_post = RW<struct list_head>(entry);
+-		take Next_post = RW<struct list_head>(next);
+-		take Prev_post = RW<struct list_head>(prev);
+-		ptr_eq(Prev_post.next, next);
+-		ptr_eq(Next_post.prev, prev);
+-		ptr_eq(Prev_post.prev, Prev_pre.prev);
+-		ptr_eq(Next_post.next, Next_pre.next);
+-		Entry_pre == Entry_post;
+-@*/
+ {
+ 	__list_del_entry(entry);
+ #if 0
