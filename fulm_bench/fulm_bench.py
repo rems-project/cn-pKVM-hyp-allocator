@@ -32,7 +32,7 @@ def preprocess(filename):
     subprocess.call(preprocess_cmd.split(), stdout=pp_f)
 
 def fulminate(filename):
-    fulm = "cn instrument --exec-c-locs-mode --insert-curly-braces "
+    fulm = "cn instrument --exec-c-locs-mode --insert-curly-braces --without-loop-invariants --without-lemma-checks "
     run_cmd(fulm + filename)
 
 def compile(filename):
