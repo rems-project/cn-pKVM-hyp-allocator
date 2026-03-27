@@ -135,7 +135,7 @@ void test4(void)
 	hyp_alloc(80);
     void *ps[N_ALLOC];
     for (i = 0; i < N_ALLOC; i++) {
-        ps[i] = hyp_alloc(16 * (i + 1));
+        ps[i] = hyp_alloc(400);
         if (ps[i] == NULL) {
             fatal("hyp_alloc failed!", -1);
         }
