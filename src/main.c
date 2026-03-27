@@ -112,7 +112,7 @@ void test3(void)
 	// printf("==> %d\n", n);
 }
 
-#define N_ALLOC 256
+#define N_ALLOC 2048
 // Specialized for hyp_alloc
 void test4(void)
 {
@@ -141,14 +141,14 @@ void test4(void)
         }
     }
     for (i = 0; i < N_ALLOC; i++) {
-        hyp_free(ps[i] /*@ 16u64 * ((u64)i + 1u64) @*/);
+        hyp_free(ps[i] /*@ 400u64 @*/);
     }
 }
 
 
 void shim_create_hyp_mapping(size_t size);
 
-#define NR_PAGES	256
+#define NR_PAGES	2048
 int main(void)
 /*@
 	accesses host_mc;
@@ -156,7 +156,7 @@ int main(void)
 {
 	int ret;
 	// SHIM INIT
-	shim_create_hyp_mapping(256 << PAGE_SHIFT);
+	shim_create_hyp_mapping(2048 << PAGE_SHIFT);
 
 	// printf("HYP_ALLOC_INIT\n");
 	ret = hyp_alloc_init(NR_PAGES*PAGE_SIZE);
