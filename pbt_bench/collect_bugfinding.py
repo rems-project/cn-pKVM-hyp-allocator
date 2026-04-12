@@ -351,6 +351,8 @@ def main():
                 patch_pbar.set_description(f"Patch {i}/{len(patches)}: {function}")
 
                 num_trials = 10
+                if "patch-10-" in patch_data["path"]:
+                    num_trials = 50
                 bugs_found = test_patch(patch_data, writer, num_trials=num_trials)
                 csvfile.flush()  # Ensure results are written to disk immediately
 
