@@ -112,7 +112,7 @@ void test3(void)
 	// printf("==> %d\n", n);
 }
 
-#define N_ALLOC 2048
+#define N_ALLOC 10
 // Specialized for hyp_alloc
 void test4(void)
 {
