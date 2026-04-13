@@ -102,6 +102,10 @@ collect-pbt-bug-finding:
 collect-pbt-bug-finding-buggy:
 	./pbt_bench/collect_bugfinding.py --only-buggy
 
+.PHONY: collect-pbt-sizing
+collect-pbt-sizing:
+	./pbt_bench/collect_sizing.py
+
 .PHONY: analyze-pbt-comparison
 analyze-pbt-comparison:
 	./pbt_bench/analyze_comparison.py

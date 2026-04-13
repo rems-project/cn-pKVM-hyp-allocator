@@ -99,3 +99,34 @@ The script will:
 2. Perform Mann-Whitney U test (two-tailed, α=0.01) for each function
 3. Display results with significance markers
 4. Save detailed analysis to `pbt_comparison_results.csv`
+
+### Sizing Benchmark: `make collect-pbt-sizing`
+
+Measures input generation time at various sizes for each unique function in `pbt_bench/bug_finding.json`, across three configurations:
+- **Bennet**
+- **Darcy** (default array length)
+- **Darcy-4096** (`--max-array-length=4096`)
+
+Or manually:
+
+```bash
+./pbt_bench/collect_sizing.py [OPTIONS]
+```
+
+Defaults: 100 samples per run (with a 180-second timeout; partial results are saved if the timeout is reached), sizes 1, 2, 4, 8, 16, 32.
+
+Options:
+- `--config {darcy_4096,darcy,bennet,all}`: Which config to run (default: `all`)
+- `--only-function=FUNC`: Only benchmark a specific function
+- `--sizes=1,2,4,8,16,32`: Comma-separated sizes to test
+- `--restart`: Ignore existing CSV and start fresh
+- `--analyze-only`: Skip experiments; analyze existing CSV results and generate plots
+- `--log-output=DIR`: Log test program output to files in DIR
+
+The script will:
+1. Checkout the base version of source files and apply the workaround patch
+2. **Phase 1 (Generate + Compile)**: For each (function, config), run `cn test --no-run` to generate C code, then compile the binary
+3. **Phase 2 (Run Experiments)**: For each (function, config, size), run the binary and record per-input generation times.
+4. Save results to `pbt_sizing_data.csv`
+
+The repo includes pre-collected sizing data in `pbt_sizing_data.csv`, so running with `--analyze-only` will produce results immediately without re-running experiments. The script **resumes by default** — it skips `(function, config, size)` combinations already present in the CSV. Use `--restart` to start fresh.

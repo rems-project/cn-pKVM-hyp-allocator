@@ -45,7 +45,8 @@
     {
         "path": "patches/patch-11-729a674386f12801e71c5ef2ac4c65851bf9db28",
         "fut": "chunk_merge",
-        "found": false
+        "found": false,
+        "args": ["--max-array-length=4096"]
     },
     {
         "path": "patches/patch-13-729a674386f12801e71c5ef2ac4c65851bf9db28",
@@ -70,7 +71,8 @@
     {
         "path": "patches/patch-17-3413739244909ff7ab5cb0ec3abbff703b3ef5ac",
         "fut": "chunk_can_split",
-        "found": false
+        "found": false,
+        "args": ["--max-array-length=4096"]
     },
     {
         "path": "patches/patch-18-873634a48a6e3c56243f25bb2235d0da5eee5634",
@@ -112,7 +114,8 @@
     {
         "path": "patches/patch-26-39208f33ad4fc85683c78e711272dd0a7b588394",
         "fut": "setup_first_chunk",
-        "found": false
+        "found": false,
+        "args": ["--max-array-length=4096"]
     },
     {
         "path": "patches/patch-27-c00c975a4820011831f205916eb8a6f05ff9f7e0",
