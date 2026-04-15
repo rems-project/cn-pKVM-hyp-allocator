@@ -197,10 +197,14 @@ def run_trial(function: str, trial_num: int, extra_args: list[str] | None = None
             _write_log_file(log_output_dir, function, trial_num,
                             result.stdout, result.stderr)
 
-        # Parse runs and discards from output (always)
+        # Parse runs and discards from output (always). The tool prints one
+        # "Testing ...: N runs" line per tick when stdout is piped, so take
+        # the last match rather than the first.
         stats_pattern = (r'Testing\s+[^\n]+:\s*(\d+)\s+runs'
                          r'(?:,\s*(\d+)\s+discards)?')
-        stats_match = re.search(stats_pattern, combined_output)
+        stats_match = None
+        for m in re.finditer(stats_pattern, combined_output):
+            stats_match = m
         num_runs = None
         num_discards = None
         if stats_match:
@@ -253,7 +257,9 @@ def run_trial(function: str, trial_num: int, extra_args: list[str] | None = None
 
         stats_pattern = (r'Testing\s+[^\n]+:\s*(\d+)\s+runs'
                          r'(?:,\s*(\d+)\s+discards)?')
-        stats_match = re.search(stats_pattern, combined_output)
+        stats_match = None
+        for m in re.finditer(stats_pattern, combined_output):
+            stats_match = m
         if stats_match:
             num_runs = int(stats_match.group(1))
             if stats_match.group(2):
