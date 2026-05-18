@@ -34,18 +34,6 @@ def run_cmd(cmd):
     t, s = res.split('~')[1:]
     return float(t), float(s)
 
-def find_and_replace_macro(f, input_basename, new_str):
-    # Assume there is a macro of the form #define SIZE magic in the input file
-    with open(f, 'r') as file:
-        filedata = file.read()
-
-    filedata = filedata.replace("magic", new_str)
-    subst_f_name = input_basename + ".subst.c"
-
-    with open(subst_f_name, 'w') as file:
-        file.write(filedata)
-
-    return subst_f_name
 
 gtime = 'gtime -f ~%e~%M '
 build_cmd = 'ninja -C _build'
