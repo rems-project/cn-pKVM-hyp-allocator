@@ -89,53 +89,6 @@ datatype option_u64 {
 }
 
 
-predicate [nounfold] void Cn_char_array(pointer p, u64 size)
-{
-        take U = each(u64 i; 0u64 <= i && i < size){
-                W<byte>(array_shift<byte>(p, i))
-        };
-        return;
-}
-predicate void Cn_char_array_with_offset(pointer p, u64 size, u64 offset)
-{
-        take U = each(u64 i; offset <= i && i < offset + size){
-                W<byte>(array_shift<byte>(p, i))
-        };
-        return;
-}
-
-predicate void Conditional_Cn_char_array(pointer p, u64 size, boolean cond)
-{
-        if (cond) {
-                take U = Cn_char_array(p, size);
-                return;
-        }
-        else {
-                return;
-        }
-}
-
-predicate void MaybeCn_char_array(pointer p, u64 size)
-{
-        if (ptr_eq(p, NULL)) {
-                return;
-        } else {
-                take U = Cn_char_array(p, size);
-                return;
-        }
-}
-
-predicate void MaybeCn_char_array_with_offset(pointer p, u64 size, u64 offset)
-{
-        if (ptr_eq(p, NULL)) {
-                return;
-        } else {
-                take U = Cn_char_array_with_offset(p, size, offset);
-                return;
-        }
-}
-
-
 @*/
 
 /*PS: if we're abstracting the chunks to a CN custom list as above, then we'll abstract a `struct chunk_hdr *chunk` to a natural-number index into that list and define an `nth`?  Or add the actual address to the abstraction and search for that to access?  Think we need that address in any case, though that doesn't decide this. */
@@ -169,6 +122,7 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
         assert(ha.start > 0u64);
         assert((u64)ha.start & 0x7u64 == 0u64);
+        assert((u64)cn_hyp.size <= HYP_ALLOC_MAX_VA_SIZE());
 
         return cn_hyp;
 }
@@ -262,10 +216,20 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         );
         assert(
                 check_node implies
+                (((u64)hdr.node.next & 7u64 == 0u64)
+                || (u64)hdr.node.next == (u64)ha.head)
+        );
+        assert(
+                check_node implies
                 (
                 ((u64)hdr.node.prev < (u64)member_shift<struct chunk_hdr>(header_address, node)
                     && ha.start <= (u64)hdr.node.prev
                     && (u64) hdr.node.prev < end)
+                || (u64)hdr.node.prev == (u64)ha.head)
+        );
+        assert(
+                check_node implies
+                (((u64)hdr.node.prev & 7u64 == 0u64)
                 || (u64)hdr.node.prev == (u64)ha.head)
         );
 
@@ -315,6 +279,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, 
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));
+                assert((u64)p & 7u64 == 0u64);
 
                 let header_address = array_shift<byte>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
@@ -338,6 +303,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));
+                assert((u64)p & 7u64 == 0u64);
                 let header_address = array_shift<byte>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.next, next));
@@ -358,7 +324,7 @@ type_synonym cn_lseg = {
         cn_chunk_hdrs after
 }
 
-predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( pointer p, pointer chunk) { // p points to a struct hyp_allocator
+predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node}) Cn_hyp_allocator_focusing_on( pointer p, pointer chunk) { // p points to a struct hyp_allocator
   take ha_full = Cn_hyp_allocator_only(p);
   let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
   let end = ha.start + (u64)ha.size;
@@ -374,7 +340,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) Cn_hyp_allocator_focusing_on( po
   take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
   take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
   let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
-  return( {ha:ha_full, lseg: lseg} );
+  return( {ha:ha_full, lseg: lseg, node: {next: cn_hdr.Node.next, prev: cn_hdr.Node.prev}} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
 }
 

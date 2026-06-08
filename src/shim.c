@@ -28,6 +28,11 @@ unsigned long hyp_nr_cpus = 1;
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
 phys_addr_t __pkvm_private_range_pa(void *va)
+/*@
+	requires true;
+	ensures take Page = Cn_split_page(va, (u64)va);
+		return == (u64)va;
+@*/
 {
 	// kvm_pte_t pte;
 	// s8 level;
@@ -133,6 +138,10 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 }
 
 void pkvm_remove_mappings(void *from, void *to)
+/*@
+	requires true;
+	ensures true;
+@*/
 {
 	// log_function_args("from: %p, to: %p", from, to);
 	// printf("\x1b[31mTODO\x1b[0m\n");
@@ -146,6 +155,10 @@ int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 }
 
 int __hyp_allocator_map(unsigned long start, phys_addr_t phys)
+/*@
+	requires take Page_pre = Cn_split_page((pointer)phys, phys);
+	ensures take Page_post = Conditional_Cn_split_page((pointer)phys, phys, return != 0i32);
+@*/
 {
 	// log_function_args("start: %lx, phys: %"PRIx64, start, phys);
 	// printf("\x1b[31mTODO\x1b[0m\n");
@@ -154,11 +167,19 @@ int __hyp_allocator_map(unsigned long start, phys_addr_t phys)
 
 
 void *hyp_phys_to_virt(phys_addr_t phys)
+/*@
+	requires true;
+	ensures return == (pointer)phys;
+@*/
 {
 	// log_function_args("phys: %"PRIu64, phys);
 	return (void*)phys;
 }
 phys_addr_t hyp_virt_to_phys(void *addr)
+/*@
+	requires true;
+	ensures return == (u64)addr;
+@*/
 {
 	// log_function_args("addr: %p", addr);
 	return (phys_addr_t)addr;
@@ -231,6 +252,15 @@ static void *admit_host_page(void *arg, unsigned long order)
 
 int refill_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages,
 		    struct kvm_hyp_memcache *host_mc)
+/*@
+	requires
+		!ptr_eq(mc, host_mc);
+		take MC_pre = Cn_hyp_memcache(mc);
+		take Host_pre = Cn_hyp_memcache(host_mc);
+	ensures
+		take MC_post = Cn_hyp_memcache(mc);
+		take Host_post = Cn_hyp_memcache(host_mc);
+@*/
 {
 	struct kvm_hyp_memcache tmp = *host_mc;
 	int ret;
