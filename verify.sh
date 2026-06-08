@@ -6,6 +6,11 @@ targets=(
   min_u32
   min_u64
   max_u64
+  pkvm_remove_mappings
+  hyp_phys_to_virt
+  hyp_virt_to_phys
+  push_hyp_memcache
+  pop_hyp_memcache
   list_empty
   INIT_LIST_HEAD
   list_is_first
@@ -29,7 +34,6 @@ targets=(
   chunk_get_prev
   __chunk_prev
   LemmaNextChunk
-  LemmaPrevChunk
   chunk_list_insert
   LemmaCreateNewChunk
   LemmaCreateNewChunkAux
@@ -38,6 +42,10 @@ targets=(
   chunk_install
   get_free_chunk
   chunk_recycle
+  LemmaHypAllocatorMcToLocal
+  LemmaHypAllocatorMcFromLocal
+  hyp_allocator_unmap
+  hyp_allocator_map
   hyp_alloc
   LemmaGetLastChunk
   LemmaLsegToChunkHdrs
@@ -79,7 +87,7 @@ run_test() {
   fi
 
   end=$(date +%s.%N)
-  elapsed=$(echo "$end - $start" | bc)
+  elapsed=$(awk "BEGIN { printf \"%.3f\", $end - $start }")
 
   RED='\033[0;31m'
   GREEN='\033[0;32m'
@@ -91,7 +99,9 @@ run_test() {
     echo -e "$target ${RED}$status${NC} (in ${elapsed}s)"
   fi
 
-  [[ $status != "passed" ]] && exit 1
+  if [[ $status != "passed" ]]; then
+    exit 1
+  fi
 }
 
 date
