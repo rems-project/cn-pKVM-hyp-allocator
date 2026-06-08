@@ -1735,9 +1735,21 @@ ensures
         if (chunk_unmapped_region(prev) != (unsigned long)chunk)
                 return 0;
 
+#ifdef __CN_VERIFY
+        /*@
+        assert((u64)prev + (u64)*member_shift<struct chunk_hdr>(prev, mapped_size)
+               == (u64)chunk);
+        @*/
+#endif
 
         /* mapped region inheritance */
         prev->mapped_size += chunk->mapped_size;
+#ifdef __CN_VERIFY
+        /*@
+        assert((u64)prev + (u64)*member_shift<struct chunk_hdr>(prev, mapped_size)
+               == (u64)chunk + (u64)*member_shift<struct chunk_hdr>(chunk, mapped_size));
+        @*/
+#endif
 
         chunk_list_del(chunk, allocator);
 
@@ -2767,10 +2779,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                                 member_shift<struct chunk_hdr>(best_chunk, node)
                         )
                 );
-                assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
-                                member_shift<struct chunk_hdr>(best_chunk, node)
-                        ));
-		unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(allocator, chunk, best_chunk);
+                unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(allocator, chunk, best_chunk);
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct chunk_hdr>(best_chunk, node)
@@ -3865,6 +3874,16 @@ int hyp_alloc_reclaimable(void)
         if (list_empty(&allocator->chunks)) {
                 chunk = NULL;
         } else {
+                /*@
+                unpack FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size,
+                                       ptr_eq(HA_pre.ha.first, HA_pre.ha.head));
+                unpack Cn_chunk_hdrs(HA_pre.ha.first, HA_pre.ha.head,
+                                     HA_pre.ha.last,
+                                     Cn_hyp_allocator_core(HA_pre.ha));
+                assert(!ptr_eq(HA_pre.ha.first, HA_pre.ha.head));
+                assert((u64)HA_pre.ha.first & 7u64 == 0u64);
+                assert((u64)my_container_of_chunk_hdr(HA_pre.ha.first) & 7u64 == 0u64);
+                @*/
                 chunk = list_first_entry(&allocator->chunks, typeof(*chunk), node);
 
                 while (1)
@@ -4254,8 +4273,11 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                         /*@
                         assert(ptr_eq(allocator, &hyp_allocator));
                         assert((AllocMC_rev.nr_pages + r / PAGE_SIZE()) <= MAXu64() - HostMC_rev.nr_pages);
+                        assert(HostMC_rev.nr_pages <= MAXu64() - (AllocMC_rev.nr_pages + r / PAGE_SIZE()));
+                        assert((AllocMC_rev.nr_pages + r / PAGE_SIZE()) > 0u64 implies HostMC_rev.nr_pages < MAXu64());
                         assert(HostMC_rev.nr_pages < MAXu64());
                         @*/
+                        chunk = tmp;
 #endif
                         break;
                 }
@@ -4278,6 +4300,15 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 
         }
 
+#ifdef __CN_VERIFY
+        if (chunk && !list_entry_is_head(chunk, &allocator->chunks, node)) {
+                /*@ unpack ReclaimReverseInv(allocator, chunk); @*/
+                LemmaLsegToChunkHdrs(allocator, chunk);
+        } else {
+                /*@ unpack ReclaimReverseInv(allocator, chunk); @*/
+        }
+#endif
+
         alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
 #ifdef __CN_VERIFY
         /*@ assert(ptr_eq(alloc_mc, &hyp_allocator_mc)); @*/
@@ -4291,7 +4322,7 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                         {mc} unchanged;
                         ptr_eq(allocator, &hyp_allocator);
                         ptr_eq(alloc_mc, &hyp_allocator_mc);
-                        take HA_final = Cn_hyp_allocator(allocator);
+                        take HA_final = Cn_hyp_allocator(&hyp_allocator);
                         take HostMC_final = Cn_hyp_memcache(mc);
                         take AllocMC_final = Cn_hyp_memcache(alloc_mc);
                         HostMC_final.nr_pages <= MAXu64() - AllocMC_final.nr_pages;

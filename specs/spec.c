@@ -282,6 +282,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, 
                 assert((u64)p & 7u64 == 0u64);
 
                 let header_address = array_shift<byte>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
+                assert((u64)header_address & 7u64 == 0u64);
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.prev, prev));
                 // HK: I think this assertion is not needed, if CN handles NULL "properly"
@@ -305,6 +306,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
                 assert(!is_null(p));
                 assert((u64)p & 7u64 == 0u64);
                 let header_address = array_shift<byte>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
+                assert((u64)header_address & 7u64 == 0u64);
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.next, next));
                 // HK: I think this assertion is not needed, if CN handles NULL "properly"
