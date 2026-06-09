@@ -787,6 +787,67 @@ void LemmaNextChunk(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node), X.ha.last, ha); @*/
 }
 
+/*
+ * Ghost-only refocusing lemma. It has no concrete heap effects: the body only
+ * unfolds one cell from the reverse chunk segment so CN can repack ownership
+ * focused on the previous chunk. It is non-recursive, so termination is
+ * immediate.
+ */
+void LemmaPrevChunk(struct chunk_hdr *chunk,
+                    struct hyp_allocator *allocator)
+/*@
+    requires
+        !is_null(chunk);
+        take X = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let ha_full = X.ha;
+        let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
+        X.lseg.before != Chunk_nil {};
+        let prev = (pointer)Cn_reclaim_prev_addr(allocator, X.lseg);
+        !is_null(prev);
+    ensures
+        take Y = Cn_hyp_allocator_focusing_on(allocator, prev);
+        X.lseg.before == Chunk_cons{hd: Y.lseg.chunk, tl: Y.lseg.before};
+        Y.lseg.after == Chunk_cons{hd: X.lseg.chunk, tl: X.lseg.after};
+        Y.ha == X.ha;
+@*/
+{
+        /*@
+        split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct chunk_hdr>(chunk, node), X.ha.first, ha);
+	        @*/
+}
+
+/*
+ * Ghost-only ownership recomposition for the first chunk. It has no concrete
+ * heap effects and is non-recursive; it only unfolds the empty reverse segment
+ * so CN can repack the full allocator predicate.
+ */
+void LemmaFirstChunkToAllocator(struct chunk_hdr *chunk,
+                                struct hyp_allocator *allocator)
+/*@
+    requires
+        !is_null(chunk);
+        take X = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let ha_full = X.ha;
+        let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
+        X.lseg.before == Chunk_nil {};
+    ensures
+        take Y = Cn_hyp_allocator(allocator);
+        Y.ha == X.ha;
+@*/
+{
+        /*@
+        split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct chunk_hdr>(chunk, node), X.ha.first, ha);
+        @*/
+}
+
 #endif
 
 
@@ -1809,13 +1870,49 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
  */
 static int chunk_split_aligned(struct chunk_hdr *chunk,
                                struct hyp_allocator *allocator)
+/*@
+        requires
+                !is_null(chunk);
+                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                let C_pre = HA_pre.lseg.chunk;
+                let mapped_end = (u64)chunk + (u64)C_pre.mapped_size;
+                let new_chunk_addr = PAGE_ALIGN_DOWN(mapped_end);
+                !cn_IS_ALIGNED(mapped_end) implies (u64)chunk < new_chunk_addr;
+                !cn_IS_ALIGNED(mapped_end) implies
+                        (u64)chunk + Cn_chunk_size((u64)C_pre.alloc_size) <= new_chunk_addr;
+                !cn_IS_ALIGNED(mapped_end) implies
+                        new_chunk_addr + Cn_chunk_hdr_size() <= mapped_end;
+                !cn_IS_ALIGNED(mapped_end) implies (new_chunk_addr & 7u64) == 0u64;
+        ensures
+                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
+                HA_post.lseg.before == HA_pre.lseg.before;
+                HA_post.lseg.chunk.header_address == C_pre.header_address;
+                HA_post.lseg.chunk.alloc_size == C_pre.alloc_size;
+                cn_IS_ALIGNED(HA_post.lseg.chunk.header_address +
+                        (u64)HA_post.lseg.chunk.mapped_size);
+                cn_IS_ALIGNED(mapped_end) implies HA_post.lseg == HA_pre.lseg;
+                !cn_IS_ALIGNED(mapped_end) implies
+                        HA_post.lseg.chunk.mapped_size ==
+                        (u32)(new_chunk_addr - (u64)chunk);
+                return == 0i32;
+@*/
 {
+        /*@
+        split_case(ptr_eq(
+                member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
+                member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.last,
+                Cn_hyp_allocator_core(HA_pre.ha));
+        @*/
         struct chunk_hdr *next_chunk = chunk_get_next(chunk, allocator);
         unsigned long delta, mapped_end = chunk_unmapped_region(chunk);
         struct chunk_hdr *new_chunk;
 
-        if (PAGE_ALIGNED(mapped_end))
+        if (PAGE_ALIGNED(mapped_end)) {
+                /*@ unpack MaybeChunkHdr(...); @*/
                 return 0;
+        }
 
 
         new_chunk = (struct chunk_hdr *)PAGE_ALIGN_DOWN(mapped_end);
@@ -1831,7 +1928,18 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
          */
         WARN_ON(delta < chunk_size(0UL));
 
-        WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
+        /*@
+        assert((u64)new_chunk == new_chunk_addr);
+        assert((u64)new_chunk & 7u64 == 0u64);
+        @*/
+        /*@ unpack MaybeChunkHdr(...); @*/
+        {
+                int ret = chunk_install(new_chunk, 0, chunk, allocator);
+                WARN_ON(ret);
+                /*@ split_case(ret == 0i32); @*/
+                /*@ unpack ChunkInstallPost(...); @*/
+                /*@ unpack Cn_char_array(...); @*/
+        }
 
         return 0;
 }
@@ -2085,6 +2193,8 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
                 take MC_pre = Cn_hyp_memcache(&hyp_allocator_mc);
                 ptr_eq(prev_iter, (pointer)Cn_reclaim_prev_addr(allocator, HA_pre.lseg));
+                is_null(prev_iter) implies HA_pre.lseg.before == Chunk_nil {};
+                !is_null(prev_iter) implies HA_pre.lseg.before != Chunk_nil {};
                 cn_IS_ALIGNED(reclaim_target);
                 reclaim_target / PAGE_SIZE() <= 2147483647u64;
                 reclaim_target / PAGE_SIZE() + 1u64 <= MAXu64() - MC_pre.nr_pages;
@@ -2093,45 +2203,168 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                 take MC_post = Cn_hyp_memcache(&hyp_allocator_mc);
                 return <= reclaim_target;
                 MC_post.nr_pages == MC_pre.nr_pages + return / PAGE_SIZE();
-                HA_post.ha == HA_pre.ha;
 @*/
 {
         unsigned long start, end;
         size_t reclaimable;
+#ifdef __CN_VERIFY
+        unsigned int mapped_before_reclaim;
+#endif
 
         start = PAGE_ALIGN((unsigned long)chunk +
                            chunk_size(chunk->alloc_size));
         end = chunk_unmapped_region(chunk);
 
-        if (start >= end)
+        if (start >= end) {
+#ifdef __CN_VERIFY
+                /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ split_case(HA_pre.lseg.before == Chunk_nil {}); @*/
+                if (list_is_first(&chunk->node, &allocator->chunks) == 1) {
+                        /*@
+                        unpack Cn_chunk_hdrs_rev(
+                                member_shift<struct chunk_hdr>(chunk, node)->prev,
+                                member_shift<struct chunk_hdr>(chunk, node),
+                                HA_pre.ha.first,
+                                Cn_hyp_allocator_core(HA_pre.ha));
+                        @*/
+                        /*@ assert(HA_pre.lseg.before == Chunk_nil {}); @*/
+                        LemmaFirstChunkToAllocator(chunk, allocator);
+                } else {
+                        /*@
+                        unpack Cn_chunk_hdrs_rev(
+                                member_shift<struct chunk_hdr>(chunk, node)->prev,
+                                member_shift<struct chunk_hdr>(chunk, node),
+                                HA_pre.ha.first,
+                                Cn_hyp_allocator_core(HA_pre.ha));
+                        @*/
+                        /*@ assert(HA_pre.lseg.before != Chunk_nil {}); @*/
+                        LemmaPrevChunk(chunk, allocator);
+                }
+#endif
                 return 0;
+        }
 
 
         reclaimable = end - start;
-        if (reclaimable < PAGE_SIZE)
+        if (reclaimable < PAGE_SIZE) {
+#ifdef __CN_VERIFY
+                /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                /*@ split_case(HA_pre.lseg.before == Chunk_nil {}); @*/
+                if (list_is_first(&chunk->node, &allocator->chunks) == 1) {
+                        /*@
+                        unpack Cn_chunk_hdrs_rev(
+                                member_shift<struct chunk_hdr>(chunk, node)->prev,
+                                member_shift<struct chunk_hdr>(chunk, node),
+                                HA_pre.ha.first,
+                                Cn_hyp_allocator_core(HA_pre.ha));
+                        @*/
+                        /*@ assert(HA_pre.lseg.before == Chunk_nil {}); @*/
+                        LemmaFirstChunkToAllocator(chunk, allocator);
+                } else {
+                        /*@
+                        unpack Cn_chunk_hdrs_rev(
+                                member_shift<struct chunk_hdr>(chunk, node)->prev,
+                                member_shift<struct chunk_hdr>(chunk, node),
+                                HA_pre.ha.first,
+                                Cn_hyp_allocator_core(HA_pre.ha));
+                        @*/
+                        /*@ assert(HA_pre.lseg.before != Chunk_nil {}); @*/
+                        LemmaPrevChunk(chunk, allocator);
+                }
+#endif
                 return 0;
+        }
 
 
-        if (chunk_split_aligned(chunk, allocator))
+        /*@
+        assert(end == (u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size);
+        assert(*member_shift<struct chunk_hdr>(chunk, alloc_size) ==
+                HA_pre.lseg.chunk.alloc_size);
+        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) ==
+                HA_pre.lseg.chunk.mapped_size);
+        assert(PAGE_SIZE() <= reclaimable);
+        assert(start + PAGE_SIZE() <= end);
+        assert(!cn_IS_ALIGNED((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) implies
+                (u64)chunk < PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size));
+        assert(!cn_IS_ALIGNED((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) implies
+                (u64)chunk + Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size) <=
+                PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size));
+        assert(!cn_IS_ALIGNED((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) implies
+                (PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) & 7u64) == 0u64);
+        @*/
+        if (chunk_split_aligned(chunk, allocator)) {
+#ifdef __CN_VERIFY
+                /*@ assert(false); @*/
+#endif
                 return 0;
+        }
 
 
         end = chunk_unmapped_region(chunk);
+#ifdef __CN_VERIFY
+        /*@
+        assert(cn_IS_ALIGNED(end));
+        assert(cn_IS_ALIGNED(start));
+        @*/
+        mapped_before_reclaim = chunk->mapped_size;
+        /*@
+        assert(end == (u64)chunk + (u64)mapped_before_reclaim);
+        assert((u64)chunk <= start);
+        @*/
+#endif
 #ifdef NO_STATEMENT_EXPRS
         reclaimable = min_u64(end - start, reclaim_target);
 #else /* NO_STATEMENT_EXPRS */
         reclaimable = min(end - start, reclaim_target);
 #endif /* NO_STATEMENT_EXPRS */
 #ifdef __CN_VERIFY
-        /*@ assert(reclaimable <= reclaim_target); @*/
+        /*@
+        assert(reclaimable <= reclaim_target);
+        split_case((end - start) < reclaim_target);
+        assert(reclaimable <= end - start);
+        assert((u64)chunk <= start);
+        assert(start <= end);
+        assert(end - start <= end - (u64)chunk);
+        assert(end - (u64)chunk == (u64)mapped_before_reclaim);
+        assert(reclaimable <= (u64)mapped_before_reclaim);
+        assert(cn_IS_ALIGNED(reclaimable));
+        @*/
 #endif
         start = end - reclaimable;
 
         hyp_allocator_unmap(allocator, start, reclaimable);
 
+#ifdef __CN_VERIFY
+        /*@
+        assert(reclaimable <= (u64)mapped_before_reclaim);
+        @*/
+#endif
         chunk->mapped_size -= reclaimable;
+#ifdef __CN_VERIFY
+        /*@
+        assert((u64)*member_shift<struct chunk_hdr>(chunk, mapped_size) ==
+                (u64)mapped_before_reclaim - reclaimable);
+        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) <=
+                mapped_before_reclaim);
+        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) <=
+                HA_pre.lseg.chunk.va_size);
+        @*/
+#endif
         chunk_hash_update(chunk);
 
+#ifdef __CN_VERIFY
+        /*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
+        /*@ split_case(is_null(prev_iter)); @*/
+        if (!prev_iter) {
+                /*@ assert(HA_pre.lseg.before == Chunk_nil {}); @*/
+                LemmaFirstChunkToAllocator(chunk, allocator);
+        } else {
+                /*@ assert(HA_pre.lseg.before != Chunk_nil {}); @*/
+                LemmaPrevChunk(chunk, allocator);
+        }
+#endif
         return reclaimable;
 }
 
@@ -2513,6 +2746,11 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
 @*/
 {
         size_t unmapped;
+#ifdef __CN_VERIFY
+        bool destroyed_singleton = false;
+        bool destroyed_by_chunk_list_del = false;
+        size_t destroyed_mapped_size = 0;
+#endif
 
         if (chunk_is_used(chunk))
                 return 0;
@@ -2528,8 +2766,36 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                 if (!list_is_last(&chunk->node, &allocator->chunks))
                         return 0;
 
+#ifdef __CN_VERIFY
+                /*@
+                unpack Cn_chunk_hdrs_rev(
+                        member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct chunk_hdr>(chunk, node),
+                        HA_pre.ha.first,
+                        Cn_hyp_allocator_core(HA_pre.ha));
+                assert(HA_pre.lseg.before == Chunk_nil {});
+                assert((u64)chunk == HA_pre.lseg.chunk.header_address);
+                assert(HA_pre.lseg.chunk.header_address == HA_pre.ha.start);
+                assert(cn_IS_ALIGNED(HA_pre.ha.start));
+                assert(cn_IS_ALIGNED((u64)chunk));
+                unpack Cn_chunk_hdrs(
+                        member_shift<struct chunk_hdr>(chunk, node)->next,
+                        member_shift<struct chunk_hdr>(chunk, node),
+                        HA_pre.ha.last,
+                        Cn_hyp_allocator_core(HA_pre.ha));
+                assert(HA_pre.lseg.after == Chunk_nil {});
+                assert(HA_pre.lseg.chunk.va_size == HA_pre.ha.size);
+                @*/
+#endif
 
                 list_del(&chunk->node);
+#ifdef __CN_VERIFY
+                destroyed_singleton = true;
+                /*@
+                unpack ListDelNeighbors(member_shift<struct hyp_allocator>(allocator, chunks),
+                                        member_shift<struct hyp_allocator>(allocator, chunks));
+                @*/
+#endif
                 goto unmap;
         }
 
@@ -2547,24 +2813,95 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                 return 0;
 
 
-        if (list_is_last(&chunk->node, &allocator->chunks))
+        if (list_is_last(&chunk->node, &allocator->chunks)) {
+#ifdef __CN_VERIFY
+                /*@
+                split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct hyp_allocator>(allocator, chunks)));
+                unpack Cn_chunk_hdrs_rev(
+                        member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct chunk_hdr>(chunk, node),
+                        HA_pre.ha.first,
+                        Cn_hyp_allocator_core(HA_pre.ha));
+                @*/
+                destroyed_by_chunk_list_del = true;
+                destroyed_mapped_size = chunk->mapped_size;
+#endif
                 goto destroy;
+        }
 
 
+#ifdef __CN_VERIFY
+        /*@
+        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs_rev(...);
+        @*/
+        struct chunk_hdr *prev_chunk = chunk_get_prev(chunk, allocator);
+        /*@ unpack MaybeChunkHdr(prev_chunk, !is_null(prev_chunk)); @*/
+        if (chunk_is_used(prev_chunk)) {
+                LemmaNextChunk(prev_chunk, allocator);
+                return 0;
+        }
+        LemmaNextChunk(prev_chunk, allocator);
+#else
         if (chunk_is_used(chunk_get_prev(chunk, allocator)))
                 return 0;
+#endif
 
 
         if (chunk_split_aligned(chunk, allocator))
                 return 0;
 
+#ifdef __CN_VERIFY
+        /*@
+        split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                member_shift<struct hyp_allocator>(allocator, chunks)));
+        unpack Cn_chunk_hdrs_rev(...);
+        @*/
+        destroyed_by_chunk_list_del = true;
+        destroyed_mapped_size = chunk->mapped_size;
+#endif
 destroy:
         chunk_list_del(chunk, allocator);
 unmap:
+#ifdef __CN_VERIFY
+        if (destroyed_by_chunk_list_del)
+                unmapped = destroyed_mapped_size;
+        else
+#endif
         unmapped = chunk->mapped_size;
+#ifdef __CN_VERIFY
+        if (destroyed_by_chunk_list_del) {
+                /*@
+                assert(cn_IS_ALIGNED((u64)chunk));
+                assert(cn_IS_ALIGNED(unmapped));
+                @*/
+        } else {
+                /*@
+                assert(cn_IS_ALIGNED((u64)chunk));
+                assert(cn_IS_ALIGNED((u64)*member_shift<struct chunk_hdr>(chunk, mapped_size)));
+                @*/
+        }
+#endif
+#ifdef __CN_VERIFY
+        if (destroyed_by_chunk_list_del)
+                hyp_allocator_unmap(allocator, (unsigned long)chunk, unmapped);
+        else
+#endif
         hyp_allocator_unmap(allocator, (unsigned long)chunk,
                             chunk->mapped_size);
 
+#ifdef __CN_VERIFY
+        if (destroyed_singleton) {
+                /*@
+                assert(HA_pre.lseg.chunk.alloc_size == 0u32);
+                assert(HA_pre.lseg.chunk.va_size == HA_pre.ha.size);
+                @*/
+                LemmaMergeChunk((char *)chunk, 0,
+                                allocator->size - chunk_hdr_size());
+        }
+#endif
         return unmapped;
 }
 /*@
@@ -3264,10 +3601,10 @@ void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chu
                 )
         );
         @*/
-}
+	}
 
-/*@
-predicate void LemmaGetLastChunkInv(pointer chunk, cn_hyp_allocator ha)
+	/*@
+	predicate void LemmaGetLastChunkInv(pointer chunk, cn_hyp_allocator ha)
 {
         if (ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
                 ha.head)) {

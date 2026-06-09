@@ -120,8 +120,10 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
         assert(!is_null(cn_hyp.first));
         assert(!is_null(cn_hyp.last));
         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
+        assert((u64)ha.start + (u64)cn_hyp.size + PAGE_SIZE() - 1u64 <= MAXu64());
         assert(ha.start > 0u64);
         assert((u64)ha.start & 0x7u64 == 0u64);
+        assert(cn_IS_ALIGNED(ha.start));
         assert((u64)cn_hyp.size <= HYP_ALLOC_MAX_VA_SIZE());
 
         return cn_hyp;
@@ -202,6 +204,28 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         assert(valid_mapped_size implies chunk_end <= end);
         // HK: needed to ensure no-integer overflow?
         assert(valid_mapped_size implies chunk_end >= cn_hdr.header_address);
+        assert(valid_mapped_size implies
+                (cn_IS_ALIGNED(chunk_end) ||
+                 Cn_chunk_size(0u64) <= chunk_end - PAGE_ALIGN_DOWN(chunk_end)));
+        assert(valid_chunk implies
+                cn_hdr.header_address + Cn_chunk_size((u64)cn_hdr.alloc_size) <=
+                PAGE_ALIGN(cn_hdr.header_address + Cn_chunk_size((u64)cn_hdr.alloc_size)));
+        assert(valid_mapped_size implies
+                (cn_IS_ALIGNED(cn_hdr.header_address) implies
+                 cn_IS_ALIGNED((u64)cn_hdr.mapped_size)));
+        assert((valid_chunk && valid_mapped_size) implies
+                (!cn_IS_ALIGNED(chunk_end) implies
+                 cn_hdr.header_address < PAGE_ALIGN_DOWN(chunk_end)));
+        assert((valid_chunk && valid_mapped_size) implies
+                (!cn_IS_ALIGNED(chunk_end) implies
+                 cn_hdr.header_address + Cn_chunk_size((u64)cn_hdr.alloc_size) <=
+                 PAGE_ALIGN_DOWN(chunk_end)));
+        assert((valid_chunk && valid_mapped_size) implies
+                (!cn_IS_ALIGNED(chunk_end) implies
+                 PAGE_ALIGN_DOWN(chunk_end) + Cn_chunk_hdr_size() <= chunk_end));
+        assert((valid_chunk && valid_mapped_size) implies
+                (!cn_IS_ALIGNED(chunk_end) implies
+                 (PAGE_ALIGN_DOWN(chunk_end) & 7u64) == 0u64));
 
 
         // HK: the chunk lists must be sorted in address order.
@@ -285,6 +309,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, 
                 assert((u64)header_address & 7u64 == 0u64);
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.prev, prev));
+                assert(ptr_eq(prev, ha.head) implies cn_hdr.Hdr.header_address == ha.start);
                 // HK: I think this assertion is not needed, if CN handles NULL "properly"
                 // c.f. https://github.com/rems-project/cn/issues/135
                 assert(!is_null(cn_hdr.Node.next));
@@ -314,6 +339,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
                 assert(!is_null(cn_hdr.Node.next));
                 assert(!is_null(cn_hdr.Node.prev));
                 take tl = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, p, first_chunk_node, ha);
+                assert(tl == Chunk_nil {} implies cn_hdr.Hdr.header_address == ha.start);
 
                 return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
         }
@@ -334,6 +360,10 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
 
   // own this chunk
   take cn_hdr = Cn_chunk_hdr(chunk, ha);
+  assert(cn_IS_ALIGNED(cn_hdr.Hdr.header_address + (u64)cn_hdr.Hdr.mapped_size) ||
+         Cn_chunk_size(0u64) <=
+         (cn_hdr.Hdr.header_address + (u64)cn_hdr.Hdr.mapped_size) -
+         PAGE_ALIGN_DOWN(cn_hdr.Hdr.header_address + (u64)cn_hdr.Hdr.mapped_size));
   assert(!is_null(cn_hdr.Node.next));
   assert(!is_null(cn_hdr.Node.prev));
 
@@ -341,6 +371,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
   let chunk_node = member_shift<struct chunk_hdr_only>(chunk, node);
   take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
   take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
+  assert(hdrs1 == Chunk_nil {} implies cn_hdr.Hdr.header_address == ha.start);
   let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
   return( {ha:ha_full, lseg: lseg, node: {next: cn_hdr.Node.next, prev: cn_hdr.Node.prev}} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache

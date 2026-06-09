@@ -34,11 +34,14 @@ targets=(
   chunk_get_prev
   __chunk_prev
   LemmaNextChunk
+  LemmaPrevChunk
+  LemmaFirstChunkToAllocator
   chunk_list_insert
   LemmaCreateNewChunk
   LemmaCreateNewChunkAux
   LemmaSplitAndNewChunk
   chunk_needs_mapping
+  chunk_split_aligned
   chunk_install
   get_free_chunk
   chunk_recycle
@@ -68,6 +71,9 @@ targets=(
   chunk_destroyable
   chunk_reclaimable
   hyp_alloc_reclaimable
+  LemmaReclaimPagesBound
+  chunk_dec_map
+  chunk_try_destroy
   hyp_alloc_size
   hyp_alloc_reclaim
   hyp_alloc_refill

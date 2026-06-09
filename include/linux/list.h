@@ -30,6 +30,21 @@ predicate(datatype list_head_option) CondListHead(pointer p, boolean condition)
 				return List_Head_None{};
 		}
 }
+
+predicate ({struct list_head Next, struct list_head Prev}) ListDelNeighbors(pointer prev, pointer next)
+{
+		if (ptr_eq(prev, next))
+		{
+				take P = RW<struct list_head>(prev);
+				return {Next: P, Prev: P};
+		}
+		else
+		{
+				take Next = RW<struct list_head>(next);
+				take Prev = RW<struct list_head>(prev);
+				return {Next: Next, Prev: Prev};
+		}
+}
 @*/
 
 /**
@@ -274,17 +289,19 @@ static inline void list_add(struct list_head *new, struct list_head *head)
 static inline void __list_del(struct list_head * prev, struct list_head * next)
 /*@
 	requires
-		take Next_pre = RW<struct list_head>(next);
-		take Prev_pre = RW<struct list_head>(prev);
+		take Pair_pre = ListDelNeighbors(prev, next);
 	ensures
-		take Next_post = RW<struct list_head>(next);
-		take Prev_post = RW<struct list_head>(prev);
-		ptr_eq(Prev_post.next, next);
-		ptr_eq(Next_post.prev, prev);
-		ptr_eq(Prev_post.prev, Prev_pre.prev);
-		ptr_eq(Next_post.next, Next_pre.next);
+		take Pair_post = ListDelNeighbors(prev, next);
+		ptr_eq(Pair_post.Prev.next, next);
+		ptr_eq(Pair_post.Next.prev, prev);
+		!ptr_eq(prev, next) implies ptr_eq(Pair_post.Prev.prev, Pair_pre.Prev.prev);
+		!ptr_eq(prev, next) implies ptr_eq(Pair_post.Next.next, Pair_pre.Next.next);
 @*/
 {
+	/*@
+	split_case(ptr_eq(prev, next));
+	unpack ListDelNeighbors(prev, next);
+	@*/
 	next->prev = prev;
 	// TODO: Recover WRITE_ONCE
 	//WRITE_ONCE(prev->next, next);
@@ -297,16 +314,14 @@ static inline void __list_del_entry(struct list_head *entry)
 		take Entry_pre = RW<struct list_head>(entry);
 		let next = Entry_pre.next;
 		let prev = Entry_pre.prev;
-		take Next_pre = RW<struct list_head>(next);
-		take Prev_pre = RW<struct list_head>(prev);
+		take Pair_pre = ListDelNeighbors(prev, next);
 	ensures
 		take Entry_post = RW<struct list_head>(entry);
-		take Next_post = RW<struct list_head>(next);
-		take Prev_post = RW<struct list_head>(prev);
-		ptr_eq(Prev_post.next, next);
-		ptr_eq(Next_post.prev, prev);
-		ptr_eq(Prev_post.prev, Prev_pre.prev);
-		ptr_eq(Next_post.next, Next_pre.next);
+		take Pair_post = ListDelNeighbors(prev, next);
+		ptr_eq(Pair_post.Prev.next, next);
+		ptr_eq(Pair_post.Next.prev, prev);
+		!ptr_eq(prev, next) implies ptr_eq(Pair_post.Prev.prev, Pair_pre.Prev.prev);
+		!ptr_eq(prev, next) implies ptr_eq(Pair_post.Next.next, Pair_pre.Next.next);
 		Entry_pre == Entry_post;
 @*/
 {
@@ -325,16 +340,14 @@ static inline void list_del(struct list_head *entry)
 		take Entry_pre = RW<struct list_head>(entry);
 		let next = Entry_pre.next;
 		let prev = Entry_pre.prev;
-		take Next_pre = RW<struct list_head>(next);
-		take Prev_pre = RW<struct list_head>(prev);
+		take Pair_pre = ListDelNeighbors(prev, next);
 	ensures
 		take Entry_post = RW<struct list_head>(entry);
-		take Next_post = RW<struct list_head>(next);
-		take Prev_post = RW<struct list_head>(prev);
-		ptr_eq(Prev_post.next, next);
-		ptr_eq(Next_post.prev, prev);
-		ptr_eq(Prev_post.prev, Prev_pre.prev);
-		ptr_eq(Next_post.next, Next_pre.next);
+		take Pair_post = ListDelNeighbors(prev, next);
+		ptr_eq(Pair_post.Prev.next, next);
+		ptr_eq(Pair_post.Next.prev, prev);
+		!ptr_eq(prev, next) implies ptr_eq(Pair_post.Prev.prev, Pair_pre.Prev.prev);
+		!ptr_eq(prev, next) implies ptr_eq(Pair_post.Next.next, Pair_pre.Next.next);
 		Entry_pre == Entry_post;
 @*/
 {
