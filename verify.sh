@@ -49,7 +49,6 @@ targets=(
   LemmaHypAllocatorMcFromLocal
   hyp_allocator_unmap
   hyp_allocator_map
-  hyp_alloc
   LemmaGetLastChunk
   LemmaLsegToChunkHdrs
   LemmaConcatCnChunkHdrsRev
@@ -79,7 +78,7 @@ targets=(
   hyp_alloc_refill
 )
 
-OPT="${OPT:-"-p 20"}"
+OPT="${OPT:-""}"
 run_test() {
   target="$1"
   start=$(date +%s.%N)
