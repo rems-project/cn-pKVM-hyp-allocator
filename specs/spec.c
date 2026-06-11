@@ -121,6 +121,9 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
         assert(!is_null(cn_hyp.last));
         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
         assert((u64)ha.start + (u64)cn_hyp.size + PAGE_SIZE() - 1u64 <= MAXu64());
+        assert((u64)cn_hyp.size <= MAXu64() - (u64)ha.start);
+        assert(PAGE_SIZE() - 1u64 <=
+                MAXu64() - ((u64)ha.start + (u64)cn_hyp.size));
         assert(ha.start > 0u64);
         assert((u64)ha.start & 0x7u64 == 0u64);
         assert(cn_IS_ALIGNED(ha.start));
@@ -180,8 +183,10 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         };
 
         let valid_chunk = Option_u64_none {} == alloc_size_opt;
-        assert((valid_chunk && valid_mapped_size) implies (u64)hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)hdr.mapped_size);
+        assert((valid_chunk && valid_mapped_size) implies
+                Cn_chunk_hdr_size() + (u64)hdr.alloc_size <= (u64)hdr.mapped_size);
         // LemmaCreateNewChunk
+        assert(valid_chunk implies Cn_chunk_size((u64)hdr.alloc_size) <= va_size);
         assert(valid_mapped_size implies cn_hdr.mapped_size <= cn_hdr.va_size);
         assert(valid_chunk implies cn_hdr.va_size <= ha.size);
 
@@ -204,30 +209,10 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
         assert(valid_mapped_size implies chunk_end <= end);
         // HK: needed to ensure no-integer overflow?
         assert(valid_mapped_size implies chunk_end >= cn_hdr.header_address);
+        let mapped_end = cn_hdr.header_address + (u64)cn_hdr.mapped_size;
+        let mapped_end_delta = mapped_end - PAGE_ALIGN_DOWN(mapped_end);
         assert(valid_mapped_size implies
-                (cn_IS_ALIGNED(chunk_end) ||
-                 Cn_chunk_size(0u64) <= chunk_end - PAGE_ALIGN_DOWN(chunk_end)));
-        assert(valid_chunk implies
-                cn_hdr.header_address + Cn_chunk_size((u64)cn_hdr.alloc_size) <=
-                PAGE_ALIGN(cn_hdr.header_address + Cn_chunk_size((u64)cn_hdr.alloc_size)));
-        assert(valid_mapped_size implies
-                (cn_IS_ALIGNED(cn_hdr.header_address) implies
-                 cn_IS_ALIGNED((u64)cn_hdr.mapped_size)));
-        assert((valid_chunk && valid_mapped_size) implies
-                (!cn_IS_ALIGNED(chunk_end) implies
-                 cn_hdr.header_address < PAGE_ALIGN_DOWN(chunk_end)));
-        assert((valid_chunk && valid_mapped_size) implies
-                (!cn_IS_ALIGNED(chunk_end) implies
-                 cn_hdr.header_address + Cn_chunk_size((u64)cn_hdr.alloc_size) <=
-                 PAGE_ALIGN_DOWN(chunk_end)));
-        assert((valid_chunk && valid_mapped_size) implies
-                (!cn_IS_ALIGNED(chunk_end) implies
-                 PAGE_ALIGN_DOWN(chunk_end) + Cn_chunk_hdr_size() <= chunk_end));
-        assert((valid_chunk && valid_mapped_size) implies
-                (!cn_IS_ALIGNED(chunk_end) implies
-                 (PAGE_ALIGN_DOWN(chunk_end) & 7u64) == 0u64));
-
-
+                (mapped_end_delta == 0u64 || Cn_chunk_size(0u64) <= mapped_end_delta));
         // HK: the chunk lists must be sorted in address order.
         // (otherwise, the chunk_unmapped_size function may return incorrect sizes)
         // unless this is not the last chunk
@@ -256,6 +241,9 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
                 (((u64)hdr.node.prev & 7u64 == 0u64)
                 || (u64)hdr.node.prev == (u64)ha.head)
         );
+        assert(check_node implies
+                (ptr_eq(hdr.node.prev, ha.head) implies
+                 cn_hdr.header_address == ha.start));
 
         return {Hdr: cn_hdr, Node: hdr.node};
 
@@ -303,10 +291,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs(pointer p, pointer prev, 
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));
-                assert((u64)p & 7u64 == 0u64);
-
                 let header_address = array_shift<byte>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
-                assert((u64)header_address & 7u64 == 0u64);
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.prev, prev));
                 assert(ptr_eq(prev, ha.head) implies cn_hdr.Hdr.header_address == ha.start);
@@ -329,9 +314,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));
-                assert((u64)p & 7u64 == 0u64);
                 let header_address = array_shift<byte>(p, -(offsetof(chunk_hdr_only, node)) ); // or some offsetof arithmetic
-                assert((u64)header_address & 7u64 == 0u64);
                 take cn_hdr = Cn_chunk_hdr(header_address, ha);
                 assert(ptr_eq(cn_hdr.Node.next, next));
                 // HK: I think this assertion is not needed, if CN handles NULL "properly"
@@ -339,7 +322,6 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
                 assert(!is_null(cn_hdr.Node.next));
                 assert(!is_null(cn_hdr.Node.prev));
                 take tl = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, p, first_chunk_node, ha);
-                assert(tl == Chunk_nil {} implies cn_hdr.Hdr.header_address == ha.start);
 
                 return Chunk_cons { hd: cn_hdr.Hdr, tl: tl };
         }
@@ -360,10 +342,6 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
 
   // own this chunk
   take cn_hdr = Cn_chunk_hdr(chunk, ha);
-  assert(cn_IS_ALIGNED(cn_hdr.Hdr.header_address + (u64)cn_hdr.Hdr.mapped_size) ||
-         Cn_chunk_size(0u64) <=
-         (cn_hdr.Hdr.header_address + (u64)cn_hdr.Hdr.mapped_size) -
-         PAGE_ALIGN_DOWN(cn_hdr.Hdr.header_address + (u64)cn_hdr.Hdr.mapped_size));
   assert(!is_null(cn_hdr.Node.next));
   assert(!is_null(cn_hdr.Node.prev));
 
@@ -371,7 +349,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
   let chunk_node = member_shift<struct chunk_hdr_only>(chunk, node);
   take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
   take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
-  assert(hdrs1 == Chunk_nil {} implies cn_hdr.Hdr.header_address == ha.start);
+  assert(cn_IS_ALIGNED(ha.start));
   let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
   return( {ha:ha_full, lseg: lseg, node: {next: cn_hdr.Node.next, prev: cn_hdr.Node.prev}} );
   // morally on initialisation this owns all the va space that isn't in the chunks - but we're not currently representing "va ownership" with ownership.  So there is no extra ownership on initialisation - that's all in the memcache
@@ -397,7 +375,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node, u64 va_size}) Cn_chunk_hdr_
 }
 
 
-predicate ({cn_hyp_allocator ha, cn_lseg lseg, u64 va_size}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk,  option_u64 alloc_size_opt, boolean valid_mapped_size) {
+predicate ({cn_hyp_allocator ha, cn_lseg lseg, u64 va_size, {pointer next, pointer prev} node}) Cn_hyp_allocator_focusing_on_for_install( pointer p, pointer prev, pointer chunk,  option_u64 alloc_size_opt, boolean valid_mapped_size) {
   take ha_full = Cn_hyp_allocator_only(p);
   let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
   let end = ha.start + (u64)ha.size;
@@ -413,7 +391,7 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, u64 va_size}) Cn_hyp_allocator_fo
   take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
   take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
   let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
-  return ( {ha:ha_full, lseg:lseg, va_size: cn_hdr.va_size} );
+  return ( {ha:ha_full, lseg:lseg, va_size: cn_hdr.va_size, node: {next: cn_hdr.Node.next, prev: cn_hdr.Node.prev}} );
 
 }
 
@@ -468,6 +446,7 @@ predicate ({cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs}) Cn_hyp_allocator(
   let ha = {head: ha_full.head, first: ha_full.first, start: ha_full.start, size: ha_full.size};
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
+  assert(cn_IS_ALIGNED(ha.start));
   take hdrs = Cn_chunk_hdrs(ha.first, ha.head, ha_full.last, ha);
   take C = FirstAllocation((pointer)ha.start, ha.size, ptr_eq(ha.first, ha.head));
   return( {ha:ha_full, hdrs:hdrs} );
