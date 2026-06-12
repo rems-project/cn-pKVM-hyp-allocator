@@ -2271,6 +2271,9 @@ void LemmaChunkDecMapSplitPre(u64 chunk, u64 alloc_size, u64 mapped_size)
 /*@
         requires
                 chunk + mapped_size >= chunk;
+                Cn_chunk_size(alloc_size) <= MAXu64() - chunk;
+                PAGE_SIZE() - 1u64 <=
+                        MAXu64() - (chunk + Cn_chunk_size(alloc_size));
                 chunk + Cn_chunk_size(alloc_size) <=
                         PAGE_ALIGN(chunk + Cn_chunk_size(alloc_size));
                 PAGE_ALIGN(chunk + Cn_chunk_size(alloc_size)) + PAGE_SIZE() <=
@@ -2280,6 +2283,12 @@ void LemmaChunkDecMapSplitPre(u64 chunk, u64 alloc_size, u64 mapped_size)
                 let mapped_end_delta_pre = mapped_end_pre - split_pre;
 	                !cn_IS_ALIGNED(mapped_end_pre) implies
 	                        Cn_chunk_size(0u64) <= mapped_end_delta_pre;
+                !cn_IS_ALIGNED(mapped_end_pre) implies chunk < split_pre;
+                !cn_IS_ALIGNED(mapped_end_pre) implies
+                        chunk + Cn_chunk_size(alloc_size) <= split_pre;
+                !cn_IS_ALIGNED(mapped_end_pre) implies
+                        split_pre + Cn_chunk_size(0u64) <= mapped_end_pre;
+                !cn_IS_ALIGNED(mapped_end_pre) implies (split_pre & 7u64) == 0u64;
         ensures
                 let mapped_end_post = chunk + mapped_size;
                 let split_post = PAGE_ALIGN_DOWN(mapped_end_post);
@@ -2291,9 +2300,41 @@ void LemmaChunkDecMapSplitPre(u64 chunk, u64 alloc_size, u64 mapped_size)
                 !cn_IS_ALIGNED(mapped_end_post) implies (split_post & 7u64) == 0u64;
 @*/
 {
+        u64 alloc_end = chunk + chunk_size(alloc_size);
+        u64 aligned_alloc_end = PAGE_ALIGN(alloc_end);
+        u64 mapped_end = chunk + mapped_size;
+        u64 split = PAGE_ALIGN_DOWN(mapped_end);
+        u64 delta = mapped_end - split;
+
         /*@
         assert(PAGE_SIZE() == 4096u64);
-	        assert(Cn_chunk_size(0u64) <= PAGE_SIZE());
+        assert(Cn_chunk_size(0u64) <= PAGE_SIZE());
+        assert(alloc_end == chunk + Cn_chunk_size(alloc_size));
+        assert(aligned_alloc_end == PAGE_ALIGN(chunk + Cn_chunk_size(alloc_size)));
+        assert(mapped_end == chunk + mapped_size);
+        assert(split == PAGE_ALIGN_DOWN(mapped_end));
+        assert(delta == mapped_end - split);
+        assert(alloc_end <= aligned_alloc_end);
+        assert(aligned_alloc_end + PAGE_SIZE() <= mapped_end);
+        assert(chunk <= alloc_end);
+        assert(chunk <= aligned_alloc_end);
+        assert(cn_IS_ALIGNED(aligned_alloc_end));
+        assert(cn_IS_ALIGNED(split));
+        split_case(cn_IS_ALIGNED(mapped_end));
+        assert(cn_IS_ALIGNED(mapped_end) implies split == mapped_end);
+        assert(!cn_IS_ALIGNED(mapped_end) implies delta != 0u64);
+        assert(!cn_IS_ALIGNED(mapped_end) implies delta <= PAGE_SIZE() - 1u64);
+        assert(!cn_IS_ALIGNED(mapped_end) implies mapped_end == split + delta);
+        assert(!cn_IS_ALIGNED(mapped_end) implies
+                aligned_alloc_end + PAGE_SIZE() <= split + delta);
+        assert(!cn_IS_ALIGNED(mapped_end) implies delta < PAGE_SIZE());
+        assert(!cn_IS_ALIGNED(mapped_end) implies chunk <= split);
+        assert(!cn_IS_ALIGNED(mapped_end) implies chunk < split);
+        assert(!cn_IS_ALIGNED(mapped_end) implies alloc_end <= split);
+        assert(!cn_IS_ALIGNED(mapped_end) implies Cn_chunk_size(0u64) <= delta);
+        assert(!cn_IS_ALIGNED(mapped_end) implies
+                split + Cn_chunk_size(0u64) <= mapped_end);
+        assert(!cn_IS_ALIGNED(mapped_end) implies (split & 7u64) == 0u64);
         @*/
 }
 #endif
