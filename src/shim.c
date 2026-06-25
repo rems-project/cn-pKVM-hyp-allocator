@@ -29,8 +29,8 @@ unsigned long hyp_nr_cpus = 1;
 
 phys_addr_t __pkvm_private_range_pa(void *va)
 /*@
-	requires true;
-	ensures take Page = Cn_split_page(va, (u64)va);
+	requires cn_IS_ALIGNED((u64)va);
+	ensures take Page = Cn_split_page((pointer)(u64)va);
 		return == (u64)va;
 @*/
 {
@@ -154,8 +154,8 @@ int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 
 int __hyp_allocator_map(unsigned long start, phys_addr_t phys)
 /*@
-	requires take Page_pre = Cn_split_page((pointer)phys, phys);
-	ensures take Page_post = Conditional_Cn_split_page((pointer)phys, phys, return != 0i32);
+	requires take Page_pre = Cn_split_page((pointer)phys);
+	ensures take Page_post = Conditional_Cn_split_page((pointer)phys, return != 0i32);
 @*/
 {
 	// log_function_args("start: %lx, phys: %"PRIx64, start, phys);

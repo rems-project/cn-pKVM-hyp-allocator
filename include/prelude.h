@@ -263,18 +263,18 @@ predicate void MaybeCn_char_array_with_offset(pointer p, u64 size, u64 offset)
 	}
 }
 
-predicate (phys_addr_t) Cn_split_page(pointer page_token, u64 page)
+predicate (phys_addr_t) Cn_split_page(pointer page)
 {
-	assert(cn_IS_ALIGNED(page));
-	take Next = RW<phys_addr_t>((pointer)page);
-	take Rest = Cn_char_array(array_shift<byte>((pointer)page, 8u64), PAGE_SIZE() - 8u64);
+	assert(cn_IS_ALIGNED((u64)page));
+	take Next = RW<phys_addr_t>(page);
+	take Rest = Cn_char_array(array_shift<byte>(page, 8u64), PAGE_SIZE() - 8u64);
 	return Next;
 }
 
-predicate (void) Conditional_Cn_split_page(pointer page_token, u64 page, boolean cond)
+predicate (void) Conditional_Cn_split_page(pointer page, boolean cond)
 {
 	if (cond) {
-		take Page = Cn_split_page(page_token, page);
+		take Page = Cn_split_page((pointer)(u64)page);
 		return;
 	} else {
 		return;
@@ -284,7 +284,7 @@ predicate (void) Conditional_Cn_split_page(pointer page_token, u64 page, boolean
 predicate void Cn_memset_buffer(pointer p, u64 size)
 {
 	if (size == PAGE_SIZE() && cn_IS_ALIGNED((u64)p)) {
-		take Page = Cn_split_page(p, (u64)p);
+		take Page = Cn_split_page((pointer)(u64)p);
 		return;
 	} else {
 		take Bytes = Cn_char_array(p, size);
@@ -292,12 +292,12 @@ predicate void Cn_memset_buffer(pointer p, u64 size)
 	}
 }
 
-predicate [rec] (datatype cn_memcache_pages) Cn_memcache_page_list(pointer page_token, u64 page, u64 nr_pages) {
+predicate [rec] (datatype cn_memcache_pages) Cn_memcache_page_list(pointer page, u64 nr_pages) {
 	if (nr_pages == 0u64) {
 		return Mc_nil {};
 	} else {
-		take Next = Cn_split_page(page_token, page);
-		take Tail = Cn_memcache_page_list((pointer)Next, Next, nr_pages - 1u64);
+		take Next = Cn_split_page((pointer)(u64)page);
+		take Tail = Cn_memcache_page_list((pointer)Next, nr_pages - 1u64);
 		return Mc_cons { page: (u64)page, tail: Tail };
 	}
 }
@@ -306,7 +306,7 @@ predicate (cn_hyp_memcache) Cn_hyp_memcache(pointer mc) {
 	take Head = RW<phys_addr_t>(member_shift<struct kvm_hyp_memcache>(mc, head));
 	take Nr = RW<unsigned long>(member_shift<struct kvm_hyp_memcache>(mc, nr_pages));
 	take Flags = RW<unsigned long>(member_shift<struct kvm_hyp_memcache>(mc, flags));
-	take Pages = Cn_memcache_page_list((pointer)Head, Head, Nr);
+	take Pages = Cn_memcache_page_list((pointer)Head, Nr);
 	return { head: Head, nr_pages: Nr, flags: Flags, pages: Pages };
 }
 
@@ -348,7 +348,7 @@ static inline void push_hyp_memcache(struct kvm_hyp_memcache *mc,
 /*@
 	requires
 		take MC_pre = Cn_hyp_memcache(mc);
-		take P_pre = Cn_split_page(p, (u64)p);
+		take P_pre = Cn_split_page((pointer)(u64)p);
 		order == 0u64;
 		cn_IS_ALIGNED((u64)p);
 		MC_pre.nr_pages < MAXu64();
@@ -392,7 +392,7 @@ static inline void *pop_hyp_memcache(struct kvm_hyp_memcache *mc,
 	ensures
 		take MC_post = Cn_hyp_memcache(mc);
 		take Order_post = RW<unsigned long>(order);
-		take Page = Cn_split_page(return, (u64)return);
+		take Page = Cn_split_page((pointer)(u64)return);
 		return == (pointer)(MC_pre.head & CN_PAGE_MASK());
 		Order_post == CN_MEMCACHE_ORDER(MC_pre.head);
 		MC_post.nr_pages == MC_pre.nr_pages - 1u64;
@@ -403,7 +403,7 @@ static inline void *pop_hyp_memcache(struct kvm_hyp_memcache *mc,
 	phys_addr_t *p = to_va(mc->head & PAGE_MASK);
 #ifdef __CN_VERIFY
 	/*@ assert(p == (pointer)(MC_pre.head & CN_PAGE_MASK())); @*/
-	/*@ unpack Cn_memcache_page_list((pointer)MC_pre.head, MC_pre.head, MC_pre.nr_pages); @*/
+	/*@ unpack Cn_memcache_page_list((pointer)MC_pre.head, MC_pre.nr_pages); @*/
 	/*@ assert((MC_pre.head & CN_PAGE_MASK()) == MC_pre.head); @*/
 	/*@ assert(p == (pointer)MC_pre.head); @*/
 #endif
