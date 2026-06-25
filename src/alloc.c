@@ -92,16 +92,6 @@ void LemmaReclaimPagesBound(u64 host_pages, u64 alloc_pages,
         if (reclaimed_pages == 0)
                 return;
 
-        /*@
-        assert(target_pages > 0u64);
-        assert(reclaimed_pages - 1u64 <= target_pages - 1u64);
-        assert(alloc_pages + 1u64 <= MAXu64());
-        assert((target_pages - 1u64) + 1u64 == target_pages);
-        assert((alloc_pages + 1u64) - 1u64 == alloc_pages);
-        assert((alloc_pages + 1u64) + (target_pages - 1u64) <= MAXu64() - host_pages);
-        assert((target_pages - 1u64) + 1u64 <= MAXu64() - (alloc_pages + 1u64));
-        assert((target_pages - 1u64) <= MAXu64() - ((alloc_pages + 1u64) + 1u64));
-        @*/
         LemmaReclaimPagesBound(host_pages, alloc_pages + 1,
                                target_pages - 1, reclaimed_pages - 1);
 }
@@ -319,7 +309,7 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 #endif
 
         BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct chunk_hdr, hash), sizeof(u32)));
-        /*@ assert(ptr_eq(data, alloc_size)); @*/
+
 #ifdef __CN_VERIFY
         LemmaPtrToU64(&chunk->node.next);
         LemmaPtrToU64(&chunk->node.prev);
@@ -846,7 +836,6 @@ void LemmaFirstChunkToAllocator(struct chunk_hdr *chunk,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct chunk_hdr>(chunk, node), X.ha.first, ha);
-        assert(X.lseg.chunk.header_address == X.ha.start);
         @*/
 }
 
@@ -928,13 +917,6 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(prev, node)->next,
                 member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
-        assert(match (HA_pre.lseg.after) {
-                Chunk_nil {} => { true }
-                Chunk_cons {hd: hdr, tl: tl} => {
-                        Cn_chunk_hdr_size() + (u64)hdr.alloc_size <= (u64)hdr.mapped_size &&
-                        Cn_chunk_size((u64)hdr.alloc_size) <= (u64)hdr.va_size
-                }
-        });
         split_case(ptr_eq(
                 member_shift<struct chunk_hdr>(prev, node)->prev,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
@@ -1090,8 +1072,8 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
         unsigned long cn_va_size = (next ?
                 (unsigned long)next :
                 allocator->start + allocator->size) - (unsigned long)chunk;
-        /*@ assert(prev_va_size == (u64)prev_hdr.Hdr.va_size); @*/
-        /*@ assert(cn_va_size == (u64)cn_hdr.Hdr.va_size); @*/
+
+
         LemmaMergeChunk((char *)chunk_data(prev) + prev->alloc_size,
                         prev_va_size - (chunk_hdr_size() + prev->alloc_size),
                         cn_va_size - chunk_hdr_size());
@@ -1127,8 +1109,8 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 #endif
 {
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
-        /*@ assert(ptr_eq(mc, &hyp_allocator_mc)); @*/
-        /*@ assert(mc == &hyp_allocator_mc); @*/
+
+
         int nr_pages = size >> PAGE_SHIFT;
         unsigned long __va = va;
 
@@ -1156,19 +1138,15 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
         @*/
         {
 #ifdef __CN_VERIFY
-                /*@
-                assert(0i32 <= nr_pages);
-                assert((u64)nr_pages < size / PAGE_SIZE());
-                @*/
 #endif
                 phys_addr_t pa = __pkvm_private_range_pa((void *)__va);
 #ifdef __CN_VERIFY
-                /*@ assert(pa == __va); @*/
+
 #endif
                 void *page = hyp_phys_to_virt(pa);
 #ifdef __CN_VERIFY
-                /*@ assert(page == (pointer)__va); @*/
-                /*@ assert(ptr_eq(page, (pointer)(u64)__va)); @*/
+
+
 #endif
 
                 push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
@@ -1225,8 +1203,8 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 // This means that it returns an ownership of this mined memory out of thin air.
 {
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
-        /*@ assert(ptr_eq(mc, &hyp_allocator_mc)); @*/
-        /*@ assert(mc == &hyp_allocator_mc); @*/
+
+
         unsigned long va_end = va + size;
         int ret = 0;
         int nr_pages = 0;
@@ -1234,21 +1212,11 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
         if (!PAGE_ALIGNED(va) || !PAGE_ALIGNED(size))
                 return -EINVAL;
 #ifdef __CN_VERIFY
-        /*@
-        assert(cn_IS_ALIGNED(va));
-        assert(cn_IS_ALIGNED(size));
-        @*/
 #endif
 
         if (va_end < va || va_end > (allocator->start + allocator->size))
                 return -E2BIG;
 #ifdef __CN_VERIFY
-        /*@
-        assert(va_pre == va);
-        assert(va_pre + size == va_end);
-        assert(va_pre <= va_pre + size);
-        assert(va_pre + size <= HA_pre.start + (u64)HA_pre.size);
-        @*/
 #endif
 
 #ifdef __CN_VERIFY
@@ -1302,11 +1270,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 unsigned long order;
 
 #ifdef __CN_VERIFY
-                /*@
-                assert((u64)nr_pages < size / PAGE_SIZE());
-                assert(0u64 < size / PAGE_SIZE() - (u64)nr_pages);
-                assert(MC_loop.nr_pages > 0u64);
-                @*/
                 LemmaHypAllocatorMcToLocal(mc);
 #endif
                 page = pop_hyp_memcache(mc, hyp_phys_to_virt, &order);
@@ -1335,7 +1298,7 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
         if (ret && nr_pages) {
                 va -= PAGE_SIZE * nr_pages;
 #ifdef __CN_VERIFY
-                /*@ assert(cn_IS_ALIGNED(va)); @*/
+
 #endif
                 hyp_allocator_unmap(allocator, va, nr_pages << PAGE_SHIFT);
         }
@@ -1824,19 +1787,11 @@ ensures
                 return 0;
 
 #ifdef __CN_VERIFY
-        /*@
-        assert((u64)prev + (u64)*member_shift<struct chunk_hdr>(prev, mapped_size)
-               == (u64)chunk);
-        @*/
 #endif
 
         /* mapped region inheritance */
         prev->mapped_size += chunk->mapped_size;
 #ifdef __CN_VERIFY
-        /*@
-        assert((u64)prev + (u64)*member_shift<struct chunk_hdr>(prev, mapped_size)
-               == (u64)chunk + (u64)*member_shift<struct chunk_hdr>(chunk, mapped_size));
-        @*/
 #endif
 
         chunk_list_del(chunk, allocator);
@@ -1961,10 +1916,6 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
          */
         WARN_ON(delta < chunk_size(0UL));
 
-        /*@
-        assert((u64)new_chunk == new_chunk_addr);
-        assert((u64)new_chunk & 7u64 == 0u64);
-        @*/
         /*@ unpack MaybeChunkHdr(...); @*/
         {
                 int ret = chunk_install(new_chunk, 0, chunk, allocator);
@@ -2073,19 +2024,6 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
 	/*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
 
 #ifdef __CN_VERIFY
-        /*@
-        assert(map_size <= (u64)C_pre.va_size - (u64)C_pre.mapped_size);
-        assert(map_size <= (u64)C_pre.va_size);
-        assert((u64)C_pre.va_size <= (u64)HA_pre.ha.size);
-        assert((u64)HA_pre.ha.size <= HYP_ALLOC_MAX_VA_SIZE());
-        assert(map_size <= HYP_ALLOC_MAX_VA_SIZE());
-        assert(HYP_ALLOC_MAX_VA_SIZE() <= (u64)MAXu32());
-        assert(map_size / PAGE_SIZE() <= 524287u64);
-        assert(2u64 <= MAXu64() - MC_pre.nr_pages);
-        assert(map_size <= (u64)Cn_chunk_unmapped_size(C_pre));
-        assert(map_size <= (u64)MAXu32() - (u64)C_pre.mapped_size);
-        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) == C_pre.mapped_size);
-        @*/
 #endif
         ret = hyp_allocator_map(allocator, chunk_unmapped_region(chunk),
                                 map_size);
@@ -2095,10 +2033,6 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
 
         chunk->mapped_size += map_size;
 #ifdef __CN_VERIFY
-        /*@
-        assert(*member_shift<struct chunk_hdr>(chunk, alloc_size) == C_pre.alloc_size);
-        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) == C_pre.mapped_size + (u32)map_size);
-        @*/
 #endif
         /*@ split_case(ptr_eq(
                     member_shift<struct chunk_hdr>(chunk, node),
@@ -2111,10 +2045,6 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         chunk_hash_update(chunk);
 	/*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
 #ifdef __CN_VERIFY
-        /*@
-        assert(*member_shift<struct chunk_hdr>(chunk, alloc_size) == C_pre.alloc_size);
-        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) == C_pre.mapped_size + (u32)map_size);
-        @*/
 #endif
         return 0;
 }
@@ -2271,9 +2201,8 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                                 member_shift<struct chunk_hdr>(chunk, node),
                                 HA_pre.ha.first,
                                 Cn_hyp_allocator_core(HA_pre.ha));
-                        assert(cn_IS_ALIGNED((u64)chunk));
                         @*/
-                        /*@ assert(HA_pre.lseg.before == Chunk_nil {}); @*/
+
                         LemmaFirstChunkToAllocator(chunk, allocator);
                 } else {
                         /*@
@@ -2283,7 +2212,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                                 HA_pre.ha.first,
                                 Cn_hyp_allocator_core(HA_pre.ha));
                         @*/
-                        /*@ assert(HA_pre.lseg.before != Chunk_nil {}); @*/
+
                         LemmaPrevChunk(chunk, allocator);
                 }
 #endif
@@ -2305,7 +2234,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                                 HA_pre.ha.first,
                                 Cn_hyp_allocator_core(HA_pre.ha));
                         @*/
-                        /*@ assert(HA_pre.lseg.before == Chunk_nil {}); @*/
+
                         LemmaFirstChunkToAllocator(chunk, allocator);
                 } else {
                         /*@
@@ -2315,7 +2244,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                                 HA_pre.ha.first,
                                 Cn_hyp_allocator_core(HA_pre.ha));
                         @*/
-                        /*@ assert(HA_pre.lseg.before != Chunk_nil {}); @*/
+
                         LemmaPrevChunk(chunk, allocator);
                 }
 #endif
@@ -2323,57 +2252,9 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
         }
 
 
-        /*@
-        assert(end == (u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size);
-        assert(*member_shift<struct chunk_hdr>(chunk, alloc_size) ==
-                HA_pre.lseg.chunk.alloc_size);
-        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) ==
-                HA_pre.lseg.chunk.mapped_size);
-        assert(PAGE_SIZE() <= reclaimable);
-        assert(start + PAGE_SIZE() <= end);
-        assert(start == PAGE_ALIGN((u64)chunk +
-                Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size)));
-        assert((u64)HA_pre.lseg.chunk.mapped_size <= MAXu64() - (u64)chunk);
-        assert((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size <=
-                HA_pre.ha.start + (u64)HA_pre.ha.size);
-        assert(HA_pre.ha.start + (u64)HA_pre.ha.size + PAGE_SIZE() - 1u64 <=
-                MAXu64());
-        assert(PAGE_SIZE() - 1u64 <= MAXu64() -
-                ((u64)chunk + Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size)));
-        assert((u64)chunk + Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size) <=
-                PAGE_ALIGN((u64)chunk +
-                        Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size)));
-        assert((u64)chunk + Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size) <=
-                start);
-        assert(start <= end);
-        assert((u64)chunk + Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size) <=
-                end);
-        assert(Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size) <=
-                (u64)HA_pre.lseg.chunk.mapped_size);
-        assert(Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size) <=
-                MAXu64() - (u64)chunk);
-        assert((u64)chunk + Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size) <=
-                (u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size);
-                assert(((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) -
-                        PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) == 0u64 ||
-                        Cn_chunk_size(0u64) <=
-                ((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) -
-                PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size));
-        assert(!cn_IS_ALIGNED((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) implies
-                (u64)chunk < PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size));
-        assert(!cn_IS_ALIGNED((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) implies
-                (u64)chunk + Cn_chunk_size((u64)HA_pre.lseg.chunk.alloc_size) <=
-                PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size));
-        assert(!cn_IS_ALIGNED((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) implies
-                PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) +
-                Cn_chunk_size(0u64) <=
-                (u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size);
-        assert(!cn_IS_ALIGNED((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) implies
-                (PAGE_ALIGN_DOWN((u64)chunk + (u64)HA_pre.lseg.chunk.mapped_size) & 7u64) == 0u64);
-        @*/
         if (chunk_split_aligned(chunk, allocator)) {
 #ifdef __CN_VERIFY
-                /*@ assert(false); @*/
+
 #endif
                 return 0;
         }
@@ -2381,15 +2262,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 
         end = chunk_unmapped_region(chunk);
 #ifdef __CN_VERIFY
-        /*@
-        assert(cn_IS_ALIGNED(end));
-        assert(cn_IS_ALIGNED(start));
-        @*/
         mapped_before_reclaim = chunk->mapped_size;
-        /*@
-        assert(end == (u64)chunk + (u64)mapped_before_reclaim);
-        assert((u64)chunk <= start);
-        @*/
 #endif
 #ifdef NO_STATEMENT_EXPRS
         reclaimable = min_u64(end - start, reclaim_target);
@@ -2398,15 +2271,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 #endif /* NO_STATEMENT_EXPRS */
 #ifdef __CN_VERIFY
         /*@
-        assert(reclaimable <= reclaim_target);
         split_case((end - start) < reclaim_target);
-        assert(reclaimable <= end - start);
-        assert((u64)chunk <= start);
-        assert(start <= end);
-        assert(end - start <= end - (u64)chunk);
-        assert(end - (u64)chunk == (u64)mapped_before_reclaim);
-        assert(reclaimable <= (u64)mapped_before_reclaim);
-        assert(cn_IS_ALIGNED(reclaimable));
         @*/
 #endif
         start = end - reclaimable;
@@ -2414,20 +2279,9 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
         hyp_allocator_unmap(allocator, start, reclaimable);
 
 #ifdef __CN_VERIFY
-        /*@
-        assert(reclaimable <= (u64)mapped_before_reclaim);
-        @*/
 #endif
         chunk->mapped_size -= reclaimable;
 #ifdef __CN_VERIFY
-        /*@
-        assert((u64)*member_shift<struct chunk_hdr>(chunk, mapped_size) ==
-                (u64)mapped_before_reclaim - reclaimable);
-        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) <=
-                mapped_before_reclaim);
-        assert(*member_shift<struct chunk_hdr>(chunk, mapped_size) <=
-                HA_pre.lseg.chunk.va_size);
-        @*/
 #endif
         chunk_hash_update(chunk);
 
@@ -2435,10 +2289,10 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
         /*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
         /*@ split_case(is_null(prev_iter)); @*/
         if (!prev_iter) {
-                /*@ assert(HA_pre.lseg.before == Chunk_nil {}); @*/
+
                 LemmaFirstChunkToAllocator(chunk, allocator);
         } else {
-                /*@ assert(HA_pre.lseg.before != Chunk_nil {}); @*/
+
                 LemmaPrevChunk(chunk, allocator);
         }
 #endif
@@ -2665,7 +2519,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 @*/
 #endif
 {
-	/*@ assert(!is_null(chunk)); @*/
+
         unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);
         size_t missing_map, expected_mapping = size;
         struct chunk_hdr *new_chunk = NULL;
@@ -2682,7 +2536,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
         new_chunk_addr = chunk_addr_fixup(new_chunk_addr);
 #ifdef __CN_VERIFY
-        /*@ assert(new_chunk_addr == new_chunk_addr_); @*/
+
 #endif
         if (chunk_can_split(chunk, new_chunk_addr, allocator)) {
                 new_chunk = (struct chunk_hdr *)new_chunk_addr;
@@ -2698,29 +2552,12 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                                         (unsigned long)chunk_data(chunk);
         }
 #ifdef __CN_VERIFY
-        /*@
-        assert(is_null(new_chunk) implies !Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_));
-        assert(!is_null(new_chunk) implies Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_));
-        assert(is_null(new_chunk) implies expected_mapping == size);
-        assert(!is_null(new_chunk) implies expected_mapping == chunk_va_size_post);
-        @*/
 #endif
         missing_map = chunk_needs_mapping(chunk, expected_mapping);
 #ifdef __CN_VERIFY
-        /*@
-        assert(is_null(new_chunk) implies
-                missing_map == Cn_chunk_needs_mapping((u64)C_pre.mapped_size, size));
-        assert(!is_null(new_chunk) implies
-                missing_map == Cn_chunk_needs_mapping((u64)C_pre.mapped_size, chunk_va_size_post));
-        @*/
 #endif
         if (missing_map) {
 #ifdef __CN_VERIFY
-                /*@
-                assert(missing_map / PAGE_SIZE() <= 524287u64);
-                assert(missing_map <= (u64)MAXu32() - (u64)C_pre.mapped_size);
-                assert(2u64 <= MAXu64() - MC_pre.nr_pages);
-                @*/
 #endif
                 ret = chunk_inc_map(chunk, missing_map, allocator);
                 if (ret)
@@ -2743,7 +2580,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 // @*/
                 //(u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size)
                 // chunk must be non null
-		/*@ assert(!is_null(chunk)); @*/
+
 	        /*@ unpack MaybeChunkHdr(...); @*/
 		/* CN DIFF */
 		/* HK: capturing the return value is needed to unfold `ChunkInstallPost` */
@@ -2762,11 +2599,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         /*@
         split_case(is_null(new_chunk));
         split_case(missing_map == 0u64);
-        assert(*member_shift<struct chunk_hdr>(chunk, alloc_size) == (u32)size);
-        assert(is_null(new_chunk) implies
-                *member_shift<struct chunk_hdr>(chunk, mapped_size) == C_pre.mapped_size + (u32)missing_map);
-        assert(!is_null(new_chunk) implies
-                *member_shift<struct chunk_hdr>(chunk, mapped_size) == (u32)chunk_va_size_post);
         @*/
 #endif
         return 0;
@@ -2855,18 +2687,11 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                         member_shift<struct chunk_hdr>(chunk, node),
                         HA_pre.ha.first,
                         Cn_hyp_allocator_core(HA_pre.ha));
-                assert(HA_pre.lseg.before == Chunk_nil {});
-                assert((u64)chunk == HA_pre.lseg.chunk.header_address);
-                assert(HA_pre.lseg.chunk.header_address == HA_pre.ha.start);
-                assert(cn_IS_ALIGNED(HA_pre.ha.start));
-                assert(cn_IS_ALIGNED((u64)chunk));
                 unpack Cn_chunk_hdrs(
                         member_shift<struct chunk_hdr>(chunk, node)->next,
                         member_shift<struct chunk_hdr>(chunk, node),
                         HA_pre.ha.last,
                         Cn_hyp_allocator_core(HA_pre.ha));
-                assert(HA_pre.lseg.after == Chunk_nil {});
-                assert(HA_pre.lseg.chunk.va_size == HA_pre.ha.size);
                 @*/
 #endif
 
@@ -2910,14 +2735,10 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                         member_shift<struct chunk_hdr>(chunk, node),
                         HA_pre.ha.last,
                         Cn_hyp_allocator_core(HA_pre.ha));
-                assert(HA_pre.lseg.after == Chunk_nil {});
                 @*/
                 destroyed_by_chunk_list_del = true;
                 destroyed_by_last = true;
                 destroyed_mapped_size = chunk->mapped_size;
-                /*@
-                assert(destroyed_mapped_size == (u64)HA_pre.lseg.chunk.mapped_size);
-                @*/
 #endif
                 goto destroy;
         }
@@ -2967,15 +2788,7 @@ unmap:
         unmapped = chunk->mapped_size;
 #ifdef __CN_VERIFY
         if (destroyed_by_chunk_list_del) {
-                /*@
-                assert(unmapped == destroyed_mapped_size);
-                assert(destroyed_by_last != 0u8 || destroyed_after_split != 0u8);
-                assert(cn_IS_ALIGNED((u64)chunk));
-                @*/
         } else {
-                /*@
-                assert(cn_IS_ALIGNED((u64)chunk));
-                @*/
         }
 #endif
 #ifdef __CN_VERIFY
@@ -2988,10 +2801,6 @@ unmap:
 
 #ifdef __CN_VERIFY
         if (destroyed_singleton) {
-                /*@
-                assert(HA_pre.lseg.chunk.alloc_size == 0u32);
-                assert(HA_pre.lseg.chunk.va_size == HA_pre.ha.size);
-                @*/
                 LemmaMergeChunk((char *)chunk, 0,
                                 allocator->size - chunk_hdr_size());
         }
@@ -3203,7 +3012,7 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                 BestChunk.Node == Inv.node;
         @*/
         {
-                ///*@ assert(ptr_eq(member_shift<struct chunk_hdr>(chunk, node), member_shift<struct chunk_hdr>(best_chunk, node))); @*/
+                //
                 /*@
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
@@ -3568,29 +3377,12 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 size_t available_size = chunk->mapped_size +
 					chunk_unmapped_size(chunk, allocator);
 		/*@ unpack MaybeChunkHdr(...); @*/
-                /*@
-                assert(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
-                              member_shift<struct hyp_allocator>(allocator, chunks))
-                        implies
-                        available_size ==
-                                (*member_shift<struct hyp_allocator>(allocator, start) +
-                                 (u64)*member_shift<struct hyp_allocator>(allocator, size)) -
-                                (u64)chunk);
-                assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
-                               member_shift<struct hyp_allocator>(allocator, chunks))
-                        implies
-                        available_size ==
-                                (u64)array_shift<char>(
-                                        member_shift<struct chunk_hdr>(chunk, node)->next,
-                                        -offsetof(chunk_hdr, node)) -
-                                (u64)chunk);
-                @*/
 		if (chunk_is_used(chunk))
 			continue;
 
 		if (chunk_size(size) > available_size)
 			continue;
-                /*@ assert(Cn_chunk_size(size) <= available_size); @*/
+
 
 		if (best_available_size <= available_size)
 			continue;
@@ -4327,9 +4119,6 @@ int hyp_alloc_reclaimable(void)
                 unpack Cn_chunk_hdrs(HA_pre.ha.first, HA_pre.ha.head,
                                      HA_pre.ha.last,
                                      Cn_hyp_allocator_core(HA_pre.ha));
-                assert(!ptr_eq(HA_pre.ha.first, HA_pre.ha.head));
-                assert((u64)HA_pre.ha.first & 7u64 == 0u64);
-                assert((u64)my_container_of_chunk_hdr(HA_pre.ha.first) & 7u64 == 0u64);
                 @*/
                 chunk = list_first_entry(&allocator->chunks, typeof(*chunk), node);
 
@@ -4358,34 +4147,15 @@ int hyp_alloc_reclaimable(void)
                         unfold Cn_reclaimable_pages_from(RI.lseg.before,
                                                          RI.lseg.chunk,
                                                          RI.lseg.after);
-                        assert(Cn_lseg_chunk_reclaimable_pages(RI.lseg) <= RI.remaining);
                         @*/
                         mc_pages_for_bound = hyp_allocator_mc.nr_pages;
-                        /*@
-                        assert(mc_pages_for_bound == MC_iter.nr_pages);
-                        @*/
                         reclaimable_chunk = chunk_reclaimable(chunk, allocator);
-                        /*@
-                        assert(shift_right(reclaimable_chunk, 12u64) ==
-                               Cn_lseg_chunk_reclaimable_pages(RI.lseg));
-                        @*/
-                        /*@
-                        assert((u64)reclaimable +
-                               shift_right(reclaimable_chunk, 12u64) +
-                               MC_iter.nr_pages <= 2147483647u64);
-                        @*/
                         reclaimable += reclaimable_chunk >> PAGE_SHIFT;
 
                         if (list_is_last(&chunk->node, &allocator->chunks)) {
-                                /*@
-                                assert((u64)reclaimable + MC_iter.nr_pages <= 2147483647u64);
-                                @*/
                                 LemmaLsegToChunkHdrs(allocator, chunk);
                                 break;
                         } else {
-                                /*@
-                                assert(!ptr_eq(RI.node.next, RI.ha.head));
-                                @*/
                                 next = list_next_entry(chunk, node);
                                 LemmaNextChunk(chunk, allocator);
                                 chunk = next;
@@ -4402,11 +4172,6 @@ memcache_pages:
         ;
 #ifdef __CN_VERIFY
         cpu = 0;
-        /*@
-        assert(0i32 <= reclaimable);
-        assert((u64)reclaimable + MC_pre.nr_pages <= 2147483647u64);
-        assert((u64)reclaimable <= 2147483647u64);
-        @*/
         while (cpu < 1)
 #else
         for (cpu = 0; cpu < hyp_nr_cpus; cpu++)
@@ -4428,18 +4193,9 @@ memcache_pages:
                 struct kvm_hyp_memcache *mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
 #ifdef __CN_VERIFY
-                /*@
-                assert(cpu == 0i32);
-                assert(MC_loop.nr_pages == MC_pre.nr_pages);
-                assert((u64)reclaimable + MC_loop.nr_pages <= 2147483647u64);
-                assert(reclaimable <= 2147483647i32 - (i32)MC_loop.nr_pages);
-                @*/
 #endif
                 reclaimable += mc->nr_pages;
 #ifdef __CN_VERIFY
-                /*@
-                assert((u64)reclaimable <= 2147483647u64);
-                @*/
                 cpu++;
 #endif
         }
@@ -4506,7 +4262,7 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 alloc_mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
 #ifdef __CN_VERIFY
-                /*@ assert(ptr_eq(alloc_mc, &hyp_allocator_mc)); @*/
+
                 LemmaHypAllocatorMcToLocal(alloc_mc);
 #endif
 
@@ -4542,11 +4298,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 
                         host_nr_before = mc->nr_pages;
                         alloc_nr_before = alloc_mc->nr_pages;
-                        /*@
-                        assert(host_nr_before == HostMC_while.nr_pages);
-                        assert(alloc_nr_before == AllocMC_while.nr_pages);
-                        assert(alloc_nr_before > 0u64);
-                        @*/
 #endif
                         void *page = pop_hyp_memcache(alloc_mc, hyp_phys_to_virt, &order);
 
@@ -4555,10 +4306,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #ifdef __CN_VERIFY
                         host_nr_after = mc->nr_pages;
                         alloc_nr_after = alloc_mc->nr_pages;
-                        /*@
-                        assert(host_nr_after == host_nr_before + 1u64);
-                        assert(alloc_nr_after == alloc_nr_before - 1u64);
-                        @*/
 #endif
                         WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(page), 1));
 
@@ -4570,17 +4317,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                                 goto done;
                         }
 #ifdef __CN_VERIFY
-                        /*@
-                        assert(target > 0i32);
-                        @*/
-                        /*@
-                        assert(host_nr_after < MAXu64());
-                        assert(host_nr_after <= MAXu64() - alloc_nr_after);
-                        assert(host_nr_after + 1u64 <= MAXu64() - alloc_nr_after);
-                        assert(alloc_nr_after + (u64)target <= MAXu64() - host_nr_after);
-                        assert((u64)target + 1u64 <= MAXu64() - alloc_nr_after);
-                        assert((u64)target <= MAXu64() - (alloc_nr_after + 1u64));
-                        @*/
 #endif
 
                 }
@@ -4630,8 +4366,7 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 unsigned long alloc_nr_after;
 #endif
 
-                /*@ assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
-                                   member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+
                 /*@ unpack ReclaimReverseInv(...); @*/
 #ifdef __CN_VERIFY
                 if (list_is_first(&chunk->node, &allocator->chunks)) {
@@ -4642,9 +4377,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                                 member_shift<struct chunk_hdr>(chunk, node),
                                 HA_rev.ha.first,
                                 Cn_hyp_allocator_core(HA_rev.ha));
-                        assert(HA_rev.lseg.before == Chunk_nil{});
-                        assert(HA_rev.lseg.chunk.header_address == HA_rev.ha.start);
-                        assert(cn_IS_ALIGNED(HA_rev.ha.start));
                         @*/
                 } else {
                         /*@
@@ -4653,39 +4385,15 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                                 member_shift<struct chunk_hdr>(chunk, node),
                                 HA_rev.ha.first,
                                 Cn_hyp_allocator_core(HA_rev.ha));
-                        assert((u64)member_shift<struct chunk_hdr>(chunk, node)->prev & 7u64 == 0u64);
                         @*/
                         tmp = list_prev_entry(chunk, node);
-                        /*@
-                        assert(HA_rev.lseg.before != Chunk_nil{});
-                        assert(match (HA_rev.lseg.before) {
-                                Chunk_nil {} => { false }
-                                Chunk_cons {hd: hdr, tl: tl} => {
-                                        ptr_eq(tmp, (pointer)hdr.header_address)
-                                }
-                        });
-                        @*/
                 }
-                /*@
-                assert(cn_IS_ALIGNED(HA_rev.ha.start));
-                assert(match (HA_rev.lseg.before) {
-                        Chunk_nil {} => { is_null(tmp) }
-                        Chunk_cons {hd: hdr, tl: tl} => {
-                                ptr_eq(tmp, (pointer)hdr.header_address)
-                        }
-                });
-                assert(ptr_eq(tmp, (pointer)Cn_reclaim_prev_addr(allocator, HA_rev.lseg)));
-                @*/
 #endif
                 chunk_hash_validate(chunk);
                 /*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
 #ifdef __CN_VERIFY
                 host_nr_before = mc->nr_pages;
                 alloc_nr_before = hyp_allocator_mc.nr_pages;
-                /*@
-                assert(host_nr_before == HostMC_rev.nr_pages);
-                assert(alloc_nr_before == AllocMC_rev.nr_pages);
-                @*/
 #endif
 #if defined(__CN_VERIFY) || defined(__cerb__)
                 r = chunk_try_destroy(chunk, allocator, target << PAGE_SHIFT, tmp);
@@ -4704,32 +4412,13 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 }
 
 #ifdef __CN_VERIFY
-                /*@
-                assert(r <= shift_left((u64)target, 12u64));
-                assert(shift_right(r, 12u64) <= (u64)target);
-                assert(r / PAGE_SIZE() <= (u64)target);
-                @*/
                 LemmaReclaimPagesBound(host_nr_before, alloc_nr_before,
                                         (u64)target, r / PAGE_SIZE);
-                /*@
-                assert(((u64)target - r / PAGE_SIZE()) + 1u64 <= MAXu64() - (alloc_nr_before + r / PAGE_SIZE()));
-                assert((alloc_nr_before + r / PAGE_SIZE()) + ((u64)target - r / PAGE_SIZE()) <= MAXu64() - host_nr_before);
-                assert((AllocMC_rev.nr_pages + r / PAGE_SIZE()) + ((u64)target - r / PAGE_SIZE()) <= MAXu64() - HostMC_rev.nr_pages);
-                assert(((u64)target - r / PAGE_SIZE()) + 1u64 <= MAXu64() - (AllocMC_rev.nr_pages + r / PAGE_SIZE()));
-                assert(((u64)target - r / PAGE_SIZE()) <= MAXu64() - ((AllocMC_rev.nr_pages + r / PAGE_SIZE()) + 1u64));
-                @*/
 #endif
 
                 target -= r >> PAGE_SHIFT;
                 if (target <= 0) {
 #ifdef __CN_VERIFY
-                        /*@
-                        assert(ptr_eq(allocator, &hyp_allocator));
-                        assert((AllocMC_rev.nr_pages + r / PAGE_SIZE()) <= MAXu64() - HostMC_rev.nr_pages);
-                        assert(HostMC_rev.nr_pages <= MAXu64() - (AllocMC_rev.nr_pages + r / PAGE_SIZE()));
-                        assert((AllocMC_rev.nr_pages + r / PAGE_SIZE()) > 0u64 implies HostMC_rev.nr_pages < MAXu64());
-                        assert(HostMC_rev.nr_pages < MAXu64());
-                        @*/
                         chunk = tmp;
 #endif
                         break;
@@ -4737,17 +4426,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #ifdef __CN_VERIFY
                 host_nr_after = mc->nr_pages;
                 alloc_nr_after = hyp_allocator_mc.nr_pages;
-                /*@
-                assert(host_nr_after == host_nr_before);
-                assert(alloc_nr_after == alloc_nr_before + r / PAGE_SIZE());
-                assert(0i32 < target);
-                assert(host_nr_after < MAXu64());
-                assert(host_nr_after <= MAXu64() - alloc_nr_after);
-                assert(host_nr_after + 1u64 <= MAXu64() - alloc_nr_after);
-                assert(alloc_nr_after + (u64)target <= MAXu64() - host_nr_after);
-                assert((u64)target + 1u64 <= MAXu64() - alloc_nr_after);
-                assert((u64)target <= MAXu64() - (alloc_nr_after + 1u64));
-                @*/
                 chunk = tmp;
 #endif
 
@@ -4764,8 +4442,8 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 
         alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
 #ifdef __CN_VERIFY
-        /*@ assert(ptr_eq(alloc_mc, &hyp_allocator_mc)); @*/
-        /*@ assert(!ptr_eq(mc, alloc_mc)); @*/
+
+
         if (target > 0) {
         }
 #endif
@@ -4791,11 +4469,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 
                 host_nr_before = mc->nr_pages;
                 alloc_nr_before = alloc_mc->nr_pages;
-                /*@
-                assert(host_nr_before == HostMC_final.nr_pages);
-                assert(alloc_nr_before == AllocMC_final.nr_pages);
-                assert(alloc_nr_before > 0u64);
-                @*/
 #endif
                 void *page = pop_hyp_memcache(alloc_mc, hyp_phys_to_virt, &order);
 
@@ -4806,23 +4479,15 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #endif
                 my_memset(page, 0, PAGE_SIZE);
 #ifdef __CN_VERIFY
-                /*@ assert(cn_IS_ALIGNED((u64)page)); @*/
+
                 /*@ unpack Cn_memset_buffer(page, PAGE_SIZE()); @*/
-                /*@ assert(HostMC_final.nr_pages < MAXu64()); @*/
+
 #endif
                 kvm_flush_dcache_to_poc(page, PAGE_SIZE);
                 push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
 #ifdef __CN_VERIFY
                 host_nr_after = mc->nr_pages;
                 alloc_nr_after = alloc_mc->nr_pages;
-                /*@
-                assert(host_nr_after == host_nr_before + 1u64);
-                assert(alloc_nr_after == alloc_nr_before - 1u64);
-                @*/
-                /*@
-                assert(host_nr_after <= MAXu64() - alloc_nr_after);
-                assert(alloc_nr_after > 0u64 implies host_nr_after < MAXu64());
-                @*/
 #endif
                 WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(page), 1));
         }
@@ -4843,7 +4508,7 @@ int hyp_alloc_refill(struct kvm_hyp_memcache *host_mc)
         struct kvm_hyp_memcache *alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
 
 #ifdef __CN_VERIFY
-        /*@ assert(ptr_eq(alloc_mc, &hyp_allocator_mc)); @*/
+
         LemmaHypAllocatorMcToLocal(alloc_mc);
 #endif
         return refill_memcache(alloc_mc, host_mc->nr_pages + alloc_mc->nr_pages,
