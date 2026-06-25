@@ -345,7 +345,6 @@ static inline void push_hyp_memcache(struct kvm_hyp_memcache *mc,
 				     phys_addr_t *p,
 				     phys_addr_t (*to_pa)(void *virt),
 				     unsigned long order)
-#ifdef __CN_VERIFY
 /*@
 	requires
 		take MC_pre = Cn_hyp_memcache(mc);
@@ -360,7 +359,6 @@ static inline void push_hyp_memcache(struct kvm_hyp_memcache *mc,
 		MC_post.flags == MC_pre.flags;
 		MC_post.pages == Mc_cons { page: (u64)p, tail: MC_pre.pages };
 @*/
-#endif
 {
 	*p = mc->head;
 #ifdef __CN_VERIFY
@@ -385,7 +383,6 @@ static inline void push_hyp_memcache(struct kvm_hyp_memcache *mc,
 static inline void *pop_hyp_memcache(struct kvm_hyp_memcache *mc,
 				     void *(*to_va)(phys_addr_t phys),
 				     unsigned long *order)
-#ifdef __CN_VERIFY
 /*@
 	requires
 		take MC_pre = Cn_hyp_memcache(mc);
@@ -402,7 +399,6 @@ static inline void *pop_hyp_memcache(struct kvm_hyp_memcache *mc,
 		MC_post.flags == MC_pre.flags;
 		MC_post.pages == Cn_memcache_pages_pop(MC_pre.pages);
 @*/
-#endif
 {
 	phys_addr_t *p = to_va(mc->head & PAGE_MASK);
 #ifdef __CN_VERIFY

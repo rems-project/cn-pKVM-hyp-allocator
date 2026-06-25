@@ -1082,7 +1082,6 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
 
 static void hyp_allocator_unmap(struct hyp_allocator *allocator,
                                 unsigned long va, size_t size)
-#ifdef __CN_VERIFY
 /*@
         requires
                 take MC_pre = Cn_hyp_memcache(&hyp_allocator_mc);
@@ -1094,19 +1093,6 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
                 take MC_post = Cn_hyp_memcache(&hyp_allocator_mc);
                 MC_post.nr_pages == MC_pre.nr_pages + size / PAGE_SIZE();
 @*/
-#else
-/*@
-        requires
-                take MC_pre = Cn_hyp_memcache(&hyp_allocator_mc);
-                cn_IS_ALIGNED(va);
-                size / PAGE_SIZE() <= 2147483647u64;
-                MC_pre.nr_pages < MAXu64();
-                size / PAGE_SIZE() + 1u64 <= MAXu64() - MC_pre.nr_pages;
-        ensures
-                take MC_post = Cn_hyp_memcache(&hyp_allocator_mc);
-                MC_post.nr_pages == MC_pre.nr_pages + size / PAGE_SIZE();
-@*/
-#endif
 {
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
 
@@ -1161,7 +1147,6 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
 
 static int hyp_allocator_map(struct hyp_allocator *allocator,
                              unsigned long va, size_t size)
-#ifdef __CN_VERIFY
 /*@
         requires
                 let va_pre = va;
@@ -1181,24 +1166,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 return == 0i32 implies
                 (va_pre <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
 @*/
-#else
-/*@
-        accesses hyp_allocator_mc;
-        accesses hyp_allocator_missing_donations;
-        requires
-                let va_pre = va;
-                take HA_pre = Cn_hyp_allocator_only(allocator);
-                size > 0u64;
-                size / PAGE_SIZE() <= 524287u64;
-
-        ensures
-                take HA_post = Cn_hyp_allocator_only(allocator);
-                HA_post == HA_pre;
-                let va_end = va_pre + size;
-                return == 0i32 implies
-                (va_pre <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
-@*/
-#endif
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
 // This means that it returns an ownership of this mined memory out of thin air.
 {
@@ -1930,7 +1897,6 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
 
 static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                          struct hyp_allocator *allocator)
-#ifdef __CN_VERIFY
 /*@
         requires
                 !is_null(chunk);
@@ -1963,37 +1929,6 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                 (return != 0i32) implies
                 C_post.mapped_size == C_pre.mapped_size;
 @*/
-#else
-/*@
-        accesses hyp_allocator_mc;
-        accesses hyp_allocator_missing_donations;
-        requires
-                !is_null(chunk);
-                take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let C_pre = HA_pre.lseg.chunk;
-                map_size > 0u64;
-                cn_IS_ALIGNED(map_size);
-        ensures
-                take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                HA_post.ha == HA_pre.ha;
-                HA_post.lseg.before == HA_pre.lseg.before;
-                HA_post.lseg.after == HA_pre.lseg.after;
-
-                let C_post = HA_post.lseg.chunk;
-                C_post.alloc_size == C_pre.alloc_size;
-                C_post.va_size == C_pre.va_size;
-                C_post.header_address == C_pre.header_address;
-
-                let cond = (u64)C_pre.va_size - (u64)C_pre.mapped_size < map_size;
-                cond implies return == -EINVAL();
-
-                (return == 0i32) implies
-                C_post.mapped_size == (C_pre.mapped_size + (u32)map_size);
-
-                (return != 0i32) implies
-                C_post.mapped_size == C_pre.mapped_size;
-@*/
-#endif
 {
         int ret;
 
@@ -2413,7 +2348,6 @@ function (u64) Cn_expected_mapping(pointer chunk, u64 size)
 
 static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                          struct hyp_allocator *allocator)
-#ifdef __CN_VERIFY
 /*@
     requires
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
@@ -2467,57 +2401,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         take U = Conditional_Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size, return == 0i32);
 
 @*/
-#else
-/*@
-    accesses hyp_allocator_mc;
-    accesses hyp_allocator_missing_donations;
-    requires
-        take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
-        let C_pre = HA_pre.lseg.chunk;
-        size > 0u64 && size < (u64)HA_pre.ha.size;
-        size & 0x7u64 == 0u64;
-        C_pre.alloc_size == 0u32;
-        is_free_chunk(C_pre, size);
-        PAGE_ALIGN(Cn_chunk_size(size)) / PAGE_SIZE() <= 524287u64;
-
-        let new_chunk_addr_ = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
-        new_chunk_addr_ >= (u64)chunk;
-        let chunk_va_size_post = new_chunk_addr_ - (u64)chunk;
-        let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
-        let can_split_pre = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_);
-        can_split_pre implies
-                Cn_chunk_needs_mapping((u64)C_pre.mapped_size, chunk_va_size_post) / PAGE_SIZE() <= 524287u64;
-        !can_split_pre implies
-                Cn_chunk_needs_mapping((u64)C_pre.mapped_size, size) / PAGE_SIZE() <= 524287u64;
-    ensures
-        take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-
-        HA_pre.ha.start == HA_post.ha.start;
-        HA_pre.ha.size == HA_post.ha.size;
-        ptr_eq(HA_pre.ha.head, HA_post.ha.head);
-
-        let C_post = HA_post.lseg.chunk;
-        let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_);
-        (return == 0i32 && can_split) implies
-                C_post == {
-                        header_address: C_pre.header_address,
-                        mapped_size: (u32)chunk_va_size_post,
-                        alloc_size: (u32)size,
-                        va_size: (u32)chunk_va_size_post
-                };
-
-        let tmp_mapped_size = (u64)C_pre.mapped_size + Cn_chunk_needs_mapping((u64)C_pre.mapped_size, size);
-        (return == 0i32 && !can_split) implies
-                C_post == {
-                        header_address: C_pre.header_address,
-                        mapped_size: (u32)tmp_mapped_size,
-                        alloc_size: (u32)size,
-                        va_size: C_pre.va_size
-                };
-        take U = Conditional_Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size, return == 0i32);
-
-@*/
-#endif
 {
 
         unsigned long new_chunk_addr = (unsigned long)chunk + chunk_size(size);
@@ -2856,7 +2739,6 @@ predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, siz
 @*/
 
 static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
-#ifdef __CN_VERIFY
 /*@
     requires take a_in=Cn_hyp_allocator(allocator);
     take MC_pre = Cn_hyp_memcache(&hyp_allocator_mc);
@@ -2873,21 +2755,6 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     take Missing_post = RW<unsigned char>(&hyp_allocator_missing_donations);
     PAGE_ALIGN(Cn_chunk_size(size)) > (u64)a_in.ha.size implies return != 0i32;
 @*/
-#else
-/*@
-    accesses hyp_allocator_mc;
-    accesses hyp_allocator_missing_donations;
-    requires take a_in=Cn_hyp_allocator(allocator);
-	    ptr_eq(a_in.ha.head, a_in.ha.first);
-	    size >= MIN_ALLOC();
-	    PAGE_ALIGN(Cn_chunk_size(size)) >= size;
-	    PAGE_ALIGN(Cn_chunk_size(size)) / PAGE_SIZE() <= 524287u64;
-	    size & 0x7u64 == 0u64;
-	    ensures
-    take X = SetupFirstChunk(allocator, a_in.ha, size, return);
-    PAGE_ALIGN(Cn_chunk_size(size)) > (u64)a_in.ha.size implies return != 0i32;
-@*/
-#endif
 {
         int ret;
 
@@ -4534,7 +4401,6 @@ predicate (void) MaybeHypAlloc(pointer p, boolean cond)
 // avoid type mismatch
 //int hyp_alloc_init(size_t size)
 int hyp_alloc_init(unsigned long size)
-#ifdef __CN_VERIFY // CANT_PBT
 /*@
         accesses __io_map_base;
         accesses __hyp_vmemmap;
@@ -4549,7 +4415,6 @@ int hyp_alloc_init(unsigned long size)
       take HA1 = W<struct hyp_allocator>(&hyp_allocator);
     ensures take HA2 = MaybeHypAlloc(&hyp_allocator, return == 0i32);
 @*/
-#endif
 {
         struct hyp_allocator *allocator = &hyp_allocator;
         int ret;
