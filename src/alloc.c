@@ -1123,17 +1123,8 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
                         {size} unchanged;
         @*/
         {
-#ifdef __CN_VERIFY
-#endif
                 phys_addr_t pa = __pkvm_private_range_pa((void *)__va);
-#ifdef __CN_VERIFY
-
-#endif
                 void *page = hyp_phys_to_virt(pa);
-#ifdef __CN_VERIFY
-
-
-#endif
 
                 push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
                 __va += PAGE_SIZE;
@@ -1171,20 +1162,15 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 {
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
 
-
         unsigned long va_end = va + size;
         int ret = 0;
         int nr_pages = 0;
 
         if (!PAGE_ALIGNED(va) || !PAGE_ALIGNED(size))
                 return -EINVAL;
-#ifdef __CN_VERIFY
-#endif
 
         if (va_end < va || va_end > (allocator->start + allocator->size))
                 return -E2BIG;
-#ifdef __CN_VERIFY
-#endif
 
 #ifdef __CN_VERIFY
         LemmaHypAllocatorMcToLocal(mc);
@@ -1208,7 +1194,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 return -ENOMEM;
         }
 
-#ifdef __CN_VERIFY
         while (nr_pages < (size >> PAGE_SHIFT))
         /*@
                 inv
@@ -1229,9 +1214,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                         MC_loop.nr_pages == MC_pre.nr_pages - (u64)nr_pages;
                         size / PAGE_SIZE() - (u64)nr_pages <= MC_loop.nr_pages;
         @*/
-#else
-        while (nr_pages < (size >> PAGE_SHIFT))
-#endif
         {
                 void *page;
                 unsigned long order;
@@ -1252,9 +1234,7 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 #endif
                         break;
                 }
-#ifdef __CN_VERIFY
                 /*@ unpack Conditional_Cn_split_page(...); @*/
-#endif
                 va += PAGE_SIZE;
                 nr_pages++;
 #ifdef __CN_VERIFY
@@ -1264,9 +1244,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 
         if (ret && nr_pages) {
                 va -= PAGE_SIZE * nr_pages;
-#ifdef __CN_VERIFY
-
-#endif
                 hyp_allocator_unmap(allocator, va, nr_pages << PAGE_SHIFT);
         }
 
@@ -1743,23 +1720,16 @@ ensures
         if (WARN_ON(!prev))
                 return -EINVAL;
 
-
         /* Can only merge free chunks */
         if (chunk_is_used(chunk) || chunk_is_used(prev))
                 return -EBUSY;
-
 
         /* Can't merge non-contiguous mapped regions */
         if (chunk_unmapped_region(prev) != (unsigned long)chunk)
                 return 0;
 
-#ifdef __CN_VERIFY
-#endif
-
         /* mapped region inheritance */
         prev->mapped_size += chunk->mapped_size;
-#ifdef __CN_VERIFY
-#endif
 
         chunk_list_del(chunk, allocator);
 
@@ -1949,26 +1919,19 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         //        (member_shift<struct chunk_hdr>(chunk, node)->next), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha));
         //        @*/
         //}
-#ifdef __CN_VERIFY
         /*@ split_case(map_size <= (u64)Cn_chunk_unmapped_size(C_pre)); @*/
-#endif
         if (chunk_unmapped_size(chunk, allocator) < map_size) {
-		        /*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-	                return -EINVAL;
+                /*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+                return -EINVAL;
         }
-	/*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
 
-#ifdef __CN_VERIFY
-#endif
         ret = hyp_allocator_map(allocator, chunk_unmapped_region(chunk),
                                 map_size);
         if (ret)
                 return ret;
 
-
         chunk->mapped_size += map_size;
-#ifdef __CN_VERIFY
-#endif
         /*@ split_case(ptr_eq(
                     member_shift<struct chunk_hdr>(chunk, node),
                     member_shift<struct hyp_allocator>(allocator, chunks))); @*/
@@ -1978,9 +1941,7 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)));@*/
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         chunk_hash_update(chunk);
-	/*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
-#ifdef __CN_VERIFY
-#endif
+        /*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
         return 0;
 }
 
@@ -2116,9 +2077,6 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 {
         unsigned long start, end;
         size_t reclaimable;
-#ifdef __CN_VERIFY
-        unsigned int mapped_before_reclaim;
-#endif
 
         start = PAGE_ALIGN((unsigned long)chunk +
                            chunk_size(chunk->alloc_size));
@@ -2129,25 +2087,16 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                 /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                         member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 /*@ split_case(HA_pre.lseg.before == Chunk_nil {}); @*/
+                /*@
+                unpack Cn_chunk_hdrs_rev(
+                        member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct chunk_hdr>(chunk, node),
+                        HA_pre.ha.first,
+                        Cn_hyp_allocator_core(HA_pre.ha));
+                @*/
                 if (list_is_first(&chunk->node, &allocator->chunks) == 1) {
-                        /*@
-                        unpack Cn_chunk_hdrs_rev(
-                                member_shift<struct chunk_hdr>(chunk, node)->prev,
-                                member_shift<struct chunk_hdr>(chunk, node),
-                                HA_pre.ha.first,
-                                Cn_hyp_allocator_core(HA_pre.ha));
-                        @*/
-
                         LemmaFirstChunkToAllocator(chunk, allocator);
                 } else {
-                        /*@
-                        unpack Cn_chunk_hdrs_rev(
-                                member_shift<struct chunk_hdr>(chunk, node)->prev,
-                                member_shift<struct chunk_hdr>(chunk, node),
-                                HA_pre.ha.first,
-                                Cn_hyp_allocator_core(HA_pre.ha));
-                        @*/
-
                         LemmaPrevChunk(chunk, allocator);
                 }
 #endif
@@ -2161,25 +2110,16 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                 /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                         member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 /*@ split_case(HA_pre.lseg.before == Chunk_nil {}); @*/
+                /*@
+                unpack Cn_chunk_hdrs_rev(
+                        member_shift<struct chunk_hdr>(chunk, node)->prev,
+                        member_shift<struct chunk_hdr>(chunk, node),
+                        HA_pre.ha.first,
+                        Cn_hyp_allocator_core(HA_pre.ha));
+                @*/
                 if (list_is_first(&chunk->node, &allocator->chunks) == 1) {
-                        /*@
-                        unpack Cn_chunk_hdrs_rev(
-                                member_shift<struct chunk_hdr>(chunk, node)->prev,
-                                member_shift<struct chunk_hdr>(chunk, node),
-                                HA_pre.ha.first,
-                                Cn_hyp_allocator_core(HA_pre.ha));
-                        @*/
-
                         LemmaFirstChunkToAllocator(chunk, allocator);
                 } else {
-                        /*@
-                        unpack Cn_chunk_hdrs_rev(
-                                member_shift<struct chunk_hdr>(chunk, node)->prev,
-                                member_shift<struct chunk_hdr>(chunk, node),
-                                HA_pre.ha.first,
-                                Cn_hyp_allocator_core(HA_pre.ha));
-                        @*/
-
                         LemmaPrevChunk(chunk, allocator);
                 }
 #endif
@@ -2188,36 +2128,24 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 
 
         if (chunk_split_aligned(chunk, allocator)) {
-#ifdef __CN_VERIFY
-
-#endif
                 return 0;
         }
 
 
         end = chunk_unmapped_region(chunk);
-#ifdef __CN_VERIFY
-        mapped_before_reclaim = chunk->mapped_size;
-#endif
 #ifdef NO_STATEMENT_EXPRS
         reclaimable = min_u64(end - start, reclaim_target);
 #else /* NO_STATEMENT_EXPRS */
         reclaimable = min(end - start, reclaim_target);
 #endif /* NO_STATEMENT_EXPRS */
-#ifdef __CN_VERIFY
         /*@
         split_case((end - start) < reclaim_target);
         @*/
-#endif
         start = end - reclaimable;
 
         hyp_allocator_unmap(allocator, start, reclaimable);
 
-#ifdef __CN_VERIFY
-#endif
         chunk->mapped_size -= reclaimable;
-#ifdef __CN_VERIFY
-#endif
         chunk_hash_update(chunk);
 
 #ifdef __CN_VERIFY
@@ -2418,9 +2346,6 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 member_shift<struct chunk_hdr>(chunk, node), HA_pre.ha.last, Cn_hyp_allocator_core(HA_pre.ha)); @*/
 
         new_chunk_addr = chunk_addr_fixup(new_chunk_addr);
-#ifdef __CN_VERIFY
-
-#endif
         if (chunk_can_split(chunk, new_chunk_addr, allocator)) {
                 new_chunk = (struct chunk_hdr *)new_chunk_addr;
                 // HK: when we can split the chunk,
@@ -2434,14 +2359,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 expected_mapping = new_chunk_addr + chunk_hdr_size() -
                                         (unsigned long)chunk_data(chunk);
         }
-#ifdef __CN_VERIFY
-#endif
         missing_map = chunk_needs_mapping(chunk, expected_mapping);
-#ifdef __CN_VERIFY
-#endif
         if (missing_map) {
-#ifdef __CN_VERIFY
-#endif
                 ret = chunk_inc_map(chunk, missing_map, allocator);
                 if (ret)
                         return ret;
@@ -2544,8 +2463,6 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
 #ifdef __CN_VERIFY
         bool destroyed_singleton = false;
         bool destroyed_by_chunk_list_del = false;
-        bool destroyed_by_last = false;
-        bool destroyed_after_split = false;
         size_t destroyed_mapped_size = 0;
 #endif
 
@@ -2563,7 +2480,6 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                 if (!list_is_last(&chunk->node, &allocator->chunks))
                         return 0;
 
-#ifdef __CN_VERIFY
                 /*@
                 unpack Cn_chunk_hdrs_rev(
                         member_shift<struct chunk_hdr>(chunk, node)->prev,
@@ -2576,16 +2492,15 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                         HA_pre.ha.last,
                         Cn_hyp_allocator_core(HA_pre.ha));
                 @*/
-#endif
 
                 list_del(&chunk->node);
 #ifdef __CN_VERIFY
                 destroyed_singleton = true;
+#endif
                 /*@
                 unpack ListDelNeighbors(member_shift<struct hyp_allocator>(allocator, chunks),
                                         member_shift<struct hyp_allocator>(allocator, chunks));
                 @*/
-#endif
                 goto unmap;
         }
 
@@ -2604,7 +2519,6 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
 
 
         if (list_is_last(&chunk->node, &allocator->chunks)) {
-#ifdef __CN_VERIFY
                 /*@
                 split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                         member_shift<struct hyp_allocator>(allocator, chunks)));
@@ -2619,8 +2533,8 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                         HA_pre.ha.last,
                         Cn_hyp_allocator_core(HA_pre.ha));
                 @*/
+#ifdef __CN_VERIFY
                 destroyed_by_chunk_list_del = true;
-                destroyed_by_last = true;
                 destroyed_mapped_size = chunk->mapped_size;
 #endif
                 goto destroy;
@@ -2650,14 +2564,13 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
         if (chunk_split_aligned(chunk, allocator))
                 return 0;
 
-#ifdef __CN_VERIFY
         /*@
         split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs_rev(...);
         @*/
+#ifdef __CN_VERIFY
         destroyed_by_chunk_list_del = true;
-        destroyed_after_split = true;
         destroyed_mapped_size = chunk->mapped_size;
 #endif
 destroy:
@@ -2669,11 +2582,6 @@ unmap:
         else
 #endif
         unmapped = chunk->mapped_size;
-#ifdef __CN_VERIFY
-        if (destroyed_by_chunk_list_del) {
-        } else {
-        }
-#endif
 #ifdef __CN_VERIFY
         if (destroyed_by_chunk_list_del)
                 hyp_allocator_unmap(allocator, (unsigned long)chunk, unmapped);
@@ -4007,15 +3915,12 @@ int hyp_alloc_reclaimable(void)
                 {
                         struct chunk_hdr *next;
                         size_t reclaimable_chunk;
-                        unsigned long mc_pages_for_bound;
-
                         /*@ unpack ReclaimableChunkInv(...); @*/
                         /*@
                         unfold Cn_reclaimable_pages_from(RI.lseg.before,
                                                          RI.lseg.chunk,
                                                          RI.lseg.after);
                         @*/
-                        mc_pages_for_bound = hyp_allocator_mc.nr_pages;
                         reclaimable_chunk = chunk_reclaimable(chunk, allocator);
                         reclaimable += reclaimable_chunk >> PAGE_SHIFT;
 
@@ -4059,8 +3964,6 @@ memcache_pages:
         {
                 struct kvm_hyp_memcache *mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
-#ifdef __CN_VERIFY
-#endif
                 reclaimable += mc->nr_pages;
 #ifdef __CN_VERIFY
                 cpu++;
@@ -4129,7 +4032,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 alloc_mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
 #ifdef __CN_VERIFY
-
                 LemmaHypAllocatorMcToLocal(alloc_mc);
 #endif
 
@@ -4157,23 +4059,10 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 @*/
                 {
                         unsigned long order;
-#ifdef __CN_VERIFY
-                        unsigned long host_nr_before;
-                        unsigned long alloc_nr_before;
-                        unsigned long host_nr_after;
-                        unsigned long alloc_nr_after;
-
-                        host_nr_before = mc->nr_pages;
-                        alloc_nr_before = alloc_mc->nr_pages;
-#endif
                         void *page = pop_hyp_memcache(alloc_mc, hyp_phys_to_virt, &order);
 
                         WARN_ON(order);
                         push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
-#ifdef __CN_VERIFY
-                        host_nr_after = mc->nr_pages;
-                        alloc_nr_after = alloc_mc->nr_pages;
-#endif
                         WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(page), 1));
 
                         target--;
@@ -4183,8 +4072,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #endif
                                 goto done;
                         }
-#ifdef __CN_VERIFY
-#endif
 
                 }
 #ifdef __CN_VERIFY
@@ -4229,8 +4116,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #ifdef __CN_VERIFY
                 unsigned long host_nr_before;
                 unsigned long alloc_nr_before;
-                unsigned long host_nr_after;
-                unsigned long alloc_nr_after;
 #endif
 
 
@@ -4291,8 +4176,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                         break;
                 }
 #ifdef __CN_VERIFY
-                host_nr_after = mc->nr_pages;
-                alloc_nr_after = hyp_allocator_mc.nr_pages;
                 chunk = tmp;
 #endif
 
@@ -4308,12 +4191,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #endif
 
         alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
-#ifdef __CN_VERIFY
-
-
-        if (target > 0) {
-        }
-#endif
         while (alloc_mc->nr_pages)
         /*@
                 inv
@@ -4328,15 +4205,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
         @*/
         {
                 unsigned long order;
-#ifdef __CN_VERIFY
-                unsigned long host_nr_before;
-                unsigned long alloc_nr_before;
-                unsigned long host_nr_after;
-                unsigned long alloc_nr_after;
-
-                host_nr_before = mc->nr_pages;
-                alloc_nr_before = alloc_mc->nr_pages;
-#endif
                 void *page = pop_hyp_memcache(alloc_mc, hyp_phys_to_virt, &order);
 
                 WARN_ON(order);
@@ -4345,17 +4213,9 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 LemmaMergeArrays(page, 8, PAGE_SIZE - 8);
 #endif
                 my_memset(page, 0, PAGE_SIZE);
-#ifdef __CN_VERIFY
-
                 /*@ unpack Cn_memset_buffer(page, PAGE_SIZE()); @*/
-
-#endif
                 kvm_flush_dcache_to_poc(page, PAGE_SIZE);
                 push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
-#ifdef __CN_VERIFY
-                host_nr_after = mc->nr_pages;
-                alloc_nr_after = alloc_mc->nr_pages;
-#endif
                 WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(page), 1));
         }
 done:
