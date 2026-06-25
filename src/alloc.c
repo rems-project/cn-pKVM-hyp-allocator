@@ -2050,6 +2050,13 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
 }
 @*/
 
+/*
+ * The prev_iter argument below is verification-only. Ideally it would be a CN
+ * ghost argument, but chunk_dec_map() needs to branch on it in CN_VERIFY proof
+ * code to choose between LemmaFirstChunkToAllocator() and LemmaPrevChunk().
+ * `requires cn_ghost` values are available to specifications and call-site
+ * ghost arguments, but not as C identifiers inside the implementation body.
+ */
 static size_t chunk_dec_map(struct chunk_hdr *chunk,
                             struct hyp_allocator *allocator,
                             size_t reclaim_target
@@ -2432,6 +2439,10 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
 }
 @*/
 
+/*
+ * See chunk_dec_map(): prev_iter is kept as a verification-only concrete
+ * parameter so the reverse traversal proof can share the same call shape.
+ */
 static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                                 struct hyp_allocator *allocator,
                                 size_t reclaim_target
