@@ -1163,8 +1163,7 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
         struct kvm_hyp_memcache *mc = this_cpu_ptr(&hyp_allocator_mc);
 
         unsigned long va_end = va + size;
-        int ret = 0;
-        int nr_pages = 0;
+        int ret, nr_pages = 0;
 
         if (!PAGE_ALIGNED(va) || !PAGE_ALIGNED(size))
                 return -EINVAL;
@@ -1854,13 +1853,7 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
         WARN_ON(delta < chunk_size(0UL));
 
         /*@ unpack MaybeChunkHdr(...); @*/
-        {
-                int ret = chunk_install(new_chunk, 0, chunk, allocator);
-                WARN_ON(ret);
-                /*@ split_case(ret == 0i32); @*/
-                /*@ unpack ChunkInstallPost(...); @*/
-                /*@ unpack Cn_char_array(...); @*/
-        }
+        WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
 
         return 0;
 }
@@ -2050,17 +2043,10 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
 }
 @*/
 
-/*
- * The prev_iter argument below is verification-only. Ideally it would be a CN
- * ghost argument, but chunk_dec_map() needs to branch on it in CN_VERIFY proof
- * code to choose between LemmaFirstChunkToAllocator() and LemmaPrevChunk().
- * `requires cn_ghost` values are available to specifications and call-site
- * ghost arguments, but not as C identifiers inside the implementation body.
- */
 static size_t chunk_dec_map(struct chunk_hdr *chunk,
                             struct hyp_allocator *allocator,
                             size_t reclaim_target
-#if defined(__CN_VERIFY) || defined(__cerb__)
+#ifdef __CN_VERIFY
                             , struct chunk_hdr *prev_iter
 #endif
                             )
@@ -2391,13 +2377,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 // chunk must be non null
 
 	        /*@ unpack MaybeChunkHdr(...); @*/
-		/* CN DIFF */
-		/* HK: capturing the return value is needed to unfold `ChunkInstallPost` */
-		    int ret = chunk_install(new_chunk, 0, chunk, allocator);
-                    WARN_ON(ret);
+                WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
                 /*@ split_case(is_null(chunk)); @*/
-                /*@ split_case(ret == 0i32); @*/
-		/*@ unpack ChunkInstallPost(...); @*/
 
                 // destroy the garbage here
                 /*@ unpack Cn_char_array(...); @*/
@@ -2439,14 +2420,10 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
 }
 @*/
 
-/*
- * See chunk_dec_map(): prev_iter is kept as a verification-only concrete
- * parameter so the reverse traversal proof can share the same call shape.
- */
 static size_t chunk_try_destroy(struct chunk_hdr *chunk,
                                 struct hyp_allocator *allocator,
                                 size_t reclaim_target
-#if defined(__CN_VERIFY) || defined(__cerb__)
+#ifdef __CN_VERIFY
                                 , struct chunk_hdr *prev_iter
 #endif
                                 )
@@ -2685,9 +2662,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 
         /*@ split_case(a_in.hdrs==Chunk_nil{}); @*/
         /*@ split_case(is_null(NULL)); @*/
-        /*CN*/int retv = chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
-	/*@ unpack ChunkInstallPost((pointer)a_in.ha.start, size, NULL, allocator, a_in.ha, {before: Chunk_nil {}, after: Chunk_nil {}, chunk: {header_address: 0u64, mapped_size: 0u32, alloc_size: 0u32, va_size: 0u32} }, retv); @*/
-	/*CN*/return retv;
+        return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
 }
 /*@
 // This is for get_free_chunk
@@ -3083,7 +3058,6 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 @*/
 
 {
-        /*CN*/ struct chunk_hdr * retv = NULL;
         /* CN DIFF */
         // version: e6f1cbbab1843a62714bf19329cbabf43adbd297
         struct chunk_hdr *chunk, *best_chunk = NULL;
@@ -3195,9 +3169,7 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         }
 #endif
 
-        /*CN*/ retv = chunk_get(best_chunk);
-	/*@ unpack MaybeChunkHdr(...); @*/
-	/*CN*/ return retv;
+        return chunk_get(best_chunk);
 }
 
 #if defined(__CN_VERIFY) || defined(__CN_TEST)
@@ -3419,7 +3391,6 @@ void *hyp_alloc(unsigned long size)
         unsigned long chunk_addr;
         size_t missing_map;
         int ret = 0;
-        /* CN */ int cn_flag = 1;
         /* constrained by chunk_hdr *_size types */
         if (size > U32_MAX)
         {
@@ -3439,9 +3410,6 @@ void *hyp_alloc(unsigned long size)
         hyp_spin_lock(&allocator->lock);
         //PS: ownership from lock invariant
         //PS: hyp_spin_lock returns Cn_hyp_allocator(&allocator)
-        /* CN DIFF */
-        // this variable is used to split the case later in this function.
-        cn_flag = list_empty(&hyp_allocator.chunks);
         /*@ split_case(
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)
@@ -3453,7 +3421,7 @@ void *hyp_alloc(unsigned long size)
                 Cn_hyp_allocator_core(HA_pre.ha)
         );
         @*/
-        if (cn_flag) {
+        if (list_empty(&hyp_allocator.chunks)) {
 	        /*@ unpack FirstAllocation(...); @*/
                 ret = setup_first_chunk(allocator, size);
 		/*@ split_case(ret == 0i32); @*/
@@ -3513,12 +3481,8 @@ void *hyp_alloc(unsigned long size)
         }
 
         //LemmaSplitAndNewChunk(chunk_data(last_chunk) + last_chunk->alloc_size, , allocator->start + allocator->size - last_chunk->alloc_size - (unsigned long)chunk_data(last_chunk));
-        /* CN DIFF */
-        /*CN*/ int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
-        /*CN*/ WARN_ON(res_chunk_install);
+        WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
         /*@ split_case(is_null(chunk)); @*/
-        /*@ split_case(res_chunk_install == 0i32); @*/
-	/*@ unpack ChunkInstallPost(...); @*/
 #ifdef __CN_VERIFY
         LemmaLsegToChunkHdrs(allocator, last_chunk);
 #endif
@@ -3530,7 +3494,7 @@ end_unlocked:
 
         /* CN DIFF for proof */
 #ifdef __CN_VERIFY
-        if ((!ret || !cn_flag) && !no_free_chunk) {
+        if (!ret && !no_free_chunk) {
                 LemmaLsegToChunkHdrs(allocator, chunk);
         }
 #endif
@@ -3539,12 +3503,10 @@ end_unlocked:
         if (!ret)
         {
                 /*@ unpack Conditional_Cn_char_array(...); @*/
-                /* CN DIFF */
-                // How do I write the spec to memset?
+                my_memset(chunk_data(chunk), 0, size);
 #ifdef __CN_VERIFY
                 char *data = chunk_data(chunk);
 
-                my_memset(data, 0, size);
                 /*@ split_case(size == PAGE_SIZE() && cn_IS_ALIGNED((u64)data)); @*/
                 if (size == PAGE_SIZE && PAGE_ALIGNED(data)) {
                         /*@ unpack Cn_memset_buffer(data, size); @*/
@@ -3553,9 +3515,6 @@ end_unlocked:
                 } else {
                         /*@ unpack Cn_memset_buffer(data, size); @*/
                 }
-#else
-                my_memset(chunk_data(chunk), 0, size);
-                // memset(chunk_data(chunk), 0, size);
 #endif
                 /*@ unpack Cn_char_array(...); @*/
         }
@@ -3750,10 +3709,7 @@ ensures
                 return false;
         }
 
-        /* CN DIFF */
-        /*CN*/struct chunk_hdr *tmp = chunk_get_prev(chunk, allocator);
-        /*@ unpack MaybeChunkHdr(...); @*/
-        /*CN*/return !chunk_is_used(tmp);
+        return !chunk_is_used(chunk_get_prev(chunk, allocator));
 }
 
 #if defined(__CN_VERIFY) || defined(__CN_TEST) || defined(__cerb__)
@@ -3894,71 +3850,10 @@ int hyp_alloc_reclaimable(void)
          * discontiguous unmapped region by deleting chunks from the top to the
          * bottom.
          */
-#ifdef __CN_VERIFY
-        cpu = 0;
-        if (list_empty(&allocator->chunks)) {
-                chunk = NULL;
-        } else {
-                /*@
-                unpack FirstAllocation((pointer)HA_pre.ha.start, HA_pre.ha.size,
-                                       ptr_eq(HA_pre.ha.first, HA_pre.ha.head));
-                unpack Cn_chunk_hdrs(HA_pre.ha.first, HA_pre.ha.head,
-                                     HA_pre.ha.last,
-                                     Cn_hyp_allocator_core(HA_pre.ha));
-                @*/
-                chunk = list_first_entry(&allocator->chunks, typeof(*chunk), node);
-
-                while (1)
-                /*@
-                        inv
-                                ptr_eq(allocator, &hyp_allocator);
-                                !is_null(chunk);
-                                take RI = ReclaimableChunkInv(allocator, chunk);
-                                take MC_iter = Cn_hyp_memcache(&hyp_allocator_mc);
-                                MC_iter == MC_pre;
-                                0i32 <= reclaimable;
-                                (u64)reclaimable <= 2147483647u64;
-                                RI.remaining <= 2147483647u64 - (u64)reclaimable;
-                                MC_iter.nr_pages <= 2147483647u64 -
-                                        ((u64)reclaimable + RI.remaining);
-                                (u64)reclaimable + RI.remaining + MC_iter.nr_pages <= 2147483647u64;
-                @*/
-                {
-                        struct chunk_hdr *next;
-                        size_t reclaimable_chunk;
-                        /*@ unpack ReclaimableChunkInv(...); @*/
-                        /*@
-                        unfold Cn_reclaimable_pages_from(RI.lseg.before,
-                                                         RI.lseg.chunk,
-                                                         RI.lseg.after);
-                        @*/
-                        reclaimable_chunk = chunk_reclaimable(chunk, allocator);
-                        reclaimable += reclaimable_chunk >> PAGE_SHIFT;
-
-                        if (list_is_last(&chunk->node, &allocator->chunks)) {
-                                LemmaLsegToChunkHdrs(allocator, chunk);
-                                break;
-                        } else {
-                                next = list_next_entry(chunk, node);
-                                LemmaNextChunk(chunk, allocator);
-                                chunk = next;
-                        }
-                }
-        }
-        cpu = 0;
-#else
         list_for_each_entry(chunk, &allocator->chunks, node)
                 reclaimable += chunk_reclaimable(chunk, allocator) >> PAGE_SHIFT;
-#endif
 
-memcache_pages:
-        ;
-#ifdef __CN_VERIFY
-        cpu = 0;
-        while (cpu < 1)
-#else
         for (cpu = 0; cpu < hyp_nr_cpus; cpu++)
-#endif
         /*@
                 inv
                         ptr_eq(allocator, &hyp_allocator);
@@ -3976,14 +3871,11 @@ memcache_pages:
                 struct kvm_hyp_memcache *mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
                 reclaimable += mc->nr_pages;
-#ifdef __CN_VERIFY
-                cpu++;
-#endif
         }
 
         hyp_spin_unlock(&allocator->lock);
 
-	return reclaimable;
+        return reclaimable;
 }
 
 // Hk: another interesting target
@@ -4006,8 +3898,16 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
+#ifdef __CN_VERIFY
         struct kvm_hyp_memcache *alloc_mc = &hyp_allocator_mc;
+#else
+        struct kvm_hyp_memcache *alloc_mc;
+#endif
+#ifdef __CN_VERIFY
         struct chunk_hdr *chunk = NULL, *tmp = NULL;
+#else
+        struct chunk_hdr *chunk, *tmp;
+#endif
         int cpu;
         if (target <= 0)
                 return;
@@ -4037,7 +3937,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                         AllocMC_loop.nr_pages + (u64)target <= MAXu64() - HostMC_loop.nr_pages;
                         (u64)target + 1u64 <= MAXu64() - AllocMC_loop.nr_pages;
                         (u64)target <= MAXu64() - (AllocMC_loop.nr_pages + 1u64);
-                        ptr_eq(alloc_mc, &hyp_allocator_mc);
         @*/
         {
                 alloc_mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
@@ -4130,7 +4029,9 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #endif
 
 
+#ifdef __CN_VERIFY
                 /*@ unpack ReclaimReverseInv(...); @*/
+#endif
 #ifdef __CN_VERIFY
                 if (list_is_first(&chunk->node, &allocator->chunks)) {
                         tmp = NULL;
@@ -4158,14 +4059,14 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 host_nr_before = mc->nr_pages;
                 alloc_nr_before = hyp_allocator_mc.nr_pages;
 #endif
-#if defined(__CN_VERIFY) || defined(__cerb__)
+#ifdef __CN_VERIFY
                 r = chunk_try_destroy(chunk, allocator, target << PAGE_SHIFT, tmp);
 #else
                 r = chunk_try_destroy(chunk, allocator, target << PAGE_SHIFT);
 #endif
                 if (!r) {
                         /*@ unpack ChunkTryDestroyPost(...); @*/
-#if defined(__CN_VERIFY) || defined(__cerb__)
+#ifdef __CN_VERIFY
                         r = chunk_dec_map(chunk, allocator, target << PAGE_SHIFT, tmp);
 #else
                         r = chunk_dec_map(chunk, allocator, target << PAGE_SHIFT);
