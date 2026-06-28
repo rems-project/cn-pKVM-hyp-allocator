@@ -4024,20 +4024,17 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
-#ifdef __CN_VERIFY
-        struct kvm_hyp_memcache *alloc_mc = &hyp_allocator_mc;
-#else
         struct kvm_hyp_memcache *alloc_mc;
-#endif
-#ifdef __CN_VERIFY
-        struct chunk_hdr *chunk = NULL, *tmp = NULL;
-#else
         struct chunk_hdr *chunk, *tmp;
-#endif
         int cpu;
         if (target <= 0)
                 return;
 
+#ifdef __CN_VERIFY
+        alloc_mc = &hyp_allocator_mc;
+        chunk = NULL;
+        tmp = NULL;
+#endif
 
         hyp_spin_lock(&allocator->lock);
 
