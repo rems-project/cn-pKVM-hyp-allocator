@@ -744,14 +744,9 @@ void LemmaNextChunk(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node), X.ha.last, ha); @*/
 }
 
-/*
- * Ghost-only refocusing lemma. It has no concrete heap effects: the body only
- * unfolds one cell from the reverse chunk segment so CN can repack ownership
- * focused on the previous chunk. It is non-recursive, so termination is
- * immediate.
- */
+/* Ghost-only non-recursive refocus; no heap writes, so termination is immediate. */
 void LemmaPrevChunk(struct chunk_hdr *chunk,
-                    struct hyp_allocator *allocator)
+                            struct hyp_allocator *allocator)
 /*@
     requires
         !is_null(chunk);
