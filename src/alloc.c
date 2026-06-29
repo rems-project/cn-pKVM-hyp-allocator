@@ -1858,17 +1858,19 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
         WARN_ON(delta < chunk_size(0UL));
 
         /*@ unpack MaybeChunkHdr(...); @*/
-#ifdef __CN_VERIFY
+        /*
+         * We have slightly changed the implementation: keep the return value
+         * in a local so CN can inspect it before WARN_ON.
+         */
         {
                 int ret = chunk_install(new_chunk, 0, chunk, allocator);
                 WARN_ON(ret);
+#ifdef __CN_VERIFY
                 /*@ split_case(ret == 0i32); @*/
                 /*@ unpack ChunkInstallPost(...); @*/
                 /*@ unpack Cn_char_array(...); @*/
-        }
-#else
-        WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
 #endif
+        }
 
         return 0;
 }
@@ -2392,16 +2394,18 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 // chunk must be non null
 
 	        /*@ unpack MaybeChunkHdr(...); @*/
-#ifdef __CN_VERIFY
+                /*
+                 * We have slightly changed the implementation: keep the return
+                 * value in a local so CN can inspect it before WARN_ON.
+                 */
                 {
                         int ret = chunk_install(new_chunk, 0, chunk, allocator);
                         WARN_ON(ret);
+#ifdef __CN_VERIFY
                         /*@ split_case(ret == 0i32); @*/
                         /*@ unpack ChunkInstallPost(...); @*/
-                }
-#else
-                WARN_ON(chunk_install(new_chunk, 0, chunk, allocator));
 #endif
+                }
                 /*@ split_case(is_null(chunk)); @*/
 
                 // destroy the garbage here
@@ -3526,16 +3530,18 @@ void *hyp_alloc(unsigned long size)
         }
 
         //LemmaSplitAndNewChunk(chunk_data(last_chunk) + last_chunk->alloc_size, , allocator->start + allocator->size - last_chunk->alloc_size - (unsigned long)chunk_data(last_chunk));
-#ifdef __CN_VERIFY
+        /*
+         * We have slightly changed the implementation: keep the return value
+         * in a local so CN can inspect it before WARN_ON.
+         */
         {
                 int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
                 WARN_ON(res_chunk_install);
+#ifdef __CN_VERIFY
                 /*@ split_case(res_chunk_install == 0i32); @*/
                 /*@ unpack ChunkInstallPost(...); @*/
-        }
-#else
-        WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
 #endif
+        }
         /*@ split_case(is_null(chunk)); @*/
 #ifdef __CN_VERIFY
         LemmaLsegToChunkHdrs(allocator, last_chunk);
@@ -3556,11 +3562,11 @@ end_unlocked:
         /* Enforce zeroing allocated memory */
         if (!ret)
         {
-                /*@ unpack Conditional_Cn_char_array(...); @*/
-                my_memset(chunk_data(chunk), 0, size);
-#ifdef __CN_VERIFY
                 char *data = chunk_data(chunk);
 
+                /*@ unpack Conditional_Cn_char_array(...); @*/
+                my_memset(data, 0, size);
+#ifdef __CN_VERIFY
                 /*@ split_case(size == PAGE_SIZE() && cn_IS_ALIGNED((u64)data)); @*/
                 if (size == PAGE_SIZE && PAGE_ALIGNED(data)) {
                         /*@ unpack Cn_memset_buffer(data, size); @*/
