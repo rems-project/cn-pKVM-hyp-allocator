@@ -1794,8 +1794,8 @@ static int chunk_split_aligned(struct chunk_hdr *chunk,
 
         /*@ unpack MaybeChunkHdr(...); @*/
         /*
-         * We have slightly changed the implementation: keep the return value
-         * in a local so CN can inspect it before WARN_ON.
+         * CN DIFF: keep the return value in a local so CN can inspect it
+         * before WARN_ON.
          */
         {
                 int ret = chunk_install(new_chunk, 0, chunk, allocator);
@@ -2330,8 +2330,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
 	        /*@ unpack MaybeChunkHdr(...); @*/
                 /*
-                 * We have slightly changed the implementation: keep the return
-                 * value in a local so CN can inspect it before WARN_ON.
+                 * CN DIFF: keep the return value in a local so CN can inspect
+                 * it before WARN_ON.
                  */
                 {
                         int ret = chunk_install(new_chunk, 0, chunk, allocator);
@@ -3466,8 +3466,8 @@ void *hyp_alloc(unsigned long size)
 
         //LemmaSplitAndNewChunk(chunk_data(last_chunk) + last_chunk->alloc_size, , allocator->start + allocator->size - last_chunk->alloc_size - (unsigned long)chunk_data(last_chunk));
         /*
-         * We have slightly changed the implementation: keep the return value
-         * in a local so CN can inspect it before WARN_ON.
+         * CN DIFF: keep the return value in a local so CN can inspect it
+         * before WARN_ON.
          */
         {
                 int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
