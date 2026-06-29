@@ -37,40 +37,6 @@ static DEFINE_PER_CPU(u8, hyp_allocator_missing_donations);
 
 #if defined(__CN_VERIFY) || defined(__CN_TEST)
 /*
- * Ghost-only ownership view change.  The body performs no heap writes and
- * terminates immediately; the proof obligation is only that ptr_eq lets CN
- * view the same memcache fields through either pointer expression.
- */
-void LemmaHypAllocatorMcToLocal(struct kvm_hyp_memcache *mc)
-/*@
-        requires
-                ptr_eq(mc, &hyp_allocator_mc);
-                take MC_pre = Cn_hyp_memcache(&hyp_allocator_mc);
-        ensures
-                take MC_post = Cn_hyp_memcache(mc);
-                MC_post == MC_pre;
-@*/
-{
-}
-
-/*
- * Ghost-only ownership view change in the opposite direction.  The body
- * performs no heap writes and terminates immediately for the same reason as
- * LemmaHypAllocatorMcToLocal.
- */
-void LemmaHypAllocatorMcFromLocal(struct kvm_hyp_memcache *mc)
-/*@
-        requires
-                ptr_eq(mc, &hyp_allocator_mc);
-                take MC_pre = Cn_hyp_memcache(mc);
-        ensures
-                take MC_post = Cn_hyp_memcache(&hyp_allocator_mc);
-                MC_post == MC_pre;
-@*/
-{
-}
-
-/*
  * Ghost-only arithmetic lemma. It has no heap effects. It terminates because
  * the only recursive call is made with reclaimed_pages - 1 after checking
  * reclaimed_pages != 0.
@@ -1103,10 +1069,6 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
         WARN_ON(!PAGE_ALIGNED(va));
         WARN_ON(!PAGE_ALIGNED(size));
 
-#ifdef __CN_VERIFY
-        LemmaHypAllocatorMcToLocal(mc);
-#endif
-
         while (nr_pages--)
         /*@
                 inv
@@ -1131,9 +1093,6 @@ static void hyp_allocator_unmap(struct hyp_allocator *allocator,
         }
 
         pkvm_remove_mappings((void *)va, (void *)(va + size));
-#ifdef __CN_VERIFY
-        LemmaHypAllocatorMcFromLocal(mc);
-#endif
 }
 
 static int hyp_allocator_map(struct hyp_allocator *allocator,
@@ -1176,10 +1135,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
         if (va_end < va || va_end > (allocator->start + allocator->size))
                 return -E2BIG;
 
-#ifdef __CN_VERIFY
-        LemmaHypAllocatorMcToLocal(mc);
-#endif
-
         if (mc->nr_pages < (size >> PAGE_SHIFT)) {
                 u8 *missing_donations = this_cpu_ptr(&hyp_allocator_missing_donations);
                 u32 delta = (size >> PAGE_SHIFT) - mc->nr_pages;
@@ -1192,9 +1147,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 *missing_donations = min(delta, U8_MAX);
 #endif /* NO_STATEMENT_EXPRS */
 
-#ifdef __CN_VERIFY
-                LemmaHypAllocatorMcFromLocal(mc);
-#endif
                 return -ENOMEM;
         }
 
@@ -1222,9 +1174,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 void *page;
                 unsigned long order;
 
-#ifdef __CN_VERIFY
-                LemmaHypAllocatorMcToLocal(mc);
-#endif
                 page = pop_hyp_memcache(mc, hyp_phys_to_virt, &order);
                 /* We only expect 1 page at a time for now. */
                 WARN_ON(!page || order);
@@ -1233,17 +1182,11 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 if (ret) {
                         /*@ unpack Conditional_Cn_split_page(...); @*/
                         push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
-#ifdef __CN_VERIFY
-                        LemmaHypAllocatorMcFromLocal(mc);
-#endif
                         break;
                 }
                 /*@ unpack Conditional_Cn_split_page(...); @*/
                 va += PAGE_SIZE;
                 nr_pages++;
-#ifdef __CN_VERIFY
-                LemmaHypAllocatorMcFromLocal(mc);
-#endif
         }
 
         if (ret && nr_pages) {
@@ -1251,9 +1194,6 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 hyp_allocator_unmap(allocator, va, nr_pages << PAGE_SHIFT);
         }
 
-#ifdef __CN_VERIFY
-        LemmaHypAllocatorMcFromLocal(mc);
-#endif
         return ret;
 }
 
@@ -4070,10 +4010,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
         {
                 alloc_mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
-#ifdef __CN_VERIFY
-                LemmaHypAllocatorMcToLocal(alloc_mc);
-#endif
-
                 while (alloc_mc->nr_pages)
                 /*@
                         inv
@@ -4106,16 +4042,10 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 
                         target--;
                         if (target <= 0) {
-#ifdef __CN_VERIFY
-                                LemmaHypAllocatorMcFromLocal(alloc_mc);
-#endif
                                 goto done;
                         }
 
                 }
-#ifdef __CN_VERIFY
-                LemmaHypAllocatorMcFromLocal(alloc_mc);
-#endif
 	        }
 
 #ifdef __CN_VERIFY
@@ -4275,10 +4205,6 @@ int hyp_alloc_refill(struct kvm_hyp_memcache *host_mc)
 {
         struct kvm_hyp_memcache *alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
 
-#ifdef __CN_VERIFY
-
-        LemmaHypAllocatorMcToLocal(alloc_mc);
-#endif
         return refill_memcache(alloc_mc, host_mc->nr_pages + alloc_mc->nr_pages,
                                host_mc);
 }

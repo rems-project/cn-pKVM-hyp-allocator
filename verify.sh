@@ -45,8 +45,6 @@ targets=(
   chunk_install
   get_free_chunk
   chunk_recycle
-  LemmaHypAllocatorMcToLocal
-  LemmaHypAllocatorMcFromLocal
   hyp_allocator_unmap
   hyp_allocator_map
   hyp_alloc
