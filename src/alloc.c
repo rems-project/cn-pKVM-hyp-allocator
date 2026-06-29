@@ -2028,7 +2028,6 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
         end = chunk_unmapped_region(chunk);
 
         if (start >= end) {
-#ifdef __CN_VERIFY
                 /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                         member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 /*@ split_case(HA_pre.lseg.before == Chunk_nil {}); @*/
@@ -2039,6 +2038,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                         HA_pre.ha.first,
                         Cn_hyp_allocator_core(HA_pre.ha));
                 @*/
+#ifdef __CN_VERIFY
                 if (list_is_first(&chunk->node, &allocator->chunks) == 1) {
                         LemmaFirstChunkToAllocator(chunk, allocator);
                 } else {
@@ -2051,7 +2051,6 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 
         reclaimable = end - start;
         if (reclaimable < PAGE_SIZE) {
-#ifdef __CN_VERIFY
                 /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                         member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 /*@ split_case(HA_pre.lseg.before == Chunk_nil {}); @*/
@@ -2062,6 +2061,7 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                         HA_pre.ha.first,
                         Cn_hyp_allocator_core(HA_pre.ha));
                 @*/
+#ifdef __CN_VERIFY
                 if (list_is_first(&chunk->node, &allocator->chunks) == 1) {
                         LemmaFirstChunkToAllocator(chunk, allocator);
                 } else {
@@ -2093,14 +2093,12 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
         chunk->mapped_size -= reclaimable;
         chunk_hash_update(chunk);
 
-#ifdef __CN_VERIFY
         /*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
         /*@ split_case(is_null(prev_iter)); @*/
+#ifdef __CN_VERIFY
         if (!prev_iter) {
-
                 LemmaFirstChunkToAllocator(chunk, allocator);
         } else {
-
                 LemmaPrevChunk(chunk, allocator);
         }
 #endif
@@ -2336,10 +2334,8 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 {
                         int ret = chunk_install(new_chunk, 0, chunk, allocator);
                         WARN_ON(ret);
-#ifdef __CN_VERIFY
                         /*@ split_case(ret == 0i32); @*/
                         /*@ unpack ChunkInstallPost(...); @*/
-#endif
                 }
                 /*@ split_case(is_null(chunk)); @*/
 
@@ -2347,13 +2343,11 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
                 /*@ unpack Cn_char_array(...); @*/
         }
 
-	/*@ unpack MaybeChunkHdr(...); @*/
-#ifdef __CN_VERIFY
+        /*@ unpack MaybeChunkHdr(...); @*/
         /*@
         split_case(is_null(new_chunk));
         split_case(missing_map == 0u64);
         @*/
-#endif
         return 0;
 }
 
@@ -2492,7 +2486,6 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
         }
 
 
-#ifdef __CN_VERIFY
         /*@
         split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
@@ -2500,15 +2493,17 @@ static size_t chunk_try_destroy(struct chunk_hdr *chunk,
         @*/
         struct chunk_hdr *prev_chunk = chunk_get_prev(chunk, allocator);
         /*@ unpack MaybeChunkHdr(prev_chunk, !is_null(prev_chunk)); @*/
+#ifdef __CN_VERIFY
         LemmaPrevChunk(chunk, allocator);
+#endif
         if (chunk_is_used(prev_chunk)) {
+#ifdef __CN_VERIFY
                 LemmaNextChunk(prev_chunk, allocator);
+#endif
                 return 0;
         }
+#ifdef __CN_VERIFY
         LemmaNextChunk(prev_chunk, allocator);
-#else
-        if (chunk_is_used(chunk_get_prev(chunk, allocator)))
-                return 0;
 #endif
 
 
@@ -2528,18 +2523,16 @@ destroy:
         chunk_list_del(chunk, allocator);
 unmap:
 #ifdef __CN_VERIFY
+        /*
+         * CN DIFF: if chunk_list_del merges this chunk away, CN can no longer
+         * read chunk->mapped_size directly after the ownership transfer.
+         */
         if (destroyed_by_chunk_list_del)
                 unmapped = destroyed_mapped_size;
         else
 #endif
         unmapped = chunk->mapped_size;
-#ifdef __CN_VERIFY
-        if (destroyed_by_chunk_list_del)
-                hyp_allocator_unmap(allocator, (unsigned long)chunk, unmapped);
-        else
-#endif
-        hyp_allocator_unmap(allocator, (unsigned long)chunk,
-                            chunk->mapped_size);
+        hyp_allocator_unmap(allocator, (unsigned long)chunk, unmapped);
 
 #ifdef __CN_VERIFY
         if (destroyed_singleton) {
@@ -2625,13 +2618,10 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 
         /*@ split_case(a_in.hdrs==Chunk_nil{}); @*/
         /*@ split_case(is_null(NULL)); @*/
-#ifdef __CN_VERIFY
+        /* CN DIFF: capture the return value so CN can inspect ChunkInstallPost. */
         int retv = chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
         /*@ unpack ChunkInstallPost((pointer)a_in.ha.start, size, NULL, allocator, a_in.ha, {before: Chunk_nil {}, after: Chunk_nil {}, chunk: {header_address: 0u64, mapped_size: 0u32, alloc_size: 0u32, va_size: 0u32} }, retv); @*/
         return retv;
-#else
-        return chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
-#endif
 }
 /*@
 // This is for get_free_chunk
@@ -3112,7 +3102,6 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 		if (chunk_size(size) > available_size)
 			continue;
 
-
 		if (best_available_size <= available_size)
 			continue;
 
@@ -3138,15 +3127,12 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
         }
 #endif
 
-#ifdef __CN_VERIFY
+        /* CN DIFF: capture the return value so CN can inspect MaybeChunkHdr. */
         {
                 struct chunk_hdr *ret = chunk_get(best_chunk);
                 /*@ unpack MaybeChunkHdr(best_chunk, !is_null(best_chunk)); @*/
                 return ret;
         }
-#else
-        return chunk_get(best_chunk);
-#endif
 }
 
 #if defined(__CN_VERIFY) || defined(__CN_TEST)
@@ -3472,10 +3458,8 @@ void *hyp_alloc(unsigned long size)
         {
                 int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
                 WARN_ON(res_chunk_install);
-#ifdef __CN_VERIFY
                 /*@ split_case(res_chunk_install == 0i32); @*/
                 /*@ unpack ChunkInstallPost(...); @*/
-#endif
         }
         /*@ split_case(is_null(chunk)); @*/
 #ifdef __CN_VERIFY
