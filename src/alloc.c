@@ -3980,9 +3980,6 @@ memcache_pages:
 #ifdef __CN_VERIFY
         cpu = 0;
         while (cpu < 1)
-#else
-        for (cpu = 0; cpu < hyp_nr_cpus; cpu++)
-#endif
         /*@
                 inv
                         ptr_eq(allocator, &hyp_allocator);
@@ -3997,6 +3994,9 @@ memcache_pages:
                                 (u64)reclaimable + MC_loop.nr_pages <= 2147483647u64;
         @*/
         {
+#else
+        for (cpu = 0; cpu < hyp_nr_cpus; cpu++) {
+#endif
                 struct kvm_hyp_memcache *mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
                 reclaimable += mc->nr_pages;
