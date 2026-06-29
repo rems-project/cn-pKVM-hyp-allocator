@@ -2197,7 +2197,7 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
 
         chunk_end = (unsigned long)chunk + chunk->mapped_size +
                     chunk_unmapped_size(chunk, allocator);
-	/*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
+        /*@ unpack MaybeChunkHdr(array_shift<char>(member_shift<struct chunk_hdr>(chunk, node)->next, -offsetof(chunk_hdr, node)), !ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next, member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         return addr + chunk_size(0UL) < chunk_end;
 }
 /*@
