@@ -98,7 +98,7 @@ datatype option_u64 {
 
 function (pointer) my_container_of_chunk_hdr (pointer p)
 {
-     (pointer)((u64)p - (u64)offsetof(chunk_hdr, node))
+     array_shift<char>(p, -offsetof(chunk_hdr, node))
 }
 function (boolean) is_last_chunk(pointer node_address, struct hyp_allocator ha)
 {
@@ -119,6 +119,9 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
         assert(!is_null(cn_hyp.head));
         assert(!is_null(cn_hyp.first));
         assert(!is_null(cn_hyp.last));
+        assert(((u64)my_container_of_chunk_hdr(cn_hyp.head) & 0x7u64) == 0u64);
+        assert(((u64)my_container_of_chunk_hdr(cn_hyp.first) & 0x7u64) == 0u64);
+        assert(((u64)my_container_of_chunk_hdr(cn_hyp.last) & 0x7u64) == 0u64);
         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
         assert((u64)ha.start + (u64)cn_hyp.size + PAGE_SIZE() - 1u64 <= MAXu64());
         assert((u64)cn_hyp.size <= MAXu64() - (u64)ha.start);
@@ -311,6 +314,7 @@ predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev(pointer p, pointer ne
         if (ptr_eq(p,ha.head)) {
                 assert(ha.start <= ha.start + (u64)ha.size);
                 assert(ptr_eq(next, first_chunk_node));
+                assert(((u64)array_shift<byte>(p, -(offsetof(chunk_hdr_only, node))) & 0x7u64) == 0u64);
                 return Chunk_nil {};
         } else {
                 assert(!is_null(p));

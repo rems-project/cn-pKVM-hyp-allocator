@@ -383,7 +383,8 @@ static inline void list_del(struct list_head *entry)
 	for (pos = list_last_entry(head, typeof(*pos), member),		\
 		n = list_prev_entry(pos, member);			\
 	     !list_entry_is_head(pos, head, member); 			\
-	     pos = n, n = list_prev_entry(n, member))
+	     pos = n, n = (n) == list_entry(head, typeof(*n), member) ? n : \
+		     list_prev_entry(n, member))
 
 
 #endif /* _LINUX_LIST_H */
