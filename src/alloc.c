@@ -4024,12 +4024,12 @@ int hyp_alloc_reclaimable(void)
                                 cpu == 0i32 implies
                                         (u64)reclaimable + MC_loop.nr_pages <= 2147483647u64;
                 @*/
-                {
-                        struct kvm_hyp_memcache *mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
+        {
+                struct kvm_hyp_memcache *mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
-                        /*@ assert(ptr_eq(mc, &hyp_allocator_mc)); @*/
-                        /*@ assert(cpu == 0i32); @*/
-                        reclaimable += mc->nr_pages;
+                /*@ assert(ptr_eq(mc, &hyp_allocator_mc)); @*/
+                /*@ assert(cpu == 0i32); @*/
+                reclaimable += mc->nr_pages;
         }
 #ifdef __CN_VERIFY
         }
@@ -4180,71 +4180,71 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                                 (u64)target + 1u64 <= MAXu64() - AllocMC_rev.nr_pages;
                                 (u64)target <= MAXu64() - (AllocMC_rev.nr_pages + 1u64);
                 @*/
-                {
-                        size_t r;
+        {
+                size_t r;
 #ifdef __CN_VERIFY
-                        unsigned long host_nr_before;
-                        unsigned long alloc_nr_before;
+                unsigned long host_nr_before;
+                unsigned long alloc_nr_before;
 #endif
 
 
 #ifdef __CN_VERIFY
-                        /*@ unpack ReclaimReverseIterInv(...); @*/
+                /*@ unpack ReclaimReverseIterInv(...); @*/
 #endif
-                        chunk_hash_validate(chunk);
-                        /*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
+                chunk_hash_validate(chunk);
+                /*@ unpack MaybeChunkHdr(chunk, !is_null(chunk)); @*/
 #ifdef __CN_VERIFY
-                        host_nr_before = mc->nr_pages;
-                        alloc_nr_before = hyp_allocator_mc.nr_pages;
+                host_nr_before = mc->nr_pages;
+                alloc_nr_before = hyp_allocator_mc.nr_pages;
 #endif
 #ifdef __CN_VERIFY
-                        if (list_is_first(&chunk->node, &allocator->chunks)) {
-                                LemmaFocusedFirstBeforeNil(chunk, allocator);
-                                /*@ assert(ptr_eq(tmp, my_container_of_chunk_hdr(
-                                        member_shift<struct hyp_allocator>(allocator, chunks)))); @*/
-                                prev_iter = NULL;
-                                r = chunk_try_destroy(chunk, allocator,
-                                                      target << PAGE_SHIFT, NULL);
-                        } else {
-                                LemmaPrevIterMatches(chunk, allocator, tmp);
-                                prev_iter = tmp;
-                                r = chunk_try_destroy(chunk, allocator,
-                                                      target << PAGE_SHIFT, tmp);
-                        }
-#else
-                        r = chunk_try_destroy(chunk, allocator, target << PAGE_SHIFT);
-#endif
-                        if (!r) {
-                                /*@ unpack ChunkTryDestroyPost(...); @*/
-#ifdef __CN_VERIFY
-                                r = chunk_dec_map(chunk, allocator,
-                                                  target << PAGE_SHIFT, prev_iter);
-#else
-                                r = chunk_dec_map(chunk, allocator, target << PAGE_SHIFT);
-#endif
-                        } else {
-                                /*@ unpack ChunkTryDestroyPost(...); @*/
-                        }
-
-#ifdef __CN_VERIFY
-                        LemmaReclaimPagesBound(host_nr_before, alloc_nr_before,
-                                                (u64)target, r / PAGE_SIZE);
-#endif
-
-                        target -= r >> PAGE_SHIFT;
-                        if (target <= 0)
-                                break;
-#ifdef __CN_VERIFY
-                        if (!prev_iter) {
-                                /*@ unpack ReclaimReverseInv(allocator, NULL); @*/
-                                /*@ assert(ptr_eq(tmp, my_container_of_chunk_hdr(
-                                        member_shift<struct hyp_allocator>(allocator, chunks)))); @*/
-                        } else {
-                                /*@ unpack ReclaimReverseInv(allocator, prev_iter); @*/
-                        }
-#endif
-
+                if (list_is_first(&chunk->node, &allocator->chunks)) {
+                        LemmaFocusedFirstBeforeNil(chunk, allocator);
+                        /*@ assert(ptr_eq(tmp, my_container_of_chunk_hdr(
+                                member_shift<struct hyp_allocator>(allocator, chunks)))); @*/
+                        prev_iter = NULL;
+                        r = chunk_try_destroy(chunk, allocator,
+                                              target << PAGE_SHIFT, NULL);
+                } else {
+                        LemmaPrevIterMatches(chunk, allocator, tmp);
+                        prev_iter = tmp;
+                        r = chunk_try_destroy(chunk, allocator,
+                                              target << PAGE_SHIFT, tmp);
                 }
+#else
+                r = chunk_try_destroy(chunk, allocator, target << PAGE_SHIFT);
+#endif
+                if (!r) {
+                        /*@ unpack ChunkTryDestroyPost(...); @*/
+#ifdef __CN_VERIFY
+                        r = chunk_dec_map(chunk, allocator,
+                                          target << PAGE_SHIFT, prev_iter);
+#else
+                        r = chunk_dec_map(chunk, allocator, target << PAGE_SHIFT);
+#endif
+                } else {
+                        /*@ unpack ChunkTryDestroyPost(...); @*/
+                }
+
+#ifdef __CN_VERIFY
+                LemmaReclaimPagesBound(host_nr_before, alloc_nr_before,
+                                        (u64)target, r / PAGE_SIZE);
+#endif
+
+                target -= r >> PAGE_SHIFT;
+                if (target <= 0)
+                        break;
+#ifdef __CN_VERIFY
+                if (!prev_iter) {
+                        /*@ unpack ReclaimReverseInv(allocator, NULL); @*/
+                        /*@ assert(ptr_eq(tmp, my_container_of_chunk_hdr(
+                                member_shift<struct hyp_allocator>(allocator, chunks)))); @*/
+                } else {
+                        /*@ unpack ReclaimReverseInv(allocator, prev_iter); @*/
+                }
+#endif
+
+        }
 
 #ifdef __CN_VERIFY
         if (target <= 0) {
@@ -4281,20 +4281,20 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                                 HostMC_final.nr_pages <= MAXu64() - AllocMC_final.nr_pages;
                                 AllocMC_final.nr_pages > 0u64 implies HostMC_final.nr_pages < MAXu64();
                 @*/
-                {
-                        unsigned long order;
-                        void *page = pop_hyp_memcache(alloc_mc, hyp_phys_to_virt, &order);
+        {
+                unsigned long order;
+                void *page = pop_hyp_memcache(alloc_mc, hyp_phys_to_virt, &order);
 
-                        WARN_ON(order);
+                WARN_ON(order);
 #ifdef __CN_VERIFY
-                        /*@ to_bytes RW<phys_addr_t>(page); @*/
-                        LemmaMergeArrays(page, 8, PAGE_SIZE - 8);
+                /*@ to_bytes RW<phys_addr_t>(page); @*/
+                LemmaMergeArrays(page, 8, PAGE_SIZE - 8);
 #endif
-                        my_memset(page, 0, PAGE_SIZE);
-                        /*@ unpack Cn_memset_buffer(page, PAGE_SIZE()); @*/
-                        kvm_flush_dcache_to_poc(page, PAGE_SIZE);
-                        push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
-                        WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(page), 1));
+                my_memset(page, 0, PAGE_SIZE);
+                /*@ unpack Cn_memset_buffer(page, PAGE_SIZE()); @*/
+                kvm_flush_dcache_to_poc(page, PAGE_SIZE);
+                push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
+                WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(page), 1));
         }
 #ifdef __CN_VERIFY
         }
