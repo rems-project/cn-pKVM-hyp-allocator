@@ -388,6 +388,53 @@ Bad pattern:
 The bad pattern makes reviewers check whether the CN and non-CN implementation
 paths are actually equivalent.
 
+Use an erasure check for review-sensitive functions. After removing CN specs,
+CN annotations, and `#ifdef __CN_VERIFY` proof scaffolding, the remaining code
+should look like the original implementation. If a real non-ghost runtime change
+remains, mark it with `CN DIFF` and explain the ownership or verifier reason.
+
+CN can require loop-framing resources for locals declared earlier in a function,
+even when C has not reached the local's meaningful use. In the allocator reclaim
+proof this affected `cpu`, `alloc_mc`, `chunk`, and `tmp`: CN wanted `RW`
+resources for them at earlier list-loop boundaries. A useful workaround is to
+keep the original declarations for non-CN builds, but use narrower block-scoped
+declarations under `__CN_VERIFY`:
+
+```c
+#ifndef __CN_VERIFY
+        int cpu;
+#endif
+
+#ifdef __CN_VERIFY
+        {
+                int cpu;
+#endif
+        for (cpu = 0; cpu < hyp_nr_cpus; cpu++)
+                ...
+#ifdef __CN_VERIFY
+        }
+#endif
+```
+
+This is not pretty, but it is honest: the non-CN path keeps the original
+function-scope local, while CN sees a narrower lifetime and does not ask to
+frame the uninitialized local through unrelated earlier loops.
+
+Indentation-only drift is also costly in review. CN loop annotations often
+force braces around code that was originally a single statement, but the body
+indentation should still reflect the original C nesting. Otherwise reviewers
+cannot easily see that erasing verification scaffolding recovers the original
+shape.
+
+Finally, rerun focused proofs even after "just indentation" when loop
+annotations are nearby. Moving braces or annotations can change what CN treats
+as the loop body. For reclaim-related cleanups, rerun:
+
+```sh
+timeout 2000 make ONLY=hyp_alloc_reclaimable cn-verify
+timeout 2000 make ONLY=hyp_alloc_reclaim cn-verify
+```
+
 ## Soundness Pitfalls
 
 Do not combine `accesses g;` with an explicit `take RW<T>(&g)` for the same
