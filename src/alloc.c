@@ -3929,6 +3929,9 @@ int hyp_alloc_reclaimable(void)
         struct hyp_allocator *allocator = &hyp_allocator;
         struct chunk_hdr *chunk;
         int reclaimable = 0;
+#ifndef __CN_VERIFY
+        int cpu;
+#endif
 
         hyp_spin_lock(&allocator->lock);
 
@@ -4001,10 +4004,12 @@ int hyp_alloc_reclaimable(void)
         /*@ assert(ptr_eq(allocator, &hyp_allocator)); @*/
 #endif
 
+#ifdef __CN_VERIFY
         {
                 int cpu;
+#endif
 
-                for (cpu = 0; cpu < hyp_nr_cpus; cpu++)
+        for (cpu = 0; cpu < hyp_nr_cpus; cpu++)
                 /*@
                         inv
                                 hyp_nr_cpus == 1u64;
@@ -4025,8 +4030,10 @@ int hyp_alloc_reclaimable(void)
                         /*@ assert(ptr_eq(mc, &hyp_allocator_mc)); @*/
                         /*@ assert(cpu == 0i32); @*/
                         reclaimable += mc->nr_pages;
-                }
         }
+#ifdef __CN_VERIFY
+        }
+#endif
 
         hyp_spin_unlock(&allocator->lock);
 
@@ -4054,6 +4061,10 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 @*/
 {
         struct hyp_allocator *allocator = &hyp_allocator;
+#ifndef __CN_VERIFY
+        struct kvm_hyp_memcache *alloc_mc;
+        struct chunk_hdr *chunk, *tmp;
+#endif
         int cpu;
 #ifdef __CN_VERIFY
         struct chunk_hdr *prev_iter = NULL;
@@ -4089,7 +4100,9 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                         (u64)target <= MAXu64() - (AllocMC_loop.nr_pages + 1u64);
                 @*/
         {
+#ifdef __CN_VERIFY
                 struct kvm_hyp_memcache *alloc_mc;
+#endif
 
                 alloc_mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
@@ -4138,10 +4151,12 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 -offsetof(chunk_hdr, node)) & 0x7u64) == 0u64); @*/
 #endif
 
+#ifdef __CN_VERIFY
         {
                 struct chunk_hdr *chunk, *tmp;
+#endif
 
-                list_for_each_entry_safe_reverse(chunk, tmp, &allocator->chunks, node)
+        list_for_each_entry_safe_reverse(chunk, tmp, &allocator->chunks, node)
                 /*@
                         inv
                                 {mc} unchanged;
@@ -4243,12 +4258,18 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 /*@ unpack ReclaimReverseIterInv(allocator, chunk, tmp); @*/
         }
 #endif
+#ifdef __CN_VERIFY
         }
+#endif
 
+#ifdef __CN_VERIFY
         {
                 struct kvm_hyp_memcache *alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
+#else
+        alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
+#endif
 
-                while (alloc_mc->nr_pages)
+        while (alloc_mc->nr_pages)
                 /*@
                         inv
                                 {mc} unchanged;
@@ -4274,8 +4295,10 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                         kvm_flush_dcache_to_poc(page, PAGE_SIZE);
                         push_hyp_memcache(mc, page, hyp_virt_to_phys, 0);
                         WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(page), 1));
-                }
         }
+#ifdef __CN_VERIFY
+        }
+#endif
 done:
         hyp_spin_unlock(&allocator->lock);
 }
