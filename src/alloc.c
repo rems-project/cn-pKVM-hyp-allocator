@@ -3354,9 +3354,9 @@ void *hyp_alloc(unsigned long size)
         unsigned long chunk_addr;
         size_t missing_map;
         int ret = 0;
+        int cn_flag = 1;
 #ifdef __CN_VERIFY
         /* CN */ int no_free_chunk = 0;
-        int cn_flag = 1;
         unsigned long original_size = size;
 #endif
         /* constrained by chunk_hdr *_size types */
@@ -3373,9 +3373,9 @@ void *hyp_alloc(unsigned long size)
         hyp_spin_lock(&allocator->lock);
         //PS: ownership from lock invariant
         //PS: hyp_spin_lock returns Cn_hyp_allocator(&allocator)
-#ifdef __CN_VERIFY
+        /* CN DIFF */
+        // this variable is used to split the case later in this function.
         cn_flag = list_empty(&hyp_allocator.chunks);
-#endif
         /*@ split_case(
                 ptr_eq(member_shift<struct hyp_allocator>(allocator, chunks)->next,
                         member_shift<struct hyp_allocator>(allocator, chunks)
@@ -3387,11 +3387,7 @@ void *hyp_alloc(unsigned long size)
                 Cn_hyp_allocator_core(HA_pre.ha)
         );
         @*/
-#ifdef __CN_VERIFY
         if (cn_flag) {
-#else
-        if (list_empty(&hyp_allocator.chunks)) {
-#endif
 	        /*@ unpack FirstAllocation(...); @*/
                 ret = setup_first_chunk(allocator, size);
 		/*@ split_case(ret == 0i32); @*/
@@ -3451,17 +3447,12 @@ void *hyp_alloc(unsigned long size)
         }
 
         //LemmaSplitAndNewChunk(chunk_data(last_chunk) + last_chunk->alloc_size, , allocator->start + allocator->size - last_chunk->alloc_size - (unsigned long)chunk_data(last_chunk));
-        /*
-         * CN DIFF: keep the return value in a local so CN can inspect it
-         * before WARN_ON.
-         */
-        {
-                int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
-                WARN_ON(res_chunk_install);
-                /*@ split_case(res_chunk_install == 0i32); @*/
-                /*@ unpack ChunkInstallPost(...); @*/
-        }
+        /* CN DIFF */
+        /*CN*/ int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
+        /*CN*/ WARN_ON(res_chunk_install);
         /*@ split_case(is_null(chunk)); @*/
+        /*@ split_case(res_chunk_install == 0i32); @*/
+	/*@ unpack ChunkInstallPost(...); @*/
 #ifdef __CN_VERIFY
         LemmaLsegToChunkHdrs(allocator, last_chunk);
 #endif
@@ -3688,15 +3679,10 @@ ensures
                 return false;
         }
 
-#ifdef __CN_VERIFY
-        {
-                struct chunk_hdr *tmp = chunk_get_prev(chunk, allocator);
-                /*@ unpack MaybeChunkHdr(...); @*/
-                return !chunk_is_used(tmp);
-        }
-#else
-        return !chunk_is_used(chunk_get_prev(chunk, allocator));
-#endif
+        /* CN DIFF */
+        /*CN*/struct chunk_hdr *tmp = chunk_get_prev(chunk, allocator);
+        /*@ unpack MaybeChunkHdr(...); @*/
+        /*CN*/return !chunk_is_used(tmp);
 }
 
 #if defined(__CN_VERIFY) || defined(__CN_TEST) || defined(__cerb__)
