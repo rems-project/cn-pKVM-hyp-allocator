@@ -1,4 +1,16 @@
-# `hyp_alloc_reclaim` Spec Refactor Plan
+# `hyp_alloc_reclaim` Spec Refactor Notes
+
+## Status
+
+The immediate `hyp_alloc_reclaim` and `hyp_alloc_reclaimable` verification work
+is complete. Both functions have focused CN proofs, and the later review cleanup
+minimized the implementation diff so that removing `__CN_VERIFY` proof-only code
+recovers the intended implementation shape.
+
+This file is no longer needed as an active work plan. It is still useful as a
+backlog note for the remaining specification design issue: the reclaim spec
+still carries some arithmetic page-budget constraints that would be better
+derived from a global system invariant.
 
 ## Current Concern
 
@@ -29,11 +41,11 @@ target <= 524287i32;
   single memcache. They should eventually come from a global page-conservation
   abstraction.
 
-## Immediate Refactor
+## Completed Immediate Refactor
 
-Status: achieved and then tightened further. Fulminate and focused CN passed
-after applying the low-risk cleanup, and focused CN also passed after removing
-several redundant `MAXu64()` preconditions.
+Status: achieved and then tightened further. Earlier Fulminate checks covered
+the top-level reclaim spec shape; focused CN passed after the low-risk spec
+cleanup and after removing several redundant `MAXu64()` preconditions.
 
 1. Remove `0i32 <= target`.
 2. Replace `target > 0i32 implies target <= 524287i32` with
@@ -67,24 +79,16 @@ first loop invariant, before the first memcache push. In the current proof they
 are the minimal explicit substitute for the missing global page-budget
 invariant.
 
-After each change, run Fulminate and focused CN:
+The reclaim-focused proof commands used for the final review-cleaned state were:
 
 ```sh
-make cn-instrument
-make cn-verify ONLY=hyp_alloc_reclaim
+timeout 2000 make ONLY=hyp_alloc_reclaimable cn-verify
+timeout 2000 make ONLY=hyp_alloc_reclaim cn-verify
+git diff --check -- src/alloc.c
 ```
 
-Use a command timeout of at least 2000 seconds for CN verification runs.
-
-Verified commands:
-
-```sh
-make cn-instrument
-make cn-verify ONLY=hyp_alloc_reclaim
-timeout 2000s make cn-verify ONLY=hyp_alloc_reclaim
-```
-
-These passed on the refactored versions noted above.
+Use a command timeout of at least 2000 seconds for reclaim-focused CN
+verification runs. Full `verify.sh` runs can take much longer.
 
 ## Longer-Term Refactor
 
@@ -108,3 +112,11 @@ instead of appearing in the public `hyp_alloc_reclaim` precondition.
 Until then, leaving the ugly arithmetic constraints in the top-level spec is
 defensible because they are the current explicit replacement for the missing
 global page-budget invariant.
+
+## Is This File Necessary?
+
+Not for the current proof work. The file can be kept only as a design note
+explaining why the current top-level reclaim contract still has page-budget
+preconditions and what would be needed to remove them later. If that future
+global-invariant work is not planned, this file can be deleted after the PR
+discussion is resolved.
