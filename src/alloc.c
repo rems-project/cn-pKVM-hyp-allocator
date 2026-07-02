@@ -35,35 +35,6 @@ static DEFINE_PER_CPU(int, hyp_allocator_errno);
 static DEFINE_PER_CPU(struct kvm_hyp_memcache, hyp_allocator_mc);
 static DEFINE_PER_CPU(u8, hyp_allocator_missing_donations);
 
-#if defined(__CN_VERIFY) || defined(__CN_TEST)
-/*
- * Ghost-only arithmetic lemma. It has no heap effects. It terminates because
- * the only recursive call is made with reclaimed_pages - 1 after checking
- * reclaimed_pages != 0.
- */
-void LemmaReclaimPagesBound(u64 host_pages, u64 alloc_pages,
-                            u64 target_pages, u64 reclaimed_pages)
-/*@
-        requires
-                alloc_pages + target_pages <= MAXu64() - host_pages;
-                target_pages + 1u64 <= MAXu64() - alloc_pages;
-                target_pages <= MAXu64() - (alloc_pages + 1u64);
-                reclaimed_pages <= target_pages;
-        ensures
-                (alloc_pages + reclaimed_pages) + (target_pages - reclaimed_pages) <= MAXu64() - host_pages;
-                (target_pages - reclaimed_pages) + 1u64 <= MAXu64() - (alloc_pages + reclaimed_pages);
-                (target_pages - reclaimed_pages) <= MAXu64() - ((alloc_pages + reclaimed_pages) + 1u64);
-@*/
-{
-        if (reclaimed_pages == 0)
-                return;
-
-        LemmaReclaimPagesBound(host_pages, alloc_pages + 1,
-                               target_pages - 1, reclaimed_pages - 1);
-}
-
-#endif
-
 static struct hyp_allocator {
         struct list_head        chunks;
         unsigned long           start;
@@ -4204,11 +4175,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
                 } else {
                         /*@ unpack ChunkTryDestroyPost(...); @*/
                 }
-
-#ifdef __CN_VERIFY
-                LemmaReclaimPagesBound(host_nr_before, alloc_nr_before,
-                                        (u64)target, r / PAGE_SIZE);
-#endif
 
                 target -= r >> PAGE_SHIFT;
                 if (target <= 0)

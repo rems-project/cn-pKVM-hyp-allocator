@@ -69,7 +69,6 @@ targets=(
   chunk_destroyable
   chunk_reclaimable
   hyp_alloc_reclaimable
-  LemmaReclaimPagesBound
   chunk_dec_map
   chunk_try_destroy
   hyp_alloc_size
