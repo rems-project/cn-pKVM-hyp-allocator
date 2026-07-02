@@ -385,6 +385,18 @@ function (u64) Cn_chunk_size (u64 size)
         Cn_chunk_hdr_size() + (size > MIN_ALLOC() ? size : MIN_ALLOC())
         //(u64) member_shift<struct chunk_hdr>(NULL, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
 }
+
+function (u64) Cn_hyp_alloc_actual_size(u64 size)
+{
+        cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC())
+}
+
+function (boolean) Cn_hyp_alloc_fits_memcache(u64 size)
+{
+        PAGE_ALIGN(Cn_chunk_size(Cn_hyp_alloc_actual_size(size))) /
+                PAGE_SIZE() <= 524287u64
+}
+
 function (u64) HYP_ALLOC_MAX_VA_SIZE ()
 {
         0x1000000u64
@@ -2816,25 +2828,19 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                 BestChunk.Node == Inv.node;
         @*/
         {
-                //
                 /*@
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
                                 member_shift<struct chunk_hdr>(best_chunk, node)
                         )
                 );
-                unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(allocator, chunk, best_chunk);
+                unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(...);
                 split_case(
                         ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                                 member_shift<struct chunk_hdr>(best_chunk, node)
                         )
                 );
-                unpack Cn_chunk_hdrs_rev_alt(
-                        member_shift<struct chunk_hdr>(chunk, node)->prev,
-                        member_shift<struct chunk_hdr>(chunk, node),
-                        BestChunk.Node.next,
-                        ha_core,
-                        best_chunk_node);
+                unpack Cn_chunk_hdrs_rev_alt(...);
                 @*/
                 /*@
                 split_case(
@@ -2845,17 +2851,10 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                 @*/
                 if (chunk->node.prev != &best_chunk->node)
                 {
-                        /*@
-                        unpack Cn_chunk_hdrs_rev_alt(
-                                member_shift<struct chunk_hdr>(chunk, node)->prev->prev,
-                                member_shift<struct chunk_hdr>(chunk, node)->prev,
-                                BestChunk.Node.next,
-                                ha_core,
-                                best_chunk_node);
-                        @*/
+                        /*@ unpack Cn_chunk_hdrs_rev_alt(...); @*/
                 }
         }
-	/*@ unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(allocator, chunk, best_chunk); @*/
+	/*@ unpack LemmaCnChunkHdrsRevToCnChunkHdrsInv(...); @*/
 
 
 
@@ -3421,7 +3420,7 @@ void *hyp_alloc(unsigned long size)
                 take HA_pre = Cn_hyp_allocator(&hyp_allocator);
                 take MC_pre = Cn_hyp_memcache(&hyp_allocator_mc);
                 take Missing_pre = RW<unsigned char>(&hyp_allocator_missing_donations);
-                PAGE_ALIGN(Cn_chunk_size(cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC()))) / PAGE_SIZE() <= 524287u64;
+                Cn_hyp_alloc_fits_memcache(size);
                 2u64 <= MAXu64() - MC_pre.nr_pages;
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
@@ -3429,7 +3428,7 @@ void *hyp_alloc(unsigned long size)
                 take Missing_post = RW<unsigned char>(&hyp_allocator_missing_donations);
                 take U = MaybeCn_char_array(return, size);
 
-                let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
+                let actual_size = Cn_hyp_alloc_actual_size(size);
                 take V = MaybeCn_char_array_with_offset(return, actual_size - size, size);
 @*/
 {
@@ -3963,8 +3962,6 @@ int hyp_alloc_reclaimable(void)
         @*/
         {
                 size_t reclaimable_chunk;
-                /*@ assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
-                        member_shift<struct hyp_allocator>(allocator, chunks))); @*/
                 /*@ unpack ReclaimableIterInv(...); @*/
                 /*@
                 unfold Cn_reclaimable_pages_from(RI.lseg.before,
@@ -3980,10 +3977,9 @@ int hyp_alloc_reclaimable(void)
                         member_shift<struct chunk_hdr>(chunk, node),
                         RI.ha.last,
                         Cn_hyp_allocator_core(RI.ha)); @*/
+#ifdef __CN_VERIFY
                 if (!list_entry_is_head(list_next_entry(chunk, node), &allocator->chunks, node)) {
                         /*@
-                        assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
-                                member_shift<struct hyp_allocator>(allocator, chunks)));
                         split_case(ptr_eq(
                                 member_shift<struct chunk_hdr>(chunk, node)->next->next,
                                 member_shift<struct hyp_allocator>(allocator, chunks)));
@@ -3994,18 +3990,14 @@ int hyp_alloc_reclaimable(void)
                                 Cn_hyp_allocator_core(RI.ha));
                         @*/
                 }
+#endif
         }
 #ifdef __CN_VERIFY
-        /*@ assert(ptr_eq(member_shift<struct chunk_hdr>(chunk, node),
-                member_shift<struct hyp_allocator>(allocator, chunks))); @*/
         /*@ unpack ReclaimableIterInv(...); @*/
         LemmaLsegToChunkHdrs(allocator,
                              list_last_entry(&allocator->chunks,
                                              typeof(*chunk), node));
-        /*@ assert(ptr_eq(allocator, &hyp_allocator)); @*/
-#endif
 
-#ifdef __CN_VERIFY
         {
                 int cpu;
 #endif
@@ -4028,8 +4020,6 @@ int hyp_alloc_reclaimable(void)
         {
                 struct kvm_hyp_memcache *mc = per_cpu_ptr(&hyp_allocator_mc, cpu);
 
-                /*@ assert(ptr_eq(mc, &hyp_allocator_mc)); @*/
-                /*@ assert(cpu == 0i32); @*/
                 reclaimable += mc->nr_pages;
         }
 #ifdef __CN_VERIFY
@@ -4147,12 +4137,7 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 
 #ifdef __CN_VERIFY
         LemmaGetLastChunk(allocator);
-        /*@ assert(((u64)array_shift<char>(
-                member_shift<struct hyp_allocator>(allocator, chunks),
-                -offsetof(chunk_hdr, node)) & 0x7u64) == 0u64); @*/
-#endif
 
-#ifdef __CN_VERIFY
         {
                 struct chunk_hdr *chunk, *tmp;
 #endif
@@ -4186,10 +4171,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #ifdef __CN_VERIFY
                 unsigned long host_nr_before;
                 unsigned long alloc_nr_before;
-#endif
-
-
-#ifdef __CN_VERIFY
                 /*@ unpack ReclaimReverseIterInv(...); @*/
 #endif
                 chunk_hash_validate(chunk);
@@ -4197,12 +4178,9 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #ifdef __CN_VERIFY
                 host_nr_before = mc->nr_pages;
                 alloc_nr_before = hyp_allocator_mc.nr_pages;
-#endif
-#ifdef __CN_VERIFY
+
                 if (list_is_first(&chunk->node, &allocator->chunks)) {
                         LemmaFocusedFirstBeforeNil(chunk, allocator);
-                        /*@ assert(ptr_eq(tmp, my_container_of_chunk_hdr(
-                                member_shift<struct hyp_allocator>(allocator, chunks)))); @*/
                         prev_iter = NULL;
                         r = chunk_try_destroy(chunk, allocator,
                                               target << PAGE_SHIFT, NULL);
@@ -4238,8 +4216,6 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
 #ifdef __CN_VERIFY
                 if (!prev_iter) {
                         /*@ unpack ReclaimReverseInv(allocator, NULL); @*/
-                        /*@ assert(ptr_eq(tmp, my_container_of_chunk_hdr(
-                                member_shift<struct hyp_allocator>(allocator, chunks)))); @*/
                 } else {
                         /*@ unpack ReclaimReverseInv(allocator, prev_iter); @*/
                 }
@@ -4258,12 +4234,9 @@ void hyp_alloc_reclaim(struct kvm_hyp_memcache *mc, int target)
         } else {
                 /*@ unpack ReclaimReverseIterInv(allocator, chunk, tmp); @*/
         }
-#endif
-#ifdef __CN_VERIFY
-        }
-#endif
 
-#ifdef __CN_VERIFY
+        }
+
         {
                 struct kvm_hyp_memcache *alloc_mc = this_cpu_ptr(&hyp_allocator_mc);
 #else
