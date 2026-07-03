@@ -606,7 +606,6 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                         }
                 };
                 return == end - (u64)chunk - (u64)mapped_size;
-                return + (u64)mapped_size == end - (u64)chunk;
 @*/
 {
         /*@ split_case(cond); @*/
