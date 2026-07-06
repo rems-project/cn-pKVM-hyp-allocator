@@ -364,6 +364,8 @@ function (u64) Cn_hyp_alloc_actual_size(u64 size)
 
 function (boolean) Cn_hyp_alloc_fits_memcache(u64 size)
 {
+        // 524287 is INT_MAX / PAGE_SIZE.  The map/unmap loops store page
+        // counts in signed int locals, so CN must keep the page count bounded.
         PAGE_ALIGN(Cn_chunk_size(Cn_hyp_alloc_actual_size(size))) /
                 PAGE_SIZE() <= 524287u64
 }
@@ -1185,6 +1187,11 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 
         unsigned long va_end = va + size;
 #ifdef __CN_VERIFY
+        /*
+         * CN DIFF: initialize ret for verification.  The original
+         * implementation leaves ret uninitialized until the mapping loop
+         * writes it; CN cannot currently express that loop typestate.
+         */
         int ret = 0;
         int nr_pages = 0;
 #else
@@ -2137,10 +2144,8 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
                 return 0;
         }
 
-
-        if (chunk_split_aligned(chunk, allocator)) {
+        if (chunk_split_aligned(chunk, allocator))
                 return 0;
-        }
 
 
         end = chunk_unmapped_region(chunk);

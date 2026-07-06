@@ -28,6 +28,17 @@ unsigned long hyp_nr_cpus = 1;
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
 phys_addr_t __pkvm_private_range_pa(void *va)
+/*
+ * TODO: in future work, we need to model the private VA-to-PA mapping
+ * explicitly and make page ownership flow through that mapping.  This
+ * shim currently returns the VA value as the PA and the CN contract below
+ * manufactures Cn_split_page ownership for that address.  That is not the
+ * real meaning of this helper: translating an address should not create
+ * ownership of the underlying page.  We use this spec because the current
+ * proof does not have a representation of the page-table translation and
+ * its associated ownership transfer, so callers need a local way to recover
+ * the page resource after converting the allocator's private VA.
+ */
 /*@
 	requires cn_IS_ALIGNED((u64)va);
 	ensures take Page = Cn_split_page((pointer)(u64)va);
