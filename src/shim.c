@@ -28,6 +28,22 @@ unsigned long hyp_nr_cpus = 1;
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
 phys_addr_t __pkvm_private_range_pa(void *va)
+/*
+ * TODO: in future work, we need to model the private VA-to-PA mapping
+ * explicitly and make page ownership flow through that mapping.  This
+ * shim currently returns the VA value as the PA and the CN contract below
+ * manufactures Cn_split_page ownership for that address.  That is not the
+ * real meaning of this helper: translating an address should not create
+ * ownership of the underlying page.  We use this spec because the current
+ * proof does not have a representation of the page-table translation and
+ * its associated ownership transfer, so callers need a local way to recover
+ * the page resource after converting the allocator's private VA.
+ */
+/*@
+	requires cn_IS_ALIGNED((u64)va);
+	ensures take Page = Cn_split_page((pointer)(u64)va);
+		return == (u64)va;
+@*/
 {
 	// kvm_pte_t pte;
 	// s8 level;
@@ -64,7 +80,6 @@ void shim_create_hyp_mapping(size_t size)
 // handle type mismatch
 static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size)
 //static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
-#ifdef __CN_VERIFY // CANT_PBT
 /*@
     trusted;
 	accesses __io_map_base;
@@ -72,7 +87,6 @@ static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size
 	requires start != 0u64; start >= __io_map_base;
 	ensures take X = Conditional_Cn_char_array((pointer)start, PAGE_ALIGN(size), return == 0i32);
 @*/
-#endif
 {
 	unsigned long cur;
 
@@ -103,21 +117,21 @@ static int __pkvm_alloc_private_va_range(unsigned long start, unsigned long size
  * Return: 0 on success or negative error code on failure.
  */
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
-#ifdef __CN_VERIFY // CANT_PBT
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
     requires
 	__io_map_base != 0u64; __io_map_base + size > __io_map_base;
     __io_map_base & 0x7u64 == 0u64;
+    cn_IS_ALIGNED(__io_map_base);
 	take v1 = W<unsigned long>(haddr); PAGE_ALIGN(size) == size;
 	ensures take v2 = RW<unsigned long>(haddr);
 	take X = Conditional_Cn_char_array ((pointer)v2, size, return == 0i32);
 	v2 > 0u64;
 	v2 + size > v2;
 	v2 & 0x7u64 == 0u64;
+	cn_IS_ALIGNED(v2);
 @*/
-#endif
 {
 	unsigned long addr;
 	int ret;
@@ -133,6 +147,10 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 }
 
 void pkvm_remove_mappings(void *from, void *to)
+/*@
+	requires true;
+	ensures true;
+@*/
 {
 	// log_function_args("from: %p, to: %p", from, to);
 	// printf("\x1b[31mTODO\x1b[0m\n");
@@ -146,6 +164,10 @@ int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 }
 
 int __hyp_allocator_map(unsigned long start, phys_addr_t phys)
+/*@
+	requires take Page_pre = Cn_split_page((pointer)phys);
+	ensures take Page_post = Conditional_Cn_split_page((pointer)phys, return != 0i32);
+@*/
 {
 	// log_function_args("start: %lx, phys: %"PRIx64, start, phys);
 	// printf("\x1b[31mTODO\x1b[0m\n");
@@ -154,11 +176,19 @@ int __hyp_allocator_map(unsigned long start, phys_addr_t phys)
 
 
 void *hyp_phys_to_virt(phys_addr_t phys)
+/*@
+	requires true;
+	ensures return == (pointer)phys;
+@*/
 {
 	// log_function_args("phys: %"PRIu64, phys);
 	return (void*)phys;
 }
 phys_addr_t hyp_virt_to_phys(void *addr)
+/*@
+	requires true;
+	ensures return == (u64)addr;
+@*/
 {
 	// log_function_args("addr: %p", addr);
 	return (phys_addr_t)addr;
@@ -231,6 +261,15 @@ static void *admit_host_page(void *arg, unsigned long order)
 
 int refill_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages,
 		    struct kvm_hyp_memcache *host_mc)
+/*@
+	requires
+		!ptr_eq(mc, host_mc);
+		take MC_pre = Cn_hyp_memcache(mc);
+		take Host_pre = Cn_hyp_memcache(host_mc);
+	ensures
+		take MC_post = Cn_hyp_memcache(mc);
+		take Host_post = Cn_hyp_memcache(host_mc);
+@*/
 {
 	struct kvm_hyp_memcache tmp = *host_mc;
 	int ret;

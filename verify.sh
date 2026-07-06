@@ -6,6 +6,11 @@ targets=(
   min_u32
   min_u64
   max_u64
+  pkvm_remove_mappings
+  hyp_phys_to_virt
+  hyp_virt_to_phys
+  push_hyp_memcache
+  pop_hyp_memcache
   list_empty
   INIT_LIST_HEAD
   list_is_first
@@ -30,14 +35,18 @@ targets=(
   __chunk_prev
   LemmaNextChunk
   LemmaPrevChunk
+  LemmaFirstChunkToAllocator
   chunk_list_insert
   LemmaCreateNewChunk
   LemmaCreateNewChunkAux
   LemmaSplitAndNewChunk
   chunk_needs_mapping
+  chunk_split_aligned
   chunk_install
   get_free_chunk
   chunk_recycle
+  hyp_allocator_unmap
+  hyp_allocator_map
   hyp_alloc
   LemmaGetLastChunk
   LemmaLsegToChunkHdrs
@@ -59,10 +68,15 @@ targets=(
   hyp_alloc_missing_donations
   chunk_destroyable
   chunk_reclaimable
+  hyp_alloc_reclaimable
+  chunk_dec_map
+  chunk_try_destroy
   hyp_alloc_size
+  hyp_alloc_reclaim
+  hyp_alloc_refill
 )
 
-OPT="${OPT:-"-p 20"}"
+OPT="${OPT:-""}"
 run_test() {
   target="$1"
   start=$(date +%s.%N)
@@ -79,7 +93,7 @@ run_test() {
   fi
 
   end=$(date +%s.%N)
-  elapsed=$(echo "$end - $start" | bc)
+  elapsed=$(awk "BEGIN { printf \"%.3f\", $end - $start }")
 
   RED='\033[0;31m'
   GREEN='\033[0;32m'
@@ -91,7 +105,9 @@ run_test() {
     echo -e "$target ${RED}$status${NC} (in ${elapsed}s)"
   fi
 
-  [[ $status != "passed" ]] && exit 1
+  if [[ $status != "passed" ]]; then
+    exit 1
+  fi
 }
 
 date

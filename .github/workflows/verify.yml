@@ -1,6 +1,6 @@
 name: CN verify check
 env:
-  CN_COMMIT: 384f4f3bf1d404c54ee57ae389f309c280c315c0
+  CN_COMMIT: ed9c37cc918dd9f3b319c7714c65d8b6609f09f0
 
 on:
   pull_request:
@@ -57,6 +57,7 @@ jobs:
             build-essential libgmp-dev pkg-config z3 opam git make wget unzip
           opam init --yes --compiler=${{ matrix.ocaml }}
           eval $(opam env)
+          opam pin add --yes dune 3.23.0
           cd cn
           opam install --yes --deps-only ./cn.opam ocamlformat.0.27.0
           make install
@@ -66,6 +67,7 @@ jobs:
         run: |
           opam switch "${{ matrix.ocaml }}"
           eval $(opam env)
+          opam pin add --yes dune 3.23.0
           echo "=== Testing: ${{ matrix.targets }} ==="
           make ONLY=${{ matrix.targets }} cn-verify | tee verify-${{ matrix.targets }}.log
           grep -q "\[1/1\]: ${{ matrix.targets }} -- pass" verify-${{ matrix.targets }}.log

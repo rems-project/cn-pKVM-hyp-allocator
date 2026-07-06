@@ -24,7 +24,7 @@ int dummy_memcache(struct kvm_hyp_memcache *mc, u64 min_pages)
 {
 	while (mc->nr_pages < min_pages) {
 		phys_addr_t *p = cn_unsafe_aligned_alloc(PAGE_SIZE, PAGE_SIZE);
-		memset(p, 0, PAGE_SIZE);
+		my_memset((char *)p, 0, PAGE_SIZE);
 
 		if (!p) {
 			return -ENOMEM;
@@ -145,13 +145,14 @@ void test4(void)
     }
 }
 
-
 void shim_create_hyp_mapping(size_t size);
 
 #define NR_PAGES	2048
 int main(void)
 /*@
 	accesses host_mc;
+	accesses hyp_allocator_missing_donations;
+	accesses hyp_allocator_errno;
 @*/
 {
 	int ret;
@@ -172,6 +173,13 @@ int main(void)
 
 	// printf("HYP_ALLOC_REFILL\n");
 	hyp_alloc_refill(&host_mc);
+
+	struct kvm_hyp_memcache reclaim_mc = { 0 };
+	int *reclaim_p = hyp_alloc(PAGE_SIZE);
+	assert(reclaim_p);
+	hyp_free(reclaim_p /*@ 4096u64 @*/);
+	hyp_alloc_reclaim(&reclaim_mc, 0);
+	hyp_alloc_reclaim(&reclaim_mc, 1);
 
 	test4();
 
