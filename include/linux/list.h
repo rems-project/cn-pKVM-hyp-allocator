@@ -55,6 +55,7 @@ static inline int list_empty(const struct list_head *head)
 /*@
 	requires
 		take H_pre = RW<struct list_head>(head);
+		has_alloc_id(head);
 	ensures
 		take H_post = RW<struct list_head>(head);
 		H_pre == H_post;

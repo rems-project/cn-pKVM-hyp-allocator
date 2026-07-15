@@ -266,6 +266,7 @@ predicate void MaybeCn_char_array_with_offset(pointer p, u64 size, u64 offset)
 predicate (phys_addr_t) Cn_split_page(pointer page)
 {
 	assert(cn_IS_ALIGNED((u64)page));
+	assert(has_alloc_id(page));
 	take Next = RW<phys_addr_t>(page);
 	take Rest = Cn_char_array(array_shift<byte>(page, 8u64), PAGE_SIZE() - 8u64);
 	return Next;

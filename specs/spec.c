@@ -107,6 +107,7 @@ function (boolean) is_last_chunk(pointer node_address, struct hyp_allocator ha)
 predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 {
         assert((u64)p > 0u64);
+        assert(has_alloc_id(p));
         assert((u64)p + sizeof<struct hyp_allocator> > (u64)p);
         take ha = RW<struct hyp_allocator>(p);
         let cn_hyp = {
@@ -123,6 +124,8 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
         assert(((u64)my_container_of_chunk_hdr(cn_hyp.first) & 0x7u64) == 0u64);
         assert(((u64)my_container_of_chunk_hdr(cn_hyp.last) & 0x7u64) == 0u64);
         assert(ha.start < (u64)cn_hyp.start + (u64)cn_hyp.size);
+        assert((u64)cn_hyp.head < cn_hyp.start ||
+               cn_hyp.start + (u64)cn_hyp.size <= (u64)cn_hyp.head);
         assert((u64)ha.start + (u64)cn_hyp.size + PAGE_SIZE() - 1u64 <= MAXu64());
         assert((u64)cn_hyp.size <= MAXu64() - (u64)ha.start);
         assert(PAGE_SIZE() - 1u64 <=
@@ -141,11 +144,14 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
 predicate (cn_chunk_hdr_raw) Own_chunk_hdr(pointer chunk)
 {
         assert(!is_null(chunk));
+        assert(has_alloc_id(chunk));
         take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
         take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
         take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
         assert((u64)node.next != 0u64);
         assert((u64)node.prev != 0u64);
+        assert(has_alloc_id(node.next));
+        assert(has_alloc_id(node.prev));
         assert((u64)chunk & 0x7u64 == 0u64);
         assert((u64)alloc_size & 0x7u64 == 0u64);
         assert(!is_null(node.next));
@@ -178,6 +184,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
                 }
                 Option_u64_some {value: v} => { v }
         };
+        assert(va_size <= (u64)ha.size);
         let cn_hdr = {
                 header_address : (u64) header_address,
                 alloc_size : hdr.alloc_size,
@@ -259,6 +266,7 @@ predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr_inner(pointer
 predicate ({cn_chunk_hdr Hdr, struct list_head Node}) Cn_chunk_hdr(pointer header_address, cn_hyp_allocator_core ha)
 {
         take cn_hdr = Cn_chunk_hdr_inner(header_address, ha, Option_u64_none {}, true, Option_u64_none {}, true);
+        assert(!ptr_eq(member_shift<struct chunk_hdr>(header_address, node), ha.head));
         return cn_hdr;
 }
 
@@ -348,9 +356,12 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, {pointer next, pointer prev} node
   take cn_hdr = Cn_chunk_hdr(chunk, ha);
   assert(!is_null(cn_hdr.Node.next));
   assert(!is_null(cn_hdr.Node.prev));
+  assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node), cn_hdr.Node.next));
+  assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node), cn_hdr.Node.prev));
 
   // chunk must be a valid chunk in the allocator
   let chunk_node = member_shift<struct chunk_hdr_only>(chunk, node);
+  assert(!ptr_eq(chunk_node, ha.head));
   take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
   take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
   assert(cn_IS_ALIGNED(ha.start));
@@ -384,14 +395,18 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg, u64 va_size, {pointer next, point
   let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
   let end = ha.start + (u64)ha.size;
   assert(ha.start < end);  // no overflow
+  assert(!ptr_eq(member_shift<struct chunk_hdr>(chunk, node), ha.head));
 
   // own this chunk
   take cn_hdr = Cn_chunk_hdr_for_install(prev, chunk, ha, alloc_size_opt, valid_mapped_size);
   assert(!is_null(cn_hdr.Node.next));
   assert(!is_null(cn_hdr.Node.prev));
+  assert(!ptr_eq(member_shift<struct chunk_hdr>(prev, node), cn_hdr.Node.next));
+  assert(!ptr_eq(member_shift<struct chunk_hdr>(prev, node), cn_hdr.Node.prev));
 
   // chunk must be a valid chunk in the allocator
   let chunk_node = member_shift<struct chunk_hdr_only>(prev, node);
+  assert(!ptr_eq(chunk_node, ha.head));
   take hdrs1 = Cn_chunk_hdrs_rev(cn_hdr.Node.prev, chunk_node, ha_full.first, ha);
   take hdrs2 = Cn_chunk_hdrs(cn_hdr.Node.next, chunk_node, ha_full.last, ha);
   let lseg = {before: hdrs1, chunk: cn_hdr.Hdr, after: hdrs2};
