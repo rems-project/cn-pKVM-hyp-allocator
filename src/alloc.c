@@ -388,6 +388,7 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(node.next);
+                offsetof(chunk_hdr, node) <= (integer)node.next;
                 // Workaround for https://github.com/rems-project/cn/issues/369
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node)); !is_null(next_chunk);
 
@@ -426,6 +427,7 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 !is_null(node.prev);
+                offsetof(chunk_hdr, node) <= (integer)node.prev;
                 // Workaround for https://github.com/rems-project/cn/issues/369
                 let prev_chunk = array_shift<char>(node.prev, -offsetof(chunk_hdr, node)); !is_null(prev_chunk);
                 (integer)node.prev % 8 == 0;
