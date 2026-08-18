@@ -223,6 +223,7 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
 /*@
     requires
         !is_null(chunk);
+        (integer)chunk + offsetof(chunk_hdr, hash) <= 18446744073709551615;
         let alloc_size = member_shift<struct chunk_hdr>(chunk, alloc_size);
         let mapped_size = member_shift<struct chunk_hdr>(chunk, mapped_size);
         let node = member_shift<struct chunk_hdr>(chunk, node);
@@ -388,7 +389,8 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 !is_null(node.next);
-                offsetof(chunk_hdr, node) <= (integer)node.next;
+                !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks))
+                        implies offsetof(chunk_hdr, node) <= (integer)node.next;
                 // Workaround for https://github.com/rems-project/cn/issues/369
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node)); !is_null(next_chunk);
 
@@ -427,7 +429,8 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
                 !is_null(node.prev);
-                offsetof(chunk_hdr, node) <= (integer)node.prev;
+                !ptr_eq(node.prev, member_shift<struct hyp_allocator>(allocator, chunks))
+                        implies offsetof(chunk_hdr, node) <= (integer)node.prev;
                 // Workaround for https://github.com/rems-project/cn/issues/369
                 let prev_chunk = array_shift<char>(node.prev, -offsetof(chunk_hdr, node)); !is_null(prev_chunk);
                 (integer)node.prev % 8 == 0;
