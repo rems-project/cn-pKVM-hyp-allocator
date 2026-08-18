@@ -107,12 +107,14 @@ int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 /*@
 	accesses __io_map_base;
 	accesses __hyp_vmemmap;
-    requires
+	requires
+	let io_map_base = __io_map_base;
 	__io_map_base != 0; __io_map_base + size > __io_map_base;
     __io_map_base % 8 == 0;
 	take v1 = W<unsigned long>(haddr); PAGE_ALIGN(size) == size;
 	ensures take v2 = RW<unsigned long>(haddr);
 	take X = Conditional_Cn_char_array ((pointer)v2, size, return == 0);
+	v2 == io_map_base;
 	v2 > 0;
 	v2 + size > v2;
 	v2 % 8 == 0;
