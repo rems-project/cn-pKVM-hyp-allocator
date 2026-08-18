@@ -91,6 +91,9 @@ datatype option_u64 {
 
 predicate [nounfold] void Cn_char_array(pointer p, integer size)
 {
+        assert(0 <= size);
+        assert(0 <= (integer)p);
+        assert((integer)p + size <= 18446744073709551615);
         take U = each(integer i; 0 <= i && i < size){
                 W<byte>(array_shift<byte>(p, i))
         };
@@ -98,6 +101,9 @@ predicate [nounfold] void Cn_char_array(pointer p, integer size)
 }
 predicate void Cn_char_array_with_offset(pointer p, integer size, integer offset)
 {
+        assert(0 <= size);
+        assert(0 <= (integer)p + offset);
+        assert((integer)p + offset + size <= 18446744073709551615);
         take U = each(integer i; offset <= i && i < offset + size){
                 W<byte>(array_shift<byte>(p, i))
         };
