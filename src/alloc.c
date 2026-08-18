@@ -724,6 +724,12 @@ void LemmaNextChunk(struct chunk_hdr *chunk,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->next));@*/
         /*@ unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct chunk_hdr>(chunk, node), X.ha.last, ha); @*/
+        /*@ derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(chunk, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
+        @*/
 }
 
 
@@ -762,6 +768,12 @@ void LemmaPrevChunk(struct chunk_hdr *chunk,
         /*@ split_case(!is_null(member_shift<struct chunk_hdr>(chunk, node)->prev));@*/
         /*@ unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct chunk_hdr>(chunk, node), X.ha.first, Cn_hyp_allocator_core(X.ha)); @*/
+        /*@ derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(chunk, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
+        @*/
 }
 
 #endif
@@ -841,6 +853,16 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(prev, node)->prev,
                 member_shift<struct chunk_hdr>(prev, node), HA_pre.ha.first, Cn_hyp_allocator_core(HA_pre.ha));
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(prev, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(prev, node)->next, next)));
+        derive_constraints(
+                W<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(chunk, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
         @*/
         list_add(&chunk->node, &prev->node);
         /*@ unpack CondListHead(...); @*/
@@ -969,6 +991,15 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
                 member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
         unpack Cn_chunk_hdrs(...);
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(chunk, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(prev, next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
         @*/
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
         struct chunk_hdr *next = __chunk_next(chunk, allocator);
@@ -1460,6 +1491,11 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
+                derive_constraints(
+                        RW<struct list_head *>(member_shift<struct list_head>(
+                                member_shift<struct chunk_hdr>(chunk, node), next)),
+                        RW<struct list_head *>(member_shift<struct list_head>(
+                                member_shift<struct hyp_allocator>(allocator, chunks), next)));
                 @*/
                 list_add(&chunk->node, &allocator->chunks);
                 chunk->mapped_size = PAGE_ALIGN(chunk_size(size));
@@ -1549,7 +1585,13 @@ ensures
 {
         /*@ split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
                 member_shift<struct hyp_allocator>(allocator, chunks))); @*/
-        /*@ unpack Cn_chunk_hdrs_rev(...); @*/
+        /*@ unpack Cn_chunk_hdrs_rev(...);
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(chunk, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
+        @*/
         /* The caller already validates prev */
         struct chunk_hdr *prev = __chunk_prev(chunk, allocator);
 
@@ -2215,7 +2257,16 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
 @*/
 {
         /*@ split_case(ptr_eq(ha.last, best_chunk_node)); @*/
-        /*@ unpack Cn_chunk_hdrs_rev_alt(...); @*/
+        /*@ unpack Cn_chunk_hdrs_rev_alt(...);
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(ha.last, next)),
+                RW<struct list_head *>(
+                        ptr_eq(ha.last, best_chunk_node) ?
+                        member_shift<struct list_head>(best_chunk_node, prev) :
+                        member_shift<struct list_head>(best_chunk_node, next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
+        @*/
         struct chunk_hdr *chunk;
 
         for (chunk = list_last_entry(&allocator->chunks, struct chunk_hdr, node);
@@ -2238,6 +2289,18 @@ void LemmaCnChunkHdrsRevToCnChunkHdrs(struct hyp_allocator *allocator, struct ch
                         )
                 );
                 unpack Cn_chunk_hdrs_rev_alt(...);
+                derive_constraints(
+                        RW<struct list_head *>(member_shift<struct list_head>(
+                                member_shift<struct chunk_hdr>(chunk, node), next)),
+                        RW<struct list_head *>(member_shift<struct list_head>(
+                                member_shift<struct chunk_hdr>(chunk, node)->prev, next)),
+                        RW<struct list_head *>(
+                                ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev,
+                                        best_chunk_node) ?
+                                member_shift<struct list_head>(best_chunk_node, prev) :
+                                member_shift<struct list_head>(best_chunk_node, next)),
+                        RW<struct list_head *>(member_shift<struct list_head>(
+                                member_shift<struct hyp_allocator>(allocator, chunks), next)));
                 @*/
                 /*@
                 split_case(
@@ -2367,6 +2430,11 @@ void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr
         /*@
         split_case(ptr_eq(Chunk.Node.prev, best_chunk_node));
         unpack Cn_chunk_hdrs_rev_alt(Chunk.Node.prev, chunk_node, BestChunk.Node.next, ha_core, best_chunk_node);
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        Chunk.Node.prev, next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
         @*/
         if (chunk->node.prev == &best_chunk->node)
         {
@@ -2571,7 +2639,18 @@ ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
                 //}
                 size_t available_size = chunk->mapped_size +
 					chunk_unmapped_size(chunk, allocator);
-		/*@ unpack MaybeChunkHdr(...); @*/
+		/*@
+		unpack MaybeChunkHdr(...);
+		derive_constraints(
+			RW<struct list_head *>(member_shift<struct list_head>(
+				member_shift<struct chunk_hdr>(chunk, node), next)),
+			RW<struct list_head *>(
+				is_null(best_chunk) ?
+				member_shift<struct list_head>(
+					member_shift<struct chunk_hdr>(chunk, node), prev) :
+				member_shift<struct list_head>(
+					member_shift<struct chunk_hdr>(best_chunk, node), next)));
+		@*/
 		if (chunk_is_used(chunk))
 			continue;
 
@@ -2649,6 +2728,11 @@ void LemmaLsegToChunkHdrs(struct hyp_allocator *allocator, struct chunk_hdr *chu
         unpack Cn_chunk_hdrs(member_shift<struct chunk_hdr>(chunk, node)->next, node, ha_full.last, Cn_hyp_allocator_core(ha_full));
         split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->prev, ha.head));
         unpack Cn_chunk_hdrs_rev(member_shift<struct chunk_hdr>(chunk, node)->prev, node, ha_full.first, Cn_hyp_allocator_core(ha_full));
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(chunk, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
         @*/
 
         while (!list_entry_is_head(chunk, &allocator->chunks, node))
@@ -2897,6 +2981,11 @@ void *hyp_alloc(unsigned long size)
                 member_shift<struct chunk_hdr>(last_chunk, node), HA_pre.ha.last,
                 Cn_hyp_allocator_core(HA_pre.ha)
         );
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(last_chunk, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
         @*/
         chunk_addr = (unsigned long)last_chunk + chunk_size(last_chunk->alloc_size);
         chunk_addr = chunk_addr_fixup(chunk_addr);
@@ -3031,7 +3120,13 @@ void hyp_free(void *addr)
         /*@
         split_case(ptr_eq(member_shift<struct chunk_hdr>(chunk, node)->next,
                 member_shift<struct hyp_allocator>(allocator, chunks)));
-        unpack Cn_chunk_hdrs(...); @*/
+        unpack Cn_chunk_hdrs(...);
+        derive_constraints(
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct chunk_hdr>(chunk, node), next)),
+                RW<struct list_head *>(member_shift<struct list_head>(
+                        member_shift<struct hyp_allocator>(allocator, chunks), next)));
+        @*/
         next_chunk = chunk_get_next(chunk, allocator);
 
         // HK: free is easy :) except for merging
