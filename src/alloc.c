@@ -580,6 +580,16 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
                 let cond = !ptr_eq(node.next, member_shift<struct hyp_allocator>(allocator, chunks));
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node));
                 take Next = MaybeChunkHdr(next_chunk, cond);
+                let end_pre = match (Next) {
+                        ChunkHdr_none {} => {
+                                A_pre.start + (integer)A_pre.size
+                        }
+                        ChunkHdr_some {hdr:hdr} => {
+                                (integer)next_chunk
+                        }
+                };
+                (integer)chunk + (integer)mapped_size <= end_pre;
+                end_pre <= 18446744073709551615;
         ensures
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
@@ -1632,6 +1642,7 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
 /*@
         requires
                 take C_pre = Own_chunk_hdr(chunk);
+                size <= 4294967295;
         ensures
                 take C_post = Own_chunk_hdr(chunk);
                 C_pre == C_post;
@@ -1882,6 +1893,7 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
 /*@
         requires
                 !is_null(chunk);
+                addr + Cn_chunk_size(0) <= 18446744073709551615;
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         ensures
                 take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
@@ -1938,6 +1950,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
         size > 0 && size < (integer)HA_pre.ha.size;
         size % 8 == 0;
         C_pre.alloc_size == 0;
+        Cn_chunk_size(size) <= C_pre.va_size;
 
         // suffix '_' is to avoid the name conflict due to Fulminate
         let new_chunk_addr_ = Cn_chunk_addr_fixup((integer)chunk + Cn_chunk_size(size));

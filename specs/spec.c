@@ -177,6 +177,9 @@ predicate (cn_hyp_allocator) Cn_hyp_allocator_only(pointer p)
         assert(!is_null(cn_hyp.first));
         assert(!is_null(cn_hyp.last));
         assert(ha.start < (integer)cn_hyp.start + (integer)cn_hyp.size);
+        assert((integer)cn_hyp.start + (integer)cn_hyp.size + Cn_chunk_size(0)
+                <= 18446744073709551615);
+        assert((integer)cn_hyp.size <= 4294967295);
         assert(ha.start > 0);
         assert((integer)ha.start % 8 == 0);
 
