@@ -905,6 +905,7 @@ requires
         size1 <= 4294967295;
         size2 <= 4294967295;
         size <= 4294967295;
+        (integer)p + size <= 18446744073709551615;
 ensures
         take X = Cn_char_array(p, size);
 @*/
@@ -942,6 +943,7 @@ requires
         size2 <= 4294967295;
         let size_all = size1 + size2 + Cn_chunk_hdr_size();
         size_all <= 4294967295;
+        (integer)start + size_all <= 18446744073709551615;
 ensures
         take X_post = Cn_char_array(start, size_all);
 @*/
@@ -1311,6 +1313,7 @@ requires
         let size = (integer)size1 + (integer)size2;
         take X = Cn_char_array(p, size);
         let owned_by_ha = array_shift<byte>(p, (integer)size1);
+        (integer)p + size <= 18446744073709551615;
 ensures
         take X1 = Cn_char_array(p, (integer)size1);
         take X2 = Cn_char_array(owned_by_ha, (integer)size2);
@@ -1368,6 +1371,7 @@ requires
     size2 <= 4294967295;
     let size_all = size1 + size + size2 + Cn_chunk_hdr_size();
     size_all <= 4294967295;
+    (integer)chunk_data + size_all <= 18446744073709551615;
     take C_pre = Cn_char_array(chunk_data, size_all);
 
     let chunk_hdr = array_shift<byte>(chunk_data, size1);
@@ -1642,7 +1646,10 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
 /*@
         requires
                 take C_pre = Own_chunk_hdr(chunk);
-                size <= 4294967295;
+                Cn_chunk_size(size) <= 18446744073709551615;
+                Cn_chunk_size(size) > (integer)C_pre.mapped_size implies
+                        PAGE_ALIGN(Cn_chunk_size(size) - (integer)C_pre.mapped_size)
+                                <= 18446744073709551615;
         ensures
                 take C_post = Own_chunk_hdr(chunk);
                 C_pre == C_post;
@@ -2170,6 +2177,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     ptr_eq(a_in.ha.head, a_in.ha.first);
     size >= MIN_ALLOC();
     PAGE_ALIGN(Cn_chunk_size(size)) >= size; // no overflow
+    PAGE_ALIGN(Cn_chunk_size(size)) <= 18446744073709551615;
     size % 8 == 0;
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
@@ -2572,6 +2580,7 @@ requires
         let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
         !ptr_eq(ha.first, ha.head);
         size <= Cn_chunk_size(size); // no overflow
+        Cn_chunk_size(size) <= 18446744073709551615;
 ensures  take res = GetFreeChunk(allocator, size, return, HA_in);
 
 // is_free_chunk(ret,size,HA_in.hdrs); // it returns a chunk in the list (or NIL?) st the alloc_size is zero and total size (not just mapped size, and including header size) is at least what you asked for
@@ -3263,9 +3272,11 @@ static size_t chunk_reclaimable(struct chunk_hdr *chunk,
 /*@
 requires
         take HA = Cn_hyp_allocator_focusing_on(allocator, chunk);
+        let C = HA.lseg.chunk;
+        PAGE_ALIGN((integer)chunk + Cn_chunk_size((integer)C.alloc_size))
+                <= 18446744073709551615;
 ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-        let C = HA.lseg.chunk;
         HA == HA_post;
         let start = (Cn_chunk_destroyable(HA_post.lseg) ?
                 (integer)chunk : PAGE_ALIGN((integer)chunk + Cn_chunk_size((integer)C.alloc_size)));
@@ -3423,6 +3434,8 @@ int hyp_alloc_init(unsigned long size)
     requires
       // global variables
       __io_map_base > 0; __io_map_base + PAGE_ALIGN(size) > __io_map_base;
+      __io_map_base + PAGE_ALIGN(size) + Cn_chunk_size(0) <= 18446744073709551615;
+      PAGE_ALIGN(size) <= 18446744073709551615;
       __io_map_base % 8 == 0;
       size % 8 == 0;
       (integer)&hyp_allocator > 0;
