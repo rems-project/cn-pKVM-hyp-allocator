@@ -1,6 +1,6 @@
 name: CN verify check
 env:
-  CN_COMMIT: 384f4f3bf1d404c54ee57ae389f309c280c315c0
+  CN_COMMIT: 55400088d333aa3e4189940d0bacd8aab36ebb9d
 
 on:
   pull_request:
