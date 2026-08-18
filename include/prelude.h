@@ -77,17 +77,18 @@ do {									\
 #define	EBUSY		16	/* Device or resource busy */
 #define	EINVAL		22	/* Invalid argument */
 
-// /*@ function (i32) EINVAL() @*/
+// /*@ function (integer) EINVAL() @*/
 // static int c_EINVAL() /*@ cn_function EINVAL; @*/
 // {
 // 	return EINVAL;
 // }
 /*@
-function (i32) EINVAL() {
-	22i32
+function (integer) EINVAL() {
+	22
 }
-function (u64) cn_ALIGN(u64 x, u64 a) {
-	(x + (a - 1u64)) & ~(a - 1u64)
+function (integer) cn_ALIGN(integer x, integer a) {
+	let rounded = x + 7;
+	rounded - (rounded % 8)
 }
 @*/
 
@@ -119,38 +120,37 @@ void hyp_spin_unlock(hyp_spinlock_t *lock);
 
 /*@
 
-function (u64) PAGE_SIZE() {
-	shift_left(1u64, 12u64)
+function (integer) PAGE_SIZE() {
+	4096
 }
 
-function (boolean) cn_IS_ALIGNED(u64 addr) {
-	(addr & (PAGE_SIZE() - 1u64)) == 0u64
+function (boolean) cn_IS_ALIGNED(integer addr) {
+	(addr % 4096) == 0
 }
 
 @*/
 
 // HK: we cannot define c_PAGE_ALIGN_DOWN until here because PAGE_SIZE is defined just above.
-// /*@ function (u64) PAGE_ALIGN_DOWN(u64 addr) @*/
+// /*@ function (integer) PAGE_ALIGN_DOWN(integer addr) @*/
 static unsigned long c_PAGE_ALIGN_DOWN(unsigned long long addr)
 // /*@ cn_function PAGE_ALIGN_DOWN; @*/
 {
 	return PAGE_ALIGN_DOWN(addr);
 }
 
-// /*@ function (u64) PAGE_ALIGN(u64 addr) @*/
+// /*@ function (integer) PAGE_ALIGN(integer addr) @*/
 // static unsigned long c_PAGE_ALIGN(unsigned long long addr) /*@  cn_function PAGE_ALIGN; @*/
 // {
 // 	return PAGE_ALIGN(addr);
 // }
 
 /*@
-function (u64) PAGE_ALIGN_DOWN(u64 addr) {
-	let page_mask = shift_left(1u64, 12u64) - 1u64;
-	(addr & ~page_mask)
+function (integer) PAGE_ALIGN_DOWN(integer addr) {
+	addr - (addr % 4096)
 }
-function (u64) PAGE_ALIGN(u64 addr) {
-	let page_mask = shift_left(1u64, 12u64) - 1u64;
-	(addr + page_mask) & ~page_mask
+function (integer) PAGE_ALIGN(integer addr) {
+	let rounded = addr + PAGE_SIZE() - 1;
+	rounded - (rounded % 4096)
 }
 @*/
 

@@ -43,7 +43,7 @@ static inline int list_empty(const struct list_head *head)
 	ensures
 		take H_post = RW<struct list_head>(head);
 		H_pre == H_post;
-		return == (ptr_eq(H_post.next, head) ? 1i32 : 0i32);
+		return == (ptr_eq(H_post.next, head) ? 1 : 0);
 @*/
 {
 	return READ_ONCE(head->next) == head;
@@ -143,7 +143,7 @@ static inline int list_is_first(const struct list_head *list, const struct list_
 	ensures
 		take L_post = RW<struct list_head>(list);
 		L_pre == L_post;
-		return == (ptr_eq(L_pre.prev, head) ? 1i32 : 0i32);
+		return == (ptr_eq(L_pre.prev, head) ? 1 : 0);
 @*/
 {
 	return list->prev == head;
@@ -156,7 +156,7 @@ static inline int list_is_last(const struct list_head *list, const struct list_h
 	ensures
 		take L_post = RW<struct list_head>(list);
 		L_pre == L_post;
-	return == (ptr_eq(L_pre.next, head) ? 1i32 : 0i32);
+	return == (ptr_eq(L_pre.next, head) ? 1 : 0);
 @*/
 {
 	return list->next == head;

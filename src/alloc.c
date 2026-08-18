@@ -26,8 +26,8 @@ extern unsigned long hyp_nr_cpus;
 #define MIN_ALLOC 8UL
 
 /*@
-function (u64) MIN_ALLOC () {
-        8u64
+function (integer) MIN_ALLOC () {
+        8
 }
 @*/
 
@@ -91,10 +91,10 @@ typedef unsigned char byte;
 // Auxiliary functions for chunk_hdr
 /*@
 type_synonym cn_chunk_hdr_raw = {
-        u32 alloc_size,
-        u32 mapped_size,
+        integer alloc_size,
+        integer mapped_size,
         struct list_head node,
-        u32 hash
+        integer hash
 }
 datatype chunk_hdr_option {
   ChunkHdr_none {},
@@ -102,7 +102,7 @@ datatype chunk_hdr_option {
 }
 datatype chunk_hdr_u_option {
   ChunkHdr_u_none {},
-  ChunkHdr_u_some { u32 alloc_size, u32 mapped_size, struct list_head node }
+  ChunkHdr_u_some { integer alloc_size, integer mapped_size, struct list_head node }
 }
 
 function (boolean) bind_hash_change_only_u (datatype chunk_hdr_u_option pre, datatype chunk_hdr_option post)
@@ -133,9 +133,9 @@ function (boolean) bind_hash_change_only_u (datatype chunk_hdr_u_option pre, dat
 @*/
 
 /*@
-function (u64) MergeU32s(u32 x, u32 y)
+function (integer) MergeU32s(integer x, integer y)
 {
-        shift_left((u64)y, 32u64) | (u64)x
+        y * 4294967296 + x
 }
 
 @*/
@@ -147,7 +147,7 @@ requires
     !is_null(a);
     take X = RW<unsigned>(a);
     take Y = RW<unsigned>(b);
-    ptr_eq(array_shift<unsigned>(a, 1u32), b);
+    ptr_eq(array_shift<unsigned>(a, 1), b);
 ensures
     take Z = RW<unsigned long long>(a);
     Z == MergeU32s(X, Y);
@@ -156,14 +156,14 @@ ensures
         /*@ to_bytes RW<unsigned>(a); @*/
         /*@ to_bytes RW<unsigned>(b); @*/
 
-        /*@ focus RW<byte>, 0u64; @*/
-        /*@ focus RW<byte>, 1u64; @*/
-        /*@ focus RW<byte>, 2u64; @*/
-        /*@ focus RW<byte>, 3u64; @*/
-        /*@ focus RW<byte>, 4u64; @*/
-        /*@ focus RW<byte>, 5u64; @*/
-        /*@ focus RW<byte>, 6u64; @*/
-        /*@ focus RW<byte>, 7u64; @*/
+        /*@ focus RW<byte>, 0; @*/
+        /*@ focus RW<byte>, 1; @*/
+        /*@ focus RW<byte>, 2; @*/
+        /*@ focus RW<byte>, 3; @*/
+        /*@ focus RW<byte>, 4; @*/
+        /*@ focus RW<byte>, 5; @*/
+        /*@ focus RW<byte>, 6; @*/
+        /*@ focus RW<byte>, 7; @*/
         /*@ from_bytes RW<unsigned long long>(a); @*/
 }
 
@@ -171,7 +171,7 @@ void LemmaTurnU64ToU32s(unsigned *a, unsigned *b)
 /*@
 requires
     take Z = RW<unsigned long long>(a);
-    ptr_eq(array_shift<unsigned>(a, 1u32), b);
+    ptr_eq(array_shift<unsigned>(a, 1), b);
 ensures
     take X = RW<unsigned>(a);
     take Y = RW<unsigned>(b);
@@ -180,14 +180,14 @@ ensures
 {
         /*@ to_bytes RW<unsigned long long>(a); @*/
 
-        /*@ focus RW<byte>, 0u64; @*/
-        /*@ focus RW<byte>, 1u64; @*/
-        /*@ focus RW<byte>, 2u64; @*/
-        /*@ focus RW<byte>, 3u64; @*/
-        /*@ focus RW<byte>, 4u64; @*/
-        /*@ focus RW<byte>, 5u64; @*/
-        /*@ focus RW<byte>, 6u64; @*/
-        /*@ focus RW<byte>, 7u64; @*/
+        /*@ focus RW<byte>, 0; @*/
+        /*@ focus RW<byte>, 1; @*/
+        /*@ focus RW<byte>, 2; @*/
+        /*@ focus RW<byte>, 3; @*/
+        /*@ focus RW<byte>, 4; @*/
+        /*@ focus RW<byte>, 5; @*/
+        /*@ focus RW<byte>, 6; @*/
+        /*@ focus RW<byte>, 7; @*/
         /*@ from_bytes RW<unsigned>(a); @*/
         /*@ from_bytes RW<unsigned>(b); @*/
 }
@@ -198,7 +198,7 @@ requires
     take P = RW<struct list_head*>(a);
 ensures
     take Q = RW<unsigned long long>(a);
-    (u64)P == Q;
+    (integer)P == Q;
 @*/
 {
         /*@ to_bytes RW<struct list_head*>(a); @*/
@@ -211,7 +211,7 @@ requires
     take Q = RW<unsigned long long>(a);
 ensures
     take P = RW<struct list_head*>(a);
-    (u64)P == Q;
+    (integer)P == Q;
 @*/
 {
         /*@ to_bytes RW<unsigned long long>(a); @*/
@@ -229,8 +229,8 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         take alloc_size_pre = RW<unsigned>(alloc_size);
         take mapped_size_pre = RW<unsigned>(mapped_size);
         take node_pre = RW<struct list_head>(node);
-        !is_null(node_pre.next) && (u64)node_pre.next != 0u64;
-        !is_null(node_pre.prev) && (u64)node_pre.prev != 0u64;
+        !is_null(node_pre.next) && (integer)node_pre.next != 0;
+        !is_null(node_pre.prev) && (integer)node_pre.prev != 0;
     ensures
         take alloc_size_post = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
         take mapped_size_post = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
@@ -263,19 +263,19 @@ static u32 chunk_hash_compute(struct chunk_hdr *chunk)
         inv
         {chunk} unchanged;
         !is_null(data);
-        (u64)chunk <= (u64)data;
+        (integer)chunk <= (integer)data;
         let size = offsetof(chunk_hdr, hash);
         len <= size;
-        (u64)data + len == (u64)chunk + size;
-        (u64)data & 7u64 == 0u64;
+        (integer)data + len == (integer)chunk + size;
+        (integer)data % 8 == 0;
         take X1 = RW<unsigned long long>(alloc_size);
         MergeU32s(alloc_size_pre, mapped_size_pre) == X1;
 
         take X2 = RW<unsigned long long>(member_shift<struct list_head>(node, next));
-        (u64)X2 == (u64)node_pre.next;
+        (integer)X2 == (integer)node_pre.next;
         take X3 = RW<unsigned long long>(member_shift<struct list_head>(node, prev));
-        (u64)X3 == (u64)node_pre.prev;
-        //take L = each(u64 i; i < 3u64) { RW<unsigned long long>(array_shift<unsigned long long>(alloc_size, i))};
+        (integer)X3 == (integer)node_pre.prev;
+        //take L = each(integer i; i < 3) { RW<unsigned long long>(array_shift<unsigned long long>(alloc_size, i))};
     @*/
     {
             /*@ split_case(ptr_eq(alloc_size, data));@*/
@@ -351,16 +351,16 @@ static inline void chunk_hash_validate(struct chunk_hdr *chunk)
 
 #ifdef __cerb__
 /*@
-function (u64) Cn_chunk_hdr_size ()
+function (integer) Cn_chunk_hdr_size ()
 {
-        (u64) offsetof(chunk_hdr, data)
+        (integer) offsetof(chunk_hdr, data)
 }
 // HK: size_t cast is removed. Macro requires cast because it does not know what the
 // argument type is.
-function (u64) Cn_chunk_size (u64 size)
+function (integer) Cn_chunk_size (integer size)
 {
         Cn_chunk_hdr_size() + (size > MIN_ALLOC() ? size : MIN_ALLOC())
-        //(u64) member_shift<struct chunk_hdr>(NULL, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
+        //(integer) member_shift<struct chunk_hdr>(NULL, data) + (size > MIN_ALLOC() ? size : MIN_ALLOC())
 }
 function (pointer) Cn_chunk_data (struct chunk_hdr chunk)
 {
@@ -382,7 +382,7 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
 /*@
         requires
                 !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
+                (integer)chunk % 8 == 0;
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
@@ -391,7 +391,7 @@ static inline struct chunk_hdr* __chunk_next(struct chunk_hdr *chunk,
                 // Workaround for https://github.com/rems-project/cn/issues/369
                 let next_chunk = array_shift<char>(node.next, -offsetof(chunk_hdr, node)); !is_null(next_chunk);
 
-                (u64)node.next & 0x7u64 == 0u64;
+                (integer)node.next % 8 == 0;
         ensures
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
@@ -420,7 +420,7 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
 /*@
         requires
                 !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
+                (integer)chunk % 8 == 0;
                 take A_pre = RW<struct hyp_allocator>(allocator);
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
@@ -428,7 +428,7 @@ static inline struct chunk_hdr* __chunk_prev(struct chunk_hdr *chunk,
                 !is_null(node.prev);
                 // Workaround for https://github.com/rems-project/cn/issues/369
                 let prev_chunk = array_shift<char>(node.prev, -offsetof(chunk_hdr, node)); !is_null(prev_chunk);
-                (u64)node.prev & 0x7u64 == 0u64;
+                (integer)node.prev % 8 == 0;
         ensures
                 take alloc_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size2 = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
@@ -456,7 +456,7 @@ static inline struct chunk_hdr* chunk_get_next(struct chunk_hdr *chunk,
 /*@
         requires
                 !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
+                (integer)chunk % 8 == 0;
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
@@ -497,7 +497,7 @@ static inline struct chunk_hdr* chunk_get_prev(struct chunk_hdr *chunk,
 /*@
         requires
                 !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
+                (integer)chunk % 8 == 0;
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
@@ -554,9 +554,9 @@ static inline struct chunk_hdr* chunk_get(void *addr)
 #define chunk_unmapped_region(chunk) \
         ((unsigned long)(chunk) + chunk->mapped_size)
 /*@
-function (u64) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
+function (integer) Cn_chunk_unmapped_region(pointer chunk_p, struct chunk_hdr chunk)
 {
-    (u64)chunk_p + (u64)chunk.mapped_size
+    (integer)chunk_p + (integer)chunk.mapped_size
 }
 @*/
 
@@ -566,7 +566,7 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
 /*@
         requires
                 !is_null(chunk);
-                (u64)chunk & 0x7u64 == 0u64;
+                (integer)chunk % 8 == 0;
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
@@ -589,13 +589,13 @@ static inline unsigned long chunk_unmapped_size(struct chunk_hdr *chunk,
 
                 let end = match (Next_post) {
                         ChunkHdr_none {} => {
-                                A_pre.start + (u64)A_pre.size
+                                A_pre.start + (integer)A_pre.size
                         }
                         ChunkHdr_some {hdr:hdr} => {
-                                (u64)next_chunk
+                                (integer)next_chunk
                         }
                 };
-                return == end - (u64)chunk - (u64)mapped_size;
+                return == end - (integer)chunk - (integer)mapped_size;
 @*/
 {
         /*@ split_case(cond); @*/
@@ -667,7 +667,7 @@ function (pointer) Cn_chunk_get_next(struct chunk_hdr chunk, pointer allocator)
         Cn_list_is_last(chunk.node, member_shift<struct hyp_allocator>(allocator, chunks)) ?
         NULL : my_container_of_chunk_hdr(chunk.node.next)
 }
-function (u32) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
+function (integer) Cn_chunk_unmapped_size(cn_chunk_hdr hdr)
 {
         hdr.va_size - hdr.mapped_size
 }
@@ -814,17 +814,17 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
 
         //  [prev]    [+alloc_size]             [chunk]     [+(old)va_size]
         //    ------- ------------------------- ----------- -------------
-        (u64)alloc_size + Cn_chunk_hdr_size() <= (u64)mapped_size;
-        (u64)mapped_size <= HA_pre.va_size;
-        (u64)prev + Cn_chunk_hdr_size() +  (u64)Prev_pre.alloc_size <= (u64)chunk;
+        (integer)alloc_size + Cn_chunk_hdr_size() <= (integer)mapped_size;
+        (integer)mapped_size <= HA_pre.va_size;
+        (integer)prev + Cn_chunk_hdr_size() +  (integer)Prev_pre.alloc_size <= (integer)chunk;
 
-        let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (u64)alloc_size);
-        let owned_by_ha =  (u64)HA_pre.va_size - (u64)alloc_size - Cn_chunk_hdr_size();
+        let start = array_shift<char>(chunk, Cn_chunk_hdr_size() + (integer)alloc_size);
+        let owned_by_ha =  (integer)HA_pre.va_size - (integer)alloc_size - Cn_chunk_hdr_size();
         take X = Cn_char_array(start, owned_by_ha);
 
         // workaround for Bennet/Fulminate
-        (u64)chunk & 0x7u64 == 0u64;
-        (u64)alloc_size & 0x7u64 == 0u64;
+        (integer)chunk % 8 == 0;
+        (integer)alloc_size % 8 == 0;
 
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, prev);
@@ -834,8 +834,8 @@ static inline void chunk_list_insert(struct chunk_hdr *chunk,
         HA_post.ha.size == ha.size && HA_post.ha.start == ha.start && ptr_eq(HA_post.ha.head, ha.head);
         lseg_pre.before == lseg_post.before;
         let Chunk = {
-                header_address: (u64)chunk,
-                va_size: (u32)HA_pre.va_size,
+                header_address: (integer)chunk,
+                va_size: (integer)HA_pre.va_size,
                 alloc_size: alloc_size,
                 mapped_size: mapped_size
         };
@@ -887,9 +887,9 @@ requires
         let owned_by_ha = array_shift<byte>(p, size1);
         take X1 = Cn_char_array(p, size1);
         take X2 = Cn_char_array(owned_by_ha, size2);
-        size1 <= (u64)MAXu32();
-        size2 <= (u64)MAXu32();
-        size <= (u64)MAXu32();
+        size1 <= 4294967295;
+        size2 <= 4294967295;
+        size <= 4294967295;
 ensures
         take X = Cn_char_array(p, size);
 @*/
@@ -923,10 +923,10 @@ requires
         take X = Cn_char_array(start, size1);
         take Hdr = Own_chunk_hdr(array_shift<char>(start, size1));
         take Y = Cn_char_array(array_shift<char>(start, size1 + Cn_chunk_hdr_size()), size2);
-        size1 <= (u64)MAXu32();
-        size2 <= (u64)MAXu32();
+        size1 <= 4294967295;
+        size2 <= 4294967295;
         let size_all = size1 + size2 + Cn_chunk_hdr_size();
-        size_all <= (u64)MAXu32();
+        size_all <= 4294967295;
 ensures
         take X_post = Cn_char_array(start, size_all);
 @*/
@@ -946,13 +946,13 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     requires
     take ha_full = Cn_hyp_allocator_only(allocator);
     let ha = {head: ha_full.head, start: ha_full.start, size: ha_full.size, first: ha_full.first};
-    let end = ha.start + (u64)ha.size;
+    let end = ha.start + (integer)ha.size;
 
     // own this chunk
     take cn_hdr = Cn_chunk_hdr(chunk, ha);
     !is_null(cn_hdr.Node.next);
     !is_null(cn_hdr.Node.prev);
-    cn_hdr.Hdr.alloc_size == 0u32;
+    cn_hdr.Hdr.alloc_size == 0;
 
     let prev = cn_hdr.Node.prev;
     !ptr_eq(prev, member_shift<struct hyp_allocator>(allocator, chunks));
@@ -961,13 +961,13 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
     take prev_hdr = Cn_chunk_hdr_inner(prev_hdr_addr, ha, Option_u64_none {}, true, Option_u64_none {}, false);
     !is_null(prev_hdr.Node.next);
     !is_null(prev_hdr.Node.prev);
-    (u64)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)prev_hdr.Hdr.mapped_size;
-    (u64)prev_hdr.Hdr.mapped_size <= (u64)cn_hdr.Hdr.va_size + (u64)prev_hdr.Hdr.va_size;
+    (integer)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (integer)prev_hdr.Hdr.mapped_size;
+    (integer)prev_hdr.Hdr.mapped_size <= (integer)cn_hdr.Hdr.va_size + (integer)prev_hdr.Hdr.va_size;
 
-    (u64)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (u64)prev_hdr.Hdr.va_size;
-    (u64)prev_hdr.Hdr.va_size <= (u64)cn_hdr.Hdr.va_size + (u64)prev_hdr.Hdr.va_size;
+    (integer)prev_hdr.Hdr.alloc_size + Cn_chunk_hdr_size() <= (integer)prev_hdr.Hdr.va_size;
+    (integer)prev_hdr.Hdr.va_size <= (integer)cn_hdr.Hdr.va_size + (integer)prev_hdr.Hdr.va_size;
 
-    // let chunk_end = prev_hdr.Hdr.header_address + (u64) prev_hdr.Hdr.mapped_size;
+    // let chunk_end = prev_hdr.Hdr.header_address + (integer) prev_hdr.Hdr.mapped_size;
     // chunk_end <= end;
     // chunk_end >= prev_hdr.Hdr.header_address;
     let chunk_node = member_shift<struct chunk_hdr>(chunk, node);
@@ -1014,8 +1014,8 @@ static inline void chunk_list_del(struct chunk_hdr *chunk,
         unsigned long cn_va_size = (next ?
                 (unsigned long)next :
                 allocator->start + allocator->size) - (unsigned long)chunk;
-        /*@ assert(prev_va_size == (u64)prev_hdr.Hdr.va_size); @*/
-        /*@ assert(cn_va_size == (u64)cn_hdr.Hdr.va_size); @*/
+        /*@ assert(prev_va_size == (integer)prev_hdr.Hdr.va_size); @*/
+        /*@ assert(cn_va_size == (integer)cn_hdr.Hdr.va_size); @*/
         LemmaMergeChunk((char *)chunk_data(prev) + prev->alloc_size,
                         prev_va_size - (chunk_hdr_size() + prev->alloc_size),
                         cn_va_size - chunk_hdr_size());
@@ -1054,8 +1054,8 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
                 take HA_post = Cn_hyp_allocator_only(allocator);
                 HA_post == HA_pre;
                 let va_end = va + size;
-                return == 0i32 implies
-                (va <= va_end && va_end <= (HA_pre.start + (u64)HA_pre.size));
+                return == 0 implies
+                (va <= va_end && va_end <= (HA_pre.start + (integer)HA_pre.size));
 @*/
 #endif
 // HK: Hyp_allocator_map mines a new memory from memcache and maps it.
@@ -1116,8 +1116,8 @@ static int hyp_allocator_map(struct hyp_allocator *allocator,
 function (boolean) chunk_install_sanity_check(pointer prev_p, pointer chunk_p, struct chunk_hdr prev)
 {
     !is_null(prev_p)
-           && !(Cn_chunk_unmapped_region(prev_p, prev) < (u64)chunk_p)
-           && !((u64)Cn_chunk_data(prev) + (u64)prev.alloc_size > (u64)chunk_p)
+           && !(Cn_chunk_unmapped_region(prev_p, prev) < (integer)chunk_p)
+           && !((integer)Cn_chunk_data(prev) + (integer)prev.alloc_size > (integer)chunk_p)
 }
 
 predicate (datatype chunk_hdr_u_option) MaybeChunkHdrU(pointer chunk, boolean condition)
@@ -1128,9 +1128,9 @@ predicate (datatype chunk_hdr_u_option) MaybeChunkHdrU(pointer chunk, boolean co
                 take alloc_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, alloc_size));
                 take mapped_size = RW<unsigned>(member_shift<struct chunk_hdr>(chunk, mapped_size));
                 take node = RW<struct list_head>(member_shift<struct chunk_hdr>(chunk, node));
-                assert((u64)alloc_size & 0x7u64 == 0u64);
-                assert((u64)node.next != 0u64);
-                assert((u64)node.prev != 0u64);
+                assert((integer)alloc_size % 8 == 0);
+                assert((integer)node.next != 0);
+                assert((integer)node.prev != 0);
                 take hash = W<unsigned>(member_shift<struct chunk_hdr>(chunk, hash));
                 take pad = W<unsigned>(member_shift<struct chunk_hdr>(chunk, explicit_padding));
                 return ChunkHdr_u_some { alloc_size: alloc_size, mapped_size: mapped_size, node: node };
@@ -1157,7 +1157,7 @@ predicate (datatype chunk_hdr_option) MaybeChunkHdr(pointer chunk, boolean condi
 
 /*@
 // provably rewrite this by using lseg
-predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u64 size, pointer prev, pointer allocator)
+predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, integer size, pointer prev, pointer allocator)
 {
         if (is_null(prev))
         {
@@ -1166,26 +1166,26 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 let ha = a_in.ha;
                 assert(ptr_eq(ha.head,ha.first));
 
-                assert(size <= (u64)ha.size);
-                assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (u64)a_in.ha.size);
-                assert(ha.start == (u64)chunk);
+                assert(size <= (integer)ha.size);
+                assert(PAGE_ALIGN(Cn_chunk_size(size)) <= (integer)a_in.ha.size);
+                assert(ha.start == (integer)chunk);
 
                 // workaround for Bennet/Fulminate
-                assert((u64)chunk & 7u64 == 0u64);
-                assert(size & 0x7u64 == 0u64);
+                assert((integer)chunk % 8 == 0);
+                assert(size % 8 == 0);
 
                 let dummy = {
-                        header_address: 0u64,
-                        mapped_size: 0u32,
-                        alloc_size: 0u32,
-                        va_size: 0u32
+                        header_address: 0,
+                        mapped_size: 0,
+                        alloc_size: 0,
+                        va_size: 0
                 };
                 return {ha: a_in.ha, lseg: {before: Chunk_nil {}, after: Chunk_nil {}, chunk: dummy }};
         }
         else
         {
                 take HA_pre = Cn_hyp_allocator_focusing_on(allocator, prev);
-                let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
+                let allocator_end = (integer)HA_pre.ha.start + (integer)HA_pre.ha.size;
 
                 let P_pre = HA_pre.lseg.chunk;
                 // order
@@ -1196,44 +1196,44 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ChunkInstallPre(pointer chunk, u
                 // (v)       <= prev old_va_size
                 // (v)       <= prev old_va_size
                 // (vi)      <= allocator_end
-                let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size;
-                let chunk_alloc_end = (u64)chunk + size + Cn_chunk_hdr_size();
-                let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
-                let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
-                assert((u64)prev <= prev_alloc_end); // (i)
-                assert(prev_alloc_end <= (u64)chunk); // (ii)
-                assert((u64)chunk < (u64)chunk + Cn_chunk_hdr_size()); // (iii')
-                assert((u64)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end); // (iii'')
+                let prev_alloc_end = (integer)prev + (integer)P_pre.alloc_size;
+                let chunk_alloc_end = (integer)chunk + size + Cn_chunk_hdr_size();
+                let prev_old_mapped_size = (integer)prev + (integer)P_pre.mapped_size;
+                let prev_old_va_size = (integer)prev + (integer)P_pre.va_size;
+                assert((integer)prev <= prev_alloc_end); // (i)
+                assert(prev_alloc_end <= (integer)chunk); // (ii)
+                assert((integer)chunk < (integer)chunk + Cn_chunk_hdr_size()); // (iii')
+                assert((integer)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end); // (iii'')
                 assert(chunk_alloc_end <= prev_old_mapped_size); // (iv)
                 assert(prev_old_mapped_size <= prev_old_va_size); // (v)
                 assert(prev_old_va_size <= allocator_end); // (vi)
 
 
-                let prev_u = (u64)prev + (u64)P_pre.mapped_size;
-                let prev_cd = (u64)prev + (u64)offsetof(chunk_hdr, data);
-                let cond = prev_u >= (u64)chunk;
-                let cond2 = (u64)prev_cd + (u64)P_pre.alloc_size <= (u64)chunk;
+                let prev_u = (integer)prev + (integer)P_pre.mapped_size;
+                let prev_cd = (integer)prev + (integer)offsetof(chunk_hdr, data);
+                let cond = prev_u >= (integer)chunk;
+                let cond2 = (integer)prev_cd + (integer)P_pre.alloc_size <= (integer)chunk;
                 assert(cond && cond2);
 
                 // workaround for Bennet/Fulminate
-                assert((u64)chunk & 7u64 == 0u64);
-                assert(size & 0x7u64 == 0u64);
+                assert((integer)chunk % 8 == 0);
+                assert(size % 8 == 0);
 
                 return {ha: HA_pre.ha, lseg: HA_pre.lseg};
         }
 }
-predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer allocator, cn_hyp_allocator ha, cn_lseg lseg, i32 ret)
+predicate (void) ChunkInstallPost(pointer chunk, integer size, pointer prev, pointer allocator, cn_hyp_allocator ha, cn_lseg lseg, integer ret)
 {
         if (is_null(prev))
         {
                 assert(!is_null(chunk));
                 take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
-                let allocator_end = (u64)ha.start + (u64)ha.size;
+                let allocator_end = (integer)ha.start + (integer)ha.size;
                 let first_chunk = {
-                        header_address: (u64)chunk,
-                        mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
-                        alloc_size: (u32) size,
-                        va_size: (u32) (allocator_end - (u64)chunk)
+                        header_address: (integer)chunk,
+                        mapped_size: (integer)PAGE_ALIGN(Cn_chunk_size(size)),
+                        alloc_size: (integer) size,
+                        va_size: (integer) (allocator_end - (integer)chunk)
                 };
                 assert(HA_post.lseg.after == Chunk_nil {});
                 assert(HA_post.lseg.chunk == first_chunk);
@@ -1246,7 +1246,7 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
                         last: member_shift<struct chunk_hdr_only>(chunk, node)
                 };
                 assert(HA_post.ha == ha_post);
-                assert(ret == 0i32);
+                assert(ret == 0);
                 take U = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size);
                 return;
         }
@@ -1264,19 +1264,19 @@ predicate (void) ChunkInstallPost(pointer chunk, u64 size, pointer prev, pointer
 
 
                 let prev_mapped_size = P_pre.mapped_size;
-                let prev_va_size = (u32)((u64)chunk - (u64)prev);
+                let prev_va_size = (integer)((integer)chunk - (integer)prev);
                 assert(P_post == {
-                        header_address: (u64)prev,
+                        header_address: (integer)prev,
                         mapped_size: prev_va_size,
-                        alloc_size: (u32)P_pre.alloc_size,
+                        alloc_size: (integer)P_pre.alloc_size,
                         va_size: prev_va_size
                 });
 
                 let C_post = {
-                        header_address: (u64)chunk,
+                        header_address: (integer)chunk,
                         mapped_size: prev_mapped_size - P_post.mapped_size,
-                        alloc_size: (u32)size,
-                        va_size: (u32)((u64)P_pre.va_size - (u64)P_post.va_size)
+                        alloc_size: (integer)size,
+                        va_size: (integer)((integer)P_pre.va_size - (integer)P_post.va_size)
                 };
                 assert(HA_post.lseg.after == Chunk_cons {hd: C_post, tl: lseg.after});
 
@@ -1293,34 +1293,34 @@ void LemmaSplitAndNewChunk(
 )
 /*@
 requires
-        let size = (u64)size1 + (u64)size2;
+        let size = (integer)size1 + (integer)size2;
         take X = Cn_char_array(p, size);
-        let owned_by_ha = array_shift<byte>(p, (u64)size1);
+        let owned_by_ha = array_shift<byte>(p, (integer)size1);
 ensures
-        take X1 = Cn_char_array(p, (u64)size1);
-        take X2 = Cn_char_array(owned_by_ha, (u64)size2);
+        take X1 = Cn_char_array(p, (integer)size1);
+        take X2 = Cn_char_array(owned_by_ha, (integer)size2);
 @*/
 {
         /*@
-        unpack Cn_char_array(p, (u64)size1 + (u64)size2);
+        unpack Cn_char_array(p, (integer)size1 + (integer)size2);
         @*/
         unsigned long i;
         for (i = 0; i < (unsigned long)size2; i++)
         /*@
         inv
-                take L0 = Cn_char_array(p, (u64)size1);
-                take L1 = Cn_char_array_with_offset(p, (u64)size2 - i, (u64)size1 + (u64)i);
+                take L0 = Cn_char_array(p, (integer)size1);
+                take L1 = Cn_char_array_with_offset(p, (integer)size2 - i, (integer)size1 + (integer)i);
                 take L2 = Cn_char_array(owned_by_ha, i);
                 {p} unchanged;
                 {size1} unchanged;
                 {size2} unchanged;
-                i <= (u64)size2;
+                i <= (integer)size2;
         @*/
         {
                 /*@
                   unpack Cn_char_array(owned_by_ha, i);
                   focus W<byte>, i;
-                  focus W<byte>, ((u64)size1 + i);
+                  focus W<byte>, ((integer)size1 + i);
                 @*/
         }
 }
@@ -1348,11 +1348,11 @@ void LemmaCreateNewChunkAux(char *chunk_data, size_t size1, size_t size, size_t 
 requires
     !is_null(chunk_data);
     // no overflow
-    size1 <= (u64)MAXu32();
-    size <=  (u64)MAXu32();
-    size2 <= (u64)MAXu32();
+    size1 <= 4294967295;
+    size <=  4294967295;
+    size2 <= 4294967295;
     let size_all = size1 + size + size2 + Cn_chunk_hdr_size();
-    size_all <= (u64)MAXu32();
+    size_all <= 4294967295;
     take C_pre = Cn_char_array(chunk_data, size_all);
 
     let chunk_hdr = array_shift<byte>(chunk_data, size1);
@@ -1405,8 +1405,8 @@ requires
         let P_pre = HA_pre.lseg.chunk;
 
 
-        let allocator_end = (u64)HA_pre.ha.start + (u64)HA_pre.ha.size;
-        HA_pre.ha.start <= (u64)prev && (u64)prev < allocator_end;
+        let allocator_end = (integer)HA_pre.ha.start + (integer)HA_pre.ha.size;
+        HA_pre.ha.start <= (integer)prev && (integer)prev < allocator_end;
 
         // order
         // (i) prev <= prev_alloc_end
@@ -1415,33 +1415,33 @@ requires
         // (iv)      <= prev_old_mapped_size
         // (v)       <= prev old_va_size
         // (vi)      <= allocator_end
-        let prev_alloc_end = (u64)prev + (u64)P_pre.alloc_size + Cn_chunk_hdr_size();
-        let chunk_alloc_end = (u64)chunk + size + Cn_chunk_hdr_size();
-        let prev_old_mapped_size = (u64)prev + (u64)P_pre.mapped_size;
-        let prev_old_va_size = (u64)prev + (u64)P_pre.va_size;
-        (u64)prev <= (u64)prev + Cn_chunk_hdr_size(); // (i)
-        (u64)prev + Cn_chunk_hdr_size() <= prev_alloc_end; // (i')
-        prev_alloc_end <= (u64)chunk; // (ii)
-        (u64)chunk < (u64)chunk + Cn_chunk_hdr_size(); // (iii')
-        (u64)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end; // (iii'')
+        let prev_alloc_end = (integer)prev + (integer)P_pre.alloc_size + Cn_chunk_hdr_size();
+        let chunk_alloc_end = (integer)chunk + size + Cn_chunk_hdr_size();
+        let prev_old_mapped_size = (integer)prev + (integer)P_pre.mapped_size;
+        let prev_old_va_size = (integer)prev + (integer)P_pre.va_size;
+        (integer)prev <= (integer)prev + Cn_chunk_hdr_size(); // (i)
+        (integer)prev + Cn_chunk_hdr_size() <= prev_alloc_end; // (i')
+        prev_alloc_end <= (integer)chunk; // (ii)
+        (integer)chunk < (integer)chunk + Cn_chunk_hdr_size(); // (iii')
+        (integer)chunk + Cn_chunk_hdr_size() <= chunk_alloc_end; // (iii'')
         chunk_alloc_end <= prev_old_mapped_size; // (iv)
         prev_old_mapped_size <= prev_old_va_size; // (v)
         prev_old_va_size <= allocator_end; // (vi)
 ensures
-        take HA_post = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_some{value: (u64)size}, false);
+        take HA_post = Cn_hyp_allocator_focusing_on_for_install(allocator, prev, chunk, Option_u64_some{value: (integer)size}, false);
         HA_post.ha == HA_pre.ha;
         HA_post.lseg.before == HA_pre.lseg.before;
         HA_post.lseg.after == HA_pre.lseg.after;
         HA_post.lseg.chunk.header_address == HA_pre.lseg.chunk.header_address;
         HA_post.lseg.chunk.mapped_size == HA_pre.lseg.chunk.mapped_size;
         HA_post.lseg.chunk.alloc_size == HA_pre.lseg.chunk.alloc_size;
-        (u64)HA_post.lseg.chunk.va_size + (u64)HA_post.va_size == (u64)HA_pre.lseg.chunk.va_size;
+        (integer)HA_post.lseg.chunk.va_size + (integer)HA_post.va_size == (integer)HA_pre.lseg.chunk.va_size;
 
          take chunk_hdr_only_u = W<struct chunk_hdr_only>(chunk);
-        take X = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size() + (u64)size), (u64)HA_post.va_size - (u64)size - Cn_chunk_hdr_size());
+        take X = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size() + (integer)size), (integer)HA_post.va_size - (integer)size - Cn_chunk_hdr_size());
 
 
-        take V = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), (u64)size);
+        take V = Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), (integer)size);
 @*/
 {
         /*@
@@ -1473,7 +1473,7 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
     requires
         take Pre = ChunkInstallPre(chunk, size, prev, allocator);
     ensures
-        return == 0i32; // we can say it always succeeds!
+        return == 0; // we can say it always succeeds!
         take Post = ChunkInstallPost(chunk, size, prev, allocator, Pre.ha, Pre.lseg, return);
 @*/
 
@@ -1488,7 +1488,7 @@ static int chunk_install(struct chunk_hdr *chunk, size_t size,
                 LemmaCreateNewChunkAux((char *)allocator->start, 0, size, (u64)allocator->size - size - chunk_hdr_size());
 #endif
                 // Drop the garbage due to the lemma
-                /*@ unpack Cn_char_array((pointer)allocator->start, 0u64); @*/
+                /*@ unpack Cn_char_array((pointer)allocator->start, 0); @*/
                 INIT_LIST_HEAD(&chunk->node);
                 /*@ unpack Cn_chunk_hdrs(member_shift<struct hyp_allocator>(allocator, chunks)->next, member_shift<struct hyp_allocator>(allocator, chunks), Pre.ha.last, Cn_hyp_allocator_core(Pre.ha));
                 derive_constraints(
@@ -1549,10 +1549,10 @@ requires
             Chunk_nil {} => {
                 // dummy
                 {
-                    header_address: 0u64,
-                    va_size: 0u32,
-                    alloc_size: 0u32,
-                    mapped_size: 0u32
+                    header_address: 0,
+                    va_size: 0,
+                    alloc_size: 0,
+                    mapped_size: 0
                 }
             }
             Chunk_cons {hd:hdr, tl:tl} => {
@@ -1570,11 +1570,11 @@ requires
         };
         let C = HA_pre.lseg.chunk;
 ensures
-        let cond1 = (C.alloc_size != 0u32 || prev.alloc_size != 0u32);
-        cond1 implies return != 0i32;
-        !cond1 implies return == 0i32;
+        let cond1 = (C.alloc_size != 0 || prev.alloc_size != 0);
+        cond1 implies return != 0;
+        !cond1 implies return == 0;
 
-        let cond2 = prev.header_address + (u64)prev.mapped_size != (u64)chunk;
+        let cond2 = prev.header_address + (integer)prev.mapped_size != (integer)chunk;
         let merge_able = !cond1 && !cond2;
 
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, (pointer)prev.header_address);
@@ -1617,9 +1617,9 @@ ensures
         return 0;
 }
 /*@
-function (u64)Cn_chunk_needs_mapping(u64 mapped_size, u64 size)
+function (integer)Cn_chunk_needs_mapping(integer mapped_size, integer size)
 {
-        (Cn_chunk_size(size) <= mapped_size) ? 0u64 : PAGE_ALIGN(Cn_chunk_size(size) - mapped_size)
+        (Cn_chunk_size(size) <= mapped_size) ? 0 : PAGE_ALIGN(Cn_chunk_size(size) - mapped_size)
 }
 @*/
 
@@ -1630,7 +1630,7 @@ static size_t chunk_needs_mapping(struct chunk_hdr *chunk, size_t size)
         ensures
                 take C_post = Own_chunk_hdr(chunk);
                 C_pre == C_post;
-                return == Cn_chunk_needs_mapping((u64)C_post.mapped_size, size);
+                return == Cn_chunk_needs_mapping((integer)C_post.mapped_size, size);
 @*/
 {
         // size_t mapping_missing, mapping_needs = chunk_size(size);
@@ -1716,13 +1716,13 @@ static int chunk_inc_map(struct chunk_hdr *chunk, unsigned long map_size,
                 C_post.va_size == C_pre.va_size;
                 C_post.header_address == C_pre.header_address;
 
-                let cond = (u64)C_pre.va_size - (u64)C_pre.mapped_size < map_size;
+                let cond = (integer)C_pre.va_size - (integer)C_pre.mapped_size < map_size;
                 cond implies return == -EINVAL();
 
-                (return == 0i32) implies
-                C_post.mapped_size == (C_pre.mapped_size + (u32)map_size);
+                (return == 0) implies
+                C_post.mapped_size == (C_pre.mapped_size + (integer)map_size);
 
-                (return != 0i32) implies
+                (return != 0) implies
                 C_post.mapped_size == C_pre.mapped_size;
 @*/
 {
@@ -1812,16 +1812,16 @@ static size_t chunk_dec_map(struct chunk_hdr *chunk,
 }
 
 /*@
-function (u64) Cn_chunk_addr_fixup(u64 addr)
+function (integer) Cn_chunk_addr_fixup(integer addr)
 {
 
-        // let min_chunk_size = Cn_chunk_size(0u64);
+        // let min_chunk_size = Cn_chunk_size(0);
         // let page = PAGE_ALIGN_DOWN(addr);
         // let delta = addr - page;
-        // let res = delta == 0u64 ? addr :
+        // let res = delta == 0 ? addr :
         //         (delta < min_chunk_size ? (page + min_chunk_size) : addr);
-        (addr - PAGE_ALIGN_DOWN(addr)) == 0u64 ? addr :
-                ((addr - PAGE_ALIGN_DOWN(addr)) < Cn_chunk_size(0u64) ? (PAGE_ALIGN_DOWN(addr) + Cn_chunk_size(0u64)) : addr)
+        (addr - PAGE_ALIGN_DOWN(addr)) == 0 ? addr :
+                ((addr - PAGE_ALIGN_DOWN(addr)) < Cn_chunk_size(0) ? (PAGE_ALIGN_DOWN(addr) + Cn_chunk_size(0)) : addr)
 }
 @*/
 
@@ -1851,13 +1851,13 @@ static unsigned long chunk_addr_fixup(unsigned long addr)
 }
 
 /*@
-function (boolean) Cn_chunk_can_split(cn_lseg lseg, u64 addr)
+function (boolean) Cn_chunk_can_split(cn_lseg lseg, integer addr)
 {
         match (lseg.after) {
                 // last chunk
                 Chunk_nil {} => { false }
                 Chunk_cons {hd:hdr, tl:tl} => {
-                        ((addr + Cn_chunk_size(0u64)) < lseg.chunk.header_address + (u64)lseg.chunk.va_size)
+                        ((addr + Cn_chunk_size(0)) < lseg.chunk.header_address + (integer)lseg.chunk.va_size)
                 }
         }
 }
@@ -1881,7 +1881,7 @@ static bool chunk_can_split(struct chunk_hdr *chunk, unsigned long addr,
         ensures
                 take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
                 HA_post == HA_pre;
-                return == (Cn_chunk_can_split(HA_pre.lseg, addr) ? 1u8 : 0u8);
+                return == (Cn_chunk_can_split(HA_pre.lseg, addr) ? 1 : 0);
 @*/
 {
         unsigned long chunk_end;
@@ -1917,9 +1917,9 @@ function (boolean) chunk_recycle_aux(datatype cn_chunk_hdrs pre, datatype cn_chu
 @*/
 
 /*@
-function (u64) Cn_expected_mapping(pointer chunk, u64 size)
+function (integer) Cn_expected_mapping(pointer chunk, integer size)
 {
-        Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size)) - (u64)chunk
+        Cn_chunk_addr_fixup((integer)chunk + Cn_chunk_size(size)) - (integer)chunk
 }
 @*/
 
@@ -1930,15 +1930,15 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
     requires
         take HA_pre = Cn_hyp_allocator_focusing_on(allocator, chunk);
         let C_pre = HA_pre.lseg.chunk;
-        size > 0u64 && size < (u64)HA_pre.ha.size;
-        size & 0x7u64 == 0u64;
-        C_pre.alloc_size == 0u32;
+        size > 0 && size < (integer)HA_pre.ha.size;
+        size % 8 == 0;
+        C_pre.alloc_size == 0;
 
         // suffix '_' is to avoid the name conflict due to Fulminate
-        let new_chunk_addr_ = Cn_chunk_addr_fixup((u64)chunk + Cn_chunk_size(size));
-        new_chunk_addr_ >= (u64)chunk;
-        let chunk_va_size_post = new_chunk_addr_ - (u64)chunk;
-        let new_chunk_va_size = (u32)((u64)C_pre.va_size - chunk_va_size_post);
+        let new_chunk_addr_ = Cn_chunk_addr_fixup((integer)chunk + Cn_chunk_size(size));
+        new_chunk_addr_ >= (integer)chunk;
+        let chunk_va_size_post = new_chunk_addr_ - (integer)chunk;
+        let new_chunk_va_size = (integer)((integer)C_pre.va_size - chunk_va_size_post);
     ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
 
@@ -1948,23 +1948,23 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
         let C_post = HA_post.lseg.chunk;
         let can_split = Cn_chunk_can_split(HA_pre.lseg, new_chunk_addr_);
-        (return == 0i32 && can_split) implies
+        (return == 0 && can_split) implies
                 C_post == {
                         header_address: C_pre.header_address,
-                        mapped_size: (u32)chunk_va_size_post,
-                        alloc_size: (u32)size,
-                        va_size: (u32)chunk_va_size_post
+                        mapped_size: (integer)chunk_va_size_post,
+                        alloc_size: (integer)size,
+                        va_size: (integer)chunk_va_size_post
                 };
 
-        let tmp_mapped_size = (u64)C_pre.mapped_size + Cn_chunk_needs_mapping((u64)C_pre.mapped_size, size);
-        (return == 0i32 && !can_split) implies
+        let tmp_mapped_size = (integer)C_pre.mapped_size + Cn_chunk_needs_mapping((integer)C_pre.mapped_size, size);
+        (return == 0 && !can_split) implies
                 C_post == {
                         header_address: C_pre.header_address,
-                        mapped_size: (u32)tmp_mapped_size,
-                        alloc_size: (u32)size,
+                        mapped_size: (integer)tmp_mapped_size,
+                        alloc_size: (integer)size,
                         va_size: C_pre.va_size
                 };
-        take U = Conditional_Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size, return == 0i32);
+        take U = Conditional_Cn_char_array(array_shift<byte>(chunk, Cn_chunk_hdr_size()), size, return == 0);
 
 @*/
 {
@@ -2016,7 +2016,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 
         if (new_chunk) {
                 // /*@
-                // apply SplitAndNewChunk(original_cn_char_array, (u32)size_1, (u32)size_2, (u32)size_3);
+                // apply SplitAndNewChunk(original_cn_char_array, (integer)size_1, (integer)size_2, (integer)size_3);
                 // @*/
                 //(u64)chunk_va_size_post - (Cn_chunk_hdr_size() + size)
                 // chunk must be non null
@@ -2027,7 +2027,7 @@ static int chunk_recycle(struct chunk_hdr *chunk, size_t size,
 		    int ret = chunk_install(new_chunk, 0, chunk, allocator);
                     WARN_ON(ret);
                 /*@ split_case(is_null(chunk)); @*/
-                /*@ split_case(ret == 0i32); @*/
+                /*@ split_case(ret == 0); @*/
 		/*@ unpack ChunkInstallPost(...); @*/
 
                 // destroy the garbage here
@@ -2108,17 +2108,17 @@ unmap:
 //         }
 //
 // }
-predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, size_t size, i32 ret)
+predicate (void) SetupFirstChunk(pointer allocator, cn_hyp_allocator ha_pre, size_t size, integer ret)
 {
-    if (ret == 0i32) {
+    if (ret == 0) {
         let start = (pointer)ha_pre.start;
         take HA_post =Cn_hyp_allocator_focusing_on(allocator, start);
-        let allocator_end = (u64)HA_post.ha.start + (u64)HA_post.ha.size;
+        let allocator_end = (integer)HA_post.ha.start + (integer)HA_post.ha.size;
         let first_chunk = {
-                header_address: (u64)start,
-                mapped_size: (u32)PAGE_ALIGN(Cn_chunk_size(size)),
-                alloc_size: (u32) size,
-                va_size: (u32) (allocator_end - (u64)start)
+                header_address: (integer)start,
+                mapped_size: (integer)PAGE_ALIGN(Cn_chunk_size(size)),
+                alloc_size: (integer) size,
+                va_size: (integer) (allocator_end - (integer)start)
         };
         assert(HA_post.lseg.after == Chunk_nil {});
         assert(HA_post.lseg.chunk == first_chunk);
@@ -2152,10 +2152,10 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
     ptr_eq(a_in.ha.head, a_in.ha.first);
     size >= MIN_ALLOC();
     PAGE_ALIGN(Cn_chunk_size(size)) >= size; // no overflow
-    size & 0x7u64 == 0u64;
+    size % 8 == 0;
     ensures
     take X = SetupFirstChunk(allocator, a_in.ha, size, return);
-    PAGE_ALIGN(Cn_chunk_size(size)) > (u64)a_in.ha.size implies return != 0i32;
+    PAGE_ALIGN(Cn_chunk_size(size)) > (integer)a_in.ha.size implies return != 0;
 @*/
 {
         int ret;
@@ -2169,7 +2169,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
         /*@ split_case(a_in.hdrs==Chunk_nil{}); @*/
         /*@ split_case(is_null(NULL)); @*/
         /*CN*/int retv = chunk_install((struct chunk_hdr *)allocator->start, size, NULL, allocator);
-	/*@ unpack ChunkInstallPost((pointer)a_in.ha.start, size, NULL, allocator, a_in.ha, {before: Chunk_nil {}, after: Chunk_nil {}, chunk: {header_address: 0u64, mapped_size: 0u32, alloc_size: 0u32, va_size: 0u32} }, retv); @*/
+	/*@ unpack ChunkInstallPost((pointer)a_in.ha.start, size, NULL, allocator, a_in.ha, {before: Chunk_nil {}, after: Chunk_nil {}, chunk: {header_address: 0, mapped_size: 0, alloc_size: 0, va_size: 0} }, retv); @*/
 	/*CN*/return retv;
 }
 /*@
@@ -2177,7 +2177,7 @@ static int setup_first_chunk(struct hyp_allocator *allocator, size_t size)
 predicate [rec] (datatype cn_chunk_hdrs) Cn_chunk_hdrs_rev_alt(pointer p, pointer next, pointer first_chunk_node, cn_hyp_allocator_core ha, pointer head)
 {
         if (ptr_eq(p,head)) {
-                assert(ha.start <= ha.start + (u64)ha.size);
+                assert(ha.start <= ha.start + (integer)ha.size);
                 assert(ptr_eq(next, first_chunk_node));
                 return Chunk_nil {};
         } else {
@@ -2448,7 +2448,7 @@ void LemmaConcatCnChunkHdrsRev(struct hyp_allocator *allocator, struct chunk_hdr
 #endif
 
 /*@
-predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
+predicate (void) GetFreeChunk(pointer allocator, integer size, pointer result, {cn_hyp_allocator ha, datatype cn_chunk_hdrs hdrs} HA_in )
 {
         if (ptr_eq(result, NULL)) {
                 take HA_out = Cn_hyp_allocator(allocator);
@@ -2470,7 +2470,7 @@ predicate (void) GetFreeChunk(pointer allocator, u64 size, pointer result, {cn_h
 
 /*@
 
-predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, u64 best_available_size, u64 size)
+predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, pointer best_chunk, integer best_available_size, integer size)
 {
         // phase1: best_chunk not found yet
         // phase2: at least one best_chunk found
@@ -2491,9 +2491,9 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 assert(!is_null(BestChunk.Node.next));
                 assert(!is_null(BestChunk.Node.prev));
                 let best_chunk_node = member_shift<struct chunk_hdr>(best_chunk, node);
-                assert(BestChunk.Hdr.alloc_size == 0u32);
-                assert(Cn_chunk_size(size)  <= (u64)BestChunk.Hdr.va_size);
-                assert(best_available_size == (u64)BestChunk.Hdr.va_size);
+                assert(BestChunk.Hdr.alloc_size == 0);
+                assert(Cn_chunk_size(size)  <= (integer)BestChunk.Hdr.va_size);
+                assert(best_available_size == (integer)BestChunk.Hdr.va_size);
 
                 take hdrs1 = Cn_chunk_hdrs_rev(BestChunk.Node.prev, best_chunk_node, ha.first, ha_core);
                 take hdrs2 = Cn_chunk_hdrs_rev_alt(ha.last, ha.head, BestChunk.Node.next, ha_core, best_chunk_node);
@@ -2519,9 +2519,9 @@ predicate (cn_hyp_allocator) GetFreeChunkInv(pointer allocator, pointer chunk, p
                 take BestChunk = Cn_chunk_hdr(best_chunk, ha_core);
                 assert(!is_null(BestChunk.Node.next));
                 assert(!is_null(BestChunk.Node.prev));
-                assert(BestChunk.Hdr.alloc_size == 0u32);
-                assert(Cn_chunk_size(size) <= (u64)BestChunk.Hdr.va_size);
-                assert(best_available_size == (u64)BestChunk.Hdr.va_size);
+                assert(BestChunk.Hdr.alloc_size == 0);
+                assert(Cn_chunk_size(size) <= (integer)BestChunk.Hdr.va_size);
+                assert(best_available_size == (integer)BestChunk.Hdr.va_size);
 
                 take Chunk = Cn_chunk_hdr(chunk, ha_core);
                 assert(!is_null(Chunk.Node.next));
@@ -2897,7 +2897,7 @@ void *hyp_alloc(unsigned long size)
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
                 take U = MaybeCn_char_array(return, size);
 
-                let actual_size = cn_ALIGN(size == 0u64 ? MIN_ALLOC() : size, MIN_ALLOC());
+                let actual_size = cn_ALIGN(size == 0 ? MIN_ALLOC() : size, MIN_ALLOC());
                 take V = MaybeCn_char_array_with_offset(return, actual_size - size, size);
 @*/
 {
@@ -2943,7 +2943,7 @@ void *hyp_alloc(unsigned long size)
         if (cn_flag) {
 	        /*@ unpack FirstAllocation(...); @*/
                 ret = setup_first_chunk(allocator, size);
-		/*@ split_case(ret == 0i32); @*/
+		/*@ split_case(ret == 0); @*/
                 if (ret)
                         goto end;
 
@@ -3009,7 +3009,7 @@ void *hyp_alloc(unsigned long size)
         /*CN*/ int res_chunk_install = chunk_install(chunk, size, last_chunk, allocator);
         /*CN*/ WARN_ON(res_chunk_install);
         /*@ split_case(is_null(chunk)); @*/
-        /*@ split_case(res_chunk_install == 0i32); @*/
+        /*@ split_case(res_chunk_install == 0); @*/
 	/*@ unpack ChunkInstallPost(...); @*/
 #ifdef __CN_VERIFY
         LemmaLsegToChunkHdrs(allocator, last_chunk);
@@ -3050,7 +3050,7 @@ requires
         take HA_pre = Cn_hyp_allocator_focusing_on(&hyp_allocator,header_address);
         let C = HA_pre.lseg.chunk;
 ensures
-        return == (u64)C.alloc_size;
+        return == (integer)C.alloc_size;
         take HA_post = Cn_hyp_allocator_focusing_on(&hyp_allocator,header_address);
 @*/
 {
@@ -3091,11 +3091,11 @@ predicate ({cn_hyp_allocator ha, cn_lseg lseg}) ValidAllocatorAndAddr(pointer ha
 
 void hyp_free(void *addr)
 /*@
-        requires cn_ghost u64 size;
+        requires cn_ghost integer size;
                 take HA_pre = ValidAllocatorAndAddr(&hyp_allocator, addr);
-                size <= (u64)HA_pre.lseg.chunk.alloc_size;
-                take U = Cn_char_array(addr, (u64)size);
-                take V = Cn_char_array_with_offset(addr, (u64)HA_pre.lseg.chunk.alloc_size - size, size);
+                size <= (integer)HA_pre.lseg.chunk.alloc_size;
+                take U = Cn_char_array(addr, (integer)size);
+                take V = Cn_char_array_with_offset(addr, (integer)HA_pre.lseg.chunk.alloc_size - size, size);
         ensures
                 take HA_post = Cn_hyp_allocator(&hyp_allocator);
 @*/
@@ -3181,13 +3181,13 @@ void hyp_free_account(void *addr, struct kvm *host_kvm)
 /*@
 function (boolean) Cn_chunk_destroyable(cn_lseg lseg)
 {
-        lseg.chunk.alloc_size == 0u32
+        lseg.chunk.alloc_size == 0
         && cn_IS_ALIGNED(lseg.chunk.header_address)
         && (match (lseg.before)
         {
                 Chunk_nil {} => { lseg.after == Chunk_nil {} }
                 Chunk_cons{ hd: hdr, tl:tl } => {
-                        hdr.alloc_size == 0u32
+                        hdr.alloc_size == 0
                 }
         })
 }
@@ -3206,7 +3206,7 @@ requires
 ensures
         take HA_post = Cn_hyp_allocator_focusing_on(allocator, chunk);
         HA == HA_post;
-        (Cn_chunk_destroyable(HA.lseg) ? 1u8 : 0u8) == return;
+        (Cn_chunk_destroyable(HA.lseg) ? 1 : 0) == return;
 @*/
 {
         if (chunk_is_used(chunk))
@@ -3250,9 +3250,9 @@ ensures
         let C = HA.lseg.chunk;
         HA == HA_post;
         let start = (Cn_chunk_destroyable(HA_post.lseg) ?
-                (u64)chunk : PAGE_ALIGN((u64)chunk + Cn_chunk_size((u64)C.alloc_size)));
-        let end = PAGE_ALIGN_DOWN(C.header_address + (u64)C.mapped_size);
-        (start <= end ? end - start : 0u64) == return;
+                (integer)chunk : PAGE_ALIGN((integer)chunk + Cn_chunk_size((integer)C.alloc_size)));
+        let end = PAGE_ALIGN_DOWN(C.header_address + (integer)C.mapped_size);
+        (start <= end ? end - start : 0) == return;
 @*/
 {
         unsigned long start, end = chunk_unmapped_region(chunk);
@@ -3404,12 +3404,12 @@ int hyp_alloc_init(unsigned long size)
         accesses __hyp_vmemmap;
     requires
       // global variables
-      __io_map_base > 0u64; __io_map_base + PAGE_ALIGN(size) > __io_map_base;
-      __io_map_base & 0x7u64 == 0u64;
-      size & 0x7u64 == 0u64;
-      (u64)&hyp_allocator > 0u64;
+      __io_map_base > 0; __io_map_base + PAGE_ALIGN(size) > __io_map_base;
+      __io_map_base % 8 == 0;
+      size % 8 == 0;
+      (integer)&hyp_allocator > 0;
       take HA1 = W<struct hyp_allocator>(&hyp_allocator);
-    ensures take HA2 = MaybeHypAlloc(&hyp_allocator, return == 0i32);
+    ensures take HA2 = MaybeHypAlloc(&hyp_allocator, return == 0);
 @*/
 #endif
 {
@@ -3463,7 +3463,7 @@ requires
         take X = RW<unsigned char>(&hyp_allocator_missing_donations);
 ensures
         take Y = RW<unsigned char>(&hyp_allocator_missing_donations);
-        Y == 0u8;
+        Y == 0;
         return == X;
 @*/
 {
