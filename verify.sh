@@ -92,6 +92,7 @@ run_test() {
   fi
 
   [[ $status != "passed" ]] && exit 1
+  return 0
 }
 
 date
