@@ -192,7 +192,7 @@ cp arch/arm64/kvm/hyp/nvhe/alloc.pp.c arch/arm64/kvm/hyp/nvhe/alloc.c
 Finally, run the carver:
 ```bash
 ROOT='hyp_alloc,hyp_alloc_account,hyp_free,hyp_free_account,hyp_alloc_reclaimable,hyp_alloc_reclaim,hyp_alloc_refill,hyp_alloc_init,hyp_alloc_errno,hyp_alloc_missing_donations'
-c-tree-carve -p . -r $ROOTS arch/arm64/kvm/hyp/nvhe/alloc.c
+c-tree-carve -p . -r $ROOT arch/arm64/kvm/hyp/nvhe/alloc.c
 ```
 It will reject the source file as not being valid C. Look at the error messages
 and source locations, and correct them by hand using an editor; it should
